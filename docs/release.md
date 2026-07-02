@@ -21,7 +21,7 @@ The final `git status --short` must be empty except for intentionally ignored ge
 
 Use the CI workflow manually before tagging. The hosted run executes quick gates, the real Docker matrix, and hosted macOS Lima preflight.
 
-GitHub hosted macOS does not reliably support booting nested Lima VMs. Run the real VM apply gate locally or through the `VM E2E Apply` workflow on a self-hosted macOS runner labeled `hostshift-vm`:
+GitHub hosted macOS does not reliably support booting nested Lima VMs. Run the real VM apply gate locally or through the `VM E2E Apply` workflow on a self-hosted macOS runner labeled `hostshift-vm`. Keep that runner offline by default; see `docs/self-hosted-runner.md`.
 
 ```bash
 HOSTSHIFT_RUN_VM_E2E=1 bash tests/e2e/vm/run-vm-e2e.sh --apply
