@@ -58,25 +58,34 @@ test("release validation gates are documented", async () => {
   assert.match(validation, /vm-e2e-apply/);
 });
 
-test("release workflow cannot publish before real migration gates pass", async () => {
+test("release workflow packages only after hosted release gates pass", async () => {
   const workflow = await fs.readFile(".github/workflows/release.yml", "utf8");
   assert.match(workflow, /docker-matrix:/);
   assert.match(workflow, /HOSTSHIFT_RUN_DOCKER_MATRIX=1 make test-integration-docker/);
-  assert.match(workflow, /vm-e2e-apply:/);
-  assert.match(workflow, /HOSTSHIFT_RUN_VM_E2E=1 HOSTSHIFT_VM_LIMA_VM_TYPE=qemu bash tests\/e2e\/vm\/run-vm-e2e\.sh --apply/);
-  assert.match(workflow, /needs:\n\s+- quick-gates\n\s+- docker-matrix\n\s+- vm-e2e-apply/);
+  assert.match(workflow, /vm-e2e-preflight:/);
+  assert.match(workflow, /HOSTSHIFT_RUN_VM_E2E=1 make test-e2e-vm/);
+  assert.match(workflow, /needs:\n\s+- quick-gates\n\s+- docker-matrix\n\s+- vm-e2e-preflight/);
   assert.match(workflow, /sigstore\/cosign-installer@v3/);
   assert.match(workflow, /cosign sign-blob --yes/);
   assert.match(workflow, /gh release upload "\$GITHUB_REF_NAME" dist\/checksums\.txt\.sig dist\/checksums\.txt\.pem --clobber/);
   assert.match(workflow, /actions\/attest-build-provenance@v2/);
 });
 
-test("ci workflow uses hosted macOS compatible VM driver and uploads Lima logs", async () => {
+test("ci workflow uses hosted VM preflight and self-hosted apply gate", async () => {
   const workflow = await fs.readFile(".github/workflows/ci.yml", "utf8");
-  assert.match(workflow, /brew install lima qemu/);
-  assert.match(workflow, /HOSTSHIFT_VM_LIMA_VM_TYPE=qemu/);
+  assert.match(workflow, /vm-e2e-preflight:/);
+  assert.match(workflow, /HOSTSHIFT_RUN_VM_E2E=1 make test-e2e-vm/);
+  assert.match(workflow, /vm-e2e-apply-self-hosted:/);
+  assert.match(workflow, /runs-on: \[self-hosted, macOS\]/);
+  assert.match(workflow, /HOSTSHIFT_RUN_VM_E2E=1 bash tests\/e2e\/vm\/run-vm-e2e\.sh --apply/);
   assert.match(workflow, /Upload Lima logs on failure/);
   assert.match(workflow, /~\/\.lima\/\*\*\/ha\.stderr\.log/);
+});
+
+test("self-hosted VM apply workflow preserves the real VM release gate", async () => {
+  const workflow = await fs.readFile(".github/workflows/vm-e2e-apply.yml", "utf8");
+  assert.match(workflow, /runs-on: \[self-hosted, macOS\]/);
+  assert.match(workflow, /HOSTSHIFT_RUN_VM_E2E=1 bash tests\/e2e\/vm\/run-vm-e2e\.sh --apply/);
 });
 
 test("gitignore excludes production secrets and generated artifacts", async () => {

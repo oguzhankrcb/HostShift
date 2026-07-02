@@ -20,6 +20,8 @@ make release-snapshot
 
 VM command timeouts are controlled with `HOSTSHIFT_VM_COMMAND_TIMEOUT_MS`, `HOSTSHIFT_VM_LIMACTL_TIMEOUT_MS`, `HOSTSHIFT_VM_HOSTSHIFT_TIMEOUT_MS`, and `HOSTSHIFT_VM_SSH_TIMEOUT_MS`. These fail stuck provider, SSH, or HostShift phases explicitly instead of leaving a silent release gate.
 
+GitHub hosted macOS runners can run Lima preflight but cannot reliably boot nested Lima VMs. The real VM apply gate must run locally or on a self-hosted macOS runner through `.github/workflows/vm-e2e-apply.yml` before tagging a release.
+
 ## Source Safety Gate
 
 Every real migration-style test must prove the source remained unchanged:
@@ -78,7 +80,7 @@ Tagged releases must not publish until these workflow jobs pass:
 
 - `quick-gates`: Node tests, Go tests, build, Docker dry-run, VM dry-run, and release snapshot
 - `docker-matrix`: real Docker matrix with `HOSTSHIFT_RUN_DOCKER_MATRIX=1`
-- `vm-e2e-apply`: real Lima VM apply matrix with `HOSTSHIFT_RUN_VM_E2E=1` and `--apply`
+- `vm-e2e-preflight`: hosted macOS Lima provider preflight
 - `release`: GoReleaser packaging, keyless checksum signing, and artifact provenance attestation
 
-Manual `workflow_dispatch` runs produce a snapshot package after the same gates. Tag pushes produce the public GitHub release.
+Manual `workflow_dispatch` runs produce a snapshot package after the same hosted gates. Tag pushes produce the public GitHub release. The release checklist still requires a separate successful local or self-hosted `VM E2E Apply` run for the real VM gate.

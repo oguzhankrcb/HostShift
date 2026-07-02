@@ -43,9 +43,9 @@ jobs:
       - run: make build
       - run: HOSTSHIFT_RUN_DOCKER_MATRIX=1 make test-integration-docker
 
-  vm-e2e-apply:
+  vm-e2e-preflight:
     runs-on: macos-15
-    timeout-minutes: 180
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -54,23 +54,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - run: brew install lima qemu
+      - run: brew install lima
       - run: make build
-      - run: HOSTSHIFT_RUN_VM_E2E=1 HOSTSHIFT_VM_LIMA_VM_TYPE=qemu bash tests/e2e/vm/run-vm-e2e.sh --apply
-      - name: Upload Lima logs on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: lima-vm-e2e-logs
-          path: |
-            ~/.lima/**/ha.stderr.log
-            ~/.lima/**/serial*.log
+      - run: HOSTSHIFT_RUN_VM_E2E=1 make test-e2e-vm
 
   release:
     needs:
       - quick-gates
       - docker-matrix
-      - vm-e2e-apply
+      - vm-e2e-preflight
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

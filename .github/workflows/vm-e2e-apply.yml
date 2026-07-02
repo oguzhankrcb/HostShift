@@ -1,0 +1,27 @@
+name: VM E2E Apply
+
+on:
+  workflow_dispatch:
+
+jobs:
+  vm-e2e-apply:
+    runs-on: [self-hosted, macOS]
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: make build
+      - run: HOSTSHIFT_RUN_VM_E2E=1 bash tests/e2e/vm/run-vm-e2e.sh --apply
+      - name: Upload Lima logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lima-vm-e2e-logs
+          path: |
+            ~/.lima/**/ha.stderr.log
+            ~/.lima/**/serial*.log

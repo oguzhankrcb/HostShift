@@ -19,7 +19,15 @@ The final `git status --short` must be empty except for intentionally ignored ge
 
 ## GitHub Candidate
 
-Use the Release workflow manually before tagging. The manual run executes the same real Docker and VM gates, then creates snapshot artifacts with provenance attestation.
+Use the CI workflow manually before tagging. The hosted run executes quick gates, the real Docker matrix, and hosted macOS Lima preflight.
+
+GitHub hosted macOS does not reliably support booting nested Lima VMs. Run the real VM apply gate locally or through the `VM E2E Apply` workflow on a self-hosted macOS runner:
+
+```bash
+HOSTSHIFT_RUN_VM_E2E=1 bash tests/e2e/vm/run-vm-e2e.sh --apply
+```
+
+Only tag a release after both the hosted CI candidate and the real VM apply gate pass.
 
 ## Public Release
 
@@ -34,7 +42,8 @@ The tag-triggered Release workflow publishes GoReleaser artifacts only after:
 
 - quick unit and build gates pass
 - the real Docker migration matrix passes
-- the real Lima VM apply matrix passes
+- hosted Lima preflight passes
+- a separate local or self-hosted Lima VM apply matrix has passed
 - release artifacts are checksummed, keyless-signed, and attested
 
 Do not publish a release if any source immutability check, checksum check, database parity check, firewall check, systemd check, or post-reboot verification fails.
