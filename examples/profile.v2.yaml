@@ -1,0 +1,59 @@
+schemaVersion: 2
+name: example-v2
+source:
+  ssh: old-server
+target:
+  ssh: new-server
+sourcePolicy: strict-read-only
+platforms:
+  source: ubuntu:24.04
+  target: debian:13
+firewall:
+  enabled: true
+  enable: true
+  rules:
+    - from: 172.17.0.0/16
+      port: 3306
+      proto: tcp
+sshd:
+  settings:
+    ClientAliveInterval: 120
+    ClientAliveCountMax: 720
+mysql:
+  settings:
+    bindAddress: 0.0.0.0
+    mysqlxBindAddress: 127.0.0.1
+workloads:
+  - type: docker-compose
+    name: example
+    data:
+      workingDir: /srv/example
+      configFile: /srv/example/docker-compose.yml
+  - type: file-set
+    name: example-files
+    data:
+      paths:
+        - /srv/example
+        - /etc/nginx
+      targetPath: /
+  - type: docker-standalone
+    name: portfolio
+    data:
+      image: portfolio:latest
+  - type: mysql
+    name: example
+    data:
+      sourcePasswordEnv: SRC_MYSQL_PWD
+      targetPasswordEnv: DST_MYSQL_PWD
+checks:
+  - type: http
+    name: homepage
+    data:
+      url: http://127.0.0.1/
+      hostHeader: example.com
+      timeoutSeconds: 10
+  - type: laravelDatabase
+    name: Laravel DB
+    data:
+      container: example-app
+approved: false

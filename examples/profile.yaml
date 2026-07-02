@@ -1,0 +1,147 @@
+{
+  "schemaVersion": 1,
+  "name": "example",
+  "source": {
+    "ssh": "old-server",
+    "policy": "strict-read-only"
+  },
+  "target": {
+    "ssh": "new-server"
+  },
+  "targetPolicy": {
+    "allowedUbuntuVersions": ["24.04", "25.10", "26.04"],
+    "preferredUbuntuVersions": ["24.04", "26.04"],
+    "requiredArchitecture": "x86_64"
+  },
+  "packages": ["nginx", "mysql-client"],
+  "services": [
+    { "name": "nginx", "enabled": true }
+  ],
+  "firewall": {
+    "enabled": true,
+    "enable": true,
+    "rules": [
+      { "from": "0.0.0.0/0", "port": 22, "proto": "tcp", "comment": "SSH access" },
+      { "from": "::/0", "port": 22, "proto": "tcp", "comment": "SSH access IPv6" },
+      { "from": "0.0.0.0/0", "port": 80, "proto": "tcp", "comment": "HTTP access" },
+      { "from": "::/0", "port": 80, "proto": "tcp", "comment": "HTTP access IPv6" },
+      { "from": "0.0.0.0/0", "port": 443, "proto": "tcp", "comment": "HTTPS access" },
+      { "from": "::/0", "port": 443, "proto": "tcp", "comment": "HTTPS access IPv6" },
+      { "from": "172.21.0.0/16", "port": 3306, "proto": "tcp", "comment": "Docker bridge MySQL access" },
+      { "from": "172.20.0.0/16", "port": 3306, "proto": "tcp", "comment": "Docker bridge MySQL access" },
+      { "from": "172.19.0.0/16", "port": 3306, "proto": "tcp", "comment": "Docker bridge MySQL access" },
+      { "from": "172.18.0.0/16", "port": 3306, "proto": "tcp", "comment": "Docker bridge MySQL access" },
+      { "from": "127.0.0.1", "port": 3306, "proto": "tcp", "comment": "Local MySQL access" }
+    ]
+  },
+  "composeProjects": [
+    {
+      "name": "example",
+      "workingDir": "/srv/example",
+      "configFile": "/srv/example/docker-compose.yml"
+    }
+  ],
+  "standaloneContainers": [
+    {
+      "name": "portfolio",
+      "image": "portfolio:latest",
+      "restartPolicy": "always",
+      "portBindings": {
+        "3000/tcp": [
+          { "HostIp": "", "HostPort": "3000" }
+        ]
+      },
+      "safeEnvironment": {
+        "NODE_ENV": "production",
+        "PORT": "3000",
+        "HOSTNAME": "0.0.0.0"
+      },
+      "secretEnvironmentKeys": []
+    }
+  ],
+  "containerDatabases": [
+    {
+      "engine": "mysql",
+      "sourceContainer": "example-db",
+      "targetContainer": "example-db",
+      "passwordEnv": "MYSQL_ROOT_PASSWORD",
+      "databaseEnv": "MYSQL_DATABASE",
+      "targetCompose": {
+        "workingDir": "/srv/example",
+        "configFile": "/srv/example/docker-compose.yml",
+        "service": "db"
+      }
+    }
+  ],
+  "containerDataRisks": [
+    {
+      "volume": "example_mysql_data",
+      "container": "example-db",
+      "image": "mysql:8",
+      "destination": "/var/lib/mysql",
+      "project": "example",
+      "service": "db"
+    }
+  ],
+  "volumePolicies": [
+    { "volume": "example_mysql_data", "strategy": "container-database" }
+  ],
+  "sshd": {
+    "settings": {
+      "ClientAliveInterval": 120,
+      "ClientAliveCountMax": 720
+    }
+  },
+  "mysql": {
+    "settings": {
+      "bindAddress": "172.17.0.1",
+      "mysqlxBindAddress": "127.0.0.1"
+    }
+  },
+  "fileSets": [
+    {
+      "name": "application",
+      "paths": ["/srv/example"],
+      "targetPath": "/"
+    }
+  ],
+  "databases": [
+    {
+      "engine": "mysql",
+      "name": "example"
+    }
+  ],
+  "healthChecks": [
+    {
+      "type": "http",
+      "name": "homepage",
+      "url": "http://203.0.113.10/",
+      "hostHeader": "example.com",
+      "timeoutSeconds": 10
+    }
+  ],
+  "applicationChecks": [
+    {
+      "type": "laravelDatabase",
+      "name": "example Laravel DB",
+      "container": "example-app"
+    }
+  ],
+  "excludes": [
+    "/etc/machine-id",
+    "/var/lib/dbus/machine-id",
+    "/etc/ssh/ssh_host_*",
+    "/etc/netplan",
+    "/var/lib/cloud",
+    "/etc/fstab",
+    "/boot",
+    "/proc",
+    "/sys",
+    "/dev",
+    "/run",
+    "/tmp",
+    "/var/tmp",
+    "/var/lib/docker"
+  ],
+  "approved": false
+}

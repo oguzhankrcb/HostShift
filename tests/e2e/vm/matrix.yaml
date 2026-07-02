@@ -1,0 +1,60 @@
+{
+  "providers": {
+    "default": "lima",
+    "lima": {
+      "requiredBinaries": ["limactl"],
+      "basePackages": [
+        "ca-certificates",
+        "curl",
+        "nftables",
+        "openssh-server",
+        "rsync",
+        "sudo",
+        "tar"
+      ]
+    }
+  },
+  "platforms": {
+    "ubuntu22": {
+      "family": "ubuntu",
+      "release": "22.04",
+      "providerImageRef": "ubuntu-22.04",
+      "templateUrl": "template:ubuntu-22.04"
+    },
+    "ubuntu24": {
+      "family": "ubuntu",
+      "release": "24.04",
+      "providerImageRef": "ubuntu-24.04",
+      "templateUrl": "template:ubuntu-24.04"
+    },
+    "ubuntu25": {
+      "family": "ubuntu",
+      "release": "25.10",
+      "providerImageRef": "ubuntu-25.10",
+      "templateUrl": "template:ubuntu-25.10"
+    },
+    "debian12": {
+      "family": "debian",
+      "release": "12",
+      "providerImageRef": "debian-12",
+      "templateUrl": "template:debian-12"
+    },
+    "debian13": {
+      "family": "debian",
+      "release": "13",
+      "providerImageRef": "debian-13",
+      "templateUrl": "template:debian-13"
+    }
+  },
+  "pairs": [
+    { "source": "ubuntu22", "target": "ubuntu22" },
+    { "source": "ubuntu22", "target": "ubuntu24" },
+    { "source": "ubuntu22", "target": "ubuntu25" },
+    { "source": "ubuntu22", "target": "debian12" },
+    { "source": "debian12", "target": "ubuntu22" },
+    { "source": "debian12", "target": "ubuntu24" },
+    { "source": "debian12", "target": "ubuntu25" },
+    { "source": "debian12", "target": "debian12" },
+    { "source": "debian12", "target": "debian13" }
+  ]
+}

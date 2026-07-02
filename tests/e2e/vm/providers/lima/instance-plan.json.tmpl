@@ -1,0 +1,29 @@
+{
+  "provider": "lima",
+  "instanceName": "{{INSTANCE_NAME}}",
+  "role": "{{ROLE}}",
+  "platform": {
+    "key": "{{PLATFORM_KEY}}",
+    "family": "{{PLATFORM_FAMILY}}",
+    "release": "{{PLATFORM_RELEASE}}",
+    "providerImageRef": "{{PLATFORM_IMAGE_REF}}",
+    "templateUrl": "{{PLATFORM_TEMPLATE_URL}}"
+  },
+  "ssh": {
+    "alias": "{{SSH_ALIAS}}",
+    "user": "root",
+    "localPort": "{{SSH_LOCAL_PORT}}"
+  },
+  "mounts": [
+    {
+      "hostPath": "{{REPO_ROOT}}",
+      "guestPath": "/mnt/hostshift",
+      "writable": true
+    }
+  ],
+  "fixtures": {
+    "commonBootstrapScript": "{{COMMON_BOOTSTRAP_SCRIPT}}",
+    "roleBootstrapScript": "{{ROLE_BOOTSTRAP_SCRIPT}}"
+  },
+  "sourcePolicy": "{{SOURCE_POLICY}}"
+}

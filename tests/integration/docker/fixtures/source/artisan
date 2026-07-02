@@ -1,0 +1,56 @@
+<?php
+
+declare(strict_types=1);
+
+function loadEnv(string $path): array
+{
+    $values = [];
+    foreach (file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
+        $trimmed = trim($line);
+        if ($trimmed === '' || str_starts_with($trimmed, '#')) {
+            continue;
+        }
+        [$key, $value] = array_pad(explode('=', $trimmed, 2), 2, '');
+        $values[$key] = $value;
+    }
+    return $values;
+}
+
+if (($argv[1] ?? '') !== 'tinker') {
+    fwrite(STDERR, "unsupported artisan command\n");
+    exit(2);
+}
+
+$execute = null;
+foreach (array_slice($argv, 2) as $arg) {
+    if (str_starts_with($arg, '--execute=')) {
+        $execute = substr($arg, 10);
+        break;
+    }
+}
+
+if ($execute === null || !str_contains($execute, 'getPdo()') || !str_contains($execute, 'hostshift-db-ok')) {
+    fwrite(STDERR, "unsupported tinker expression\n");
+    exit(2);
+}
+
+$env = loadEnv('/srv/app/.env');
+if (($env['DB_CONNECTION'] ?? '') !== 'mysql') {
+    fwrite(STDERR, "fixture expects mysql connection\n");
+    exit(2);
+}
+
+$socket = $env['DB_SOCKET'] ?? '/run/mysqld/mysqld.sock';
+$database = $env['DB_DATABASE'] ?? 'fixturedb';
+$username = $env['DB_USERNAME'] ?? 'root';
+$password = $env['DB_PASSWORD'] ?? '';
+
+$pdo = new PDO(
+    sprintf('mysql:unix_socket=%s;dbname=%s', $socket, $database),
+    $username,
+    $password,
+    [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+);
+$pdo->query('SELECT 1')->fetchColumn();
+
+echo "hostshift-db-ok\n";

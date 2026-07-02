@@ -1,0 +1,7 @@
+interface:
+  display_name: "Migrate Server"
+  short_description: "Migrate Linux servers without changing the source"
+  default_prompt: "Use $migrate-server to build a safe HostShift migration plan for my server."
+
+policy:
+  allow_implicit_invocation: true

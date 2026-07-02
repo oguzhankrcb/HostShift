@@ -1,0 +1,17 @@
+services:
+  source:
+    build:
+      context: fixtures/source
+      args:
+        BASE_IMAGE: ${SOURCE_IMAGE}
+        SSH_PUBLIC_KEY: ${SSH_PUBLIC_KEY}
+    ports:
+      - "2222"
+  target:
+    build:
+      context: fixtures/target
+      args:
+        BASE_IMAGE: ${TARGET_IMAGE}
+        SSH_PUBLIC_KEY: ${SSH_PUBLIC_KEY}
+    ports:
+      - "2222"

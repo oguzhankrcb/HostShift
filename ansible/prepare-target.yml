@@ -1,0 +1,32 @@
+---
+- name: Prepare migration target
+  hosts: target
+  become: true
+  gather_facts: true
+  vars:
+    migration_packages: []
+    migration_users: []
+  pre_tasks:
+    - name: Require supported Debian-family target
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution in ["Ubuntu", "Debian"]
+          - ansible_architecture in ["x86_64", "aarch64"]
+        fail_msg: "Target must be Ubuntu or Debian on x86_64/aarch64. Release support is enforced by HostShift planning."
+  tasks:
+    - name: Install approved packages
+      ansible.builtin.apt:
+        name: "{{ migration_packages }}"
+        state: present
+        update_cache: true
+      when: migration_packages | length > 0
+
+    - name: Create approved application users
+      ansible.builtin.user:
+        name: "{{ item.name }}"
+        uid: "{{ item.uid | default(omit) }}"
+        group: "{{ item.group | default(omit) }}"
+        shell: "{{ item.shell | default('/usr/sbin/nologin') }}"
+        create_home: "{{ item.create_home | default(false) }}"
+        state: present
+      loop: "{{ migration_users }}"

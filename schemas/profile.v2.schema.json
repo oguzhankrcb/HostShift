@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hostshift.dev/schemas/profile.v2.schema.json",
+  "title": "HostShift Profile v2",
+  "type": "object",
+  "required": ["schemaVersion", "name", "source", "target", "sourcePolicy", "approved"],
+  "additionalProperties": true,
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "name": { "type": "string", "pattern": "^[A-Za-z0-9_-]+$" },
+    "sourcePolicy": { "const": "strict-read-only" },
+    "source": {
+      "type": "object",
+      "required": ["ssh"],
+      "properties": {
+        "ssh": { "type": "string", "pattern": "^[A-Za-z0-9_.@:-]+$" }
+      }
+    },
+    "target": {
+      "type": "object",
+      "properties": {
+        "ssh": { "type": "string", "pattern": "^[A-Za-z0-9_.@:-]*$" }
+      }
+    },
+    "platforms": {
+      "type": "object",
+      "properties": {
+        "source": { "type": "string", "pattern": "^(ubuntu|debian):[A-Za-z0-9.]+$" },
+        "target": { "type": "string", "pattern": "^(ubuntu|debian):[A-Za-z0-9.]+$" }
+      }
+    },
+    "firewall": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "enable": { "type": "boolean" },
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["from", "port", "proto"],
+            "properties": {
+              "from": {
+                "type": "string",
+                "description": "IPv4/IPv6 address or CIDR prefix allowed by UFW on the target."
+              },
+              "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+              "proto": { "enum": ["tcp", "udp"] }
+            }
+          }
+        }
+      }
+    },
+    "sshd": {
+      "type": "object",
+      "properties": {
+        "settings": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "ClientAliveInterval": { "type": "integer", "minimum": 0, "maximum": 86400 },
+            "ClientAliveCountMax": { "type": "integer", "minimum": 0, "maximum": 86400 }
+          }
+        }
+      }
+    },
+    "mysql": {
+      "type": "object",
+      "properties": {
+        "settings": {
+          "type": "object",
+          "properties": {
+            "bindAddress": { "type": "string", "description": "Target MySQL bind-address IP." },
+            "mysqlxBindAddress": { "type": "string", "description": "Target MySQL X Plugin bind address IP." }
+          }
+        }
+      }
+    },
+    "workloads": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "name"],
+        "properties": {
+          "type": { "type": "string" },
+          "name": { "type": "string" },
+          "data": {
+            "type": ["object", "array", "string", "number", "boolean", "null"],
+            "properties": {
+              "workingDir": { "type": "string", "description": "Absolute target working directory for Docker Compose workloads." },
+              "configFile": { "type": "string", "description": "Absolute Docker Compose config file path." },
+              "paths": { "type": "array", "items": { "type": "string" }, "description": "Absolute source paths for file-set tar streaming." },
+              "targetPath": { "type": "string", "description": "Absolute target extraction path for file-set tar streaming." },
+              "image": { "type": "string", "description": "Standalone Docker image reference to stream from source to target." },
+              "sourcePasswordEnv": { "type": "string", "pattern": "^[A-Z_][A-Z0-9_]*$", "description": "Source-side environment variable name containing a database password." },
+              "targetPasswordEnv": { "type": "string", "pattern": "^[A-Z_][A-Z0-9_]*$", "description": "Target-side environment variable name containing a database password." }
+            }
+          }
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "type": { "enum": ["http", "laravelDatabase", "fileExists", "fileContains", "mysqlScalar", "postgresScalar", "serviceActive", "ufwRule", "nftRule", "nginxConfig"] },
+          "name": { "type": "string" },
+          "data": {
+            "type": "object",
+            "properties": {
+              "url": { "type": "string", "pattern": "^https?://" },
+              "hostHeader": { "type": "string", "pattern": "^[A-Za-z0-9.-]+(:[0-9]{1,5})?$" },
+              "timeoutSeconds": { "type": "integer", "minimum": 1, "maximum": 300 },
+              "container": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$" },
+              "path": { "type": "string", "description": "Absolute target path for file checks." },
+              "contains": { "type": "string", "description": "Literal string expected inside a target file." },
+              "database": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+$" },
+              "query": { "type": "string", "description": "Single SELECT statement for database scalar checks." },
+              "expected": { "type": "string", "description": "Expected single scalar result." },
+              "service": { "type": "string", "pattern": "^[A-Za-z0-9_.@-]+$" },
+              "from": { "type": "string", "description": "IPv4/IPv6 address or CIDR prefix expected in a UFW rule." },
+              "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+              "proto": { "enum": ["tcp", "udp"] },
+              "family": { "enum": ["inet", "ip", "ip6"] },
+              "table": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+$" },
+              "chain": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+$" }
+            }
+          }
+        }
+      }
+    },
+    "approved": { "type": "boolean" }
+  }
+}
