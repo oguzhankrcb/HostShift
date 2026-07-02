@@ -54,7 +54,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - run: brew install lima
+      - run: brew install lima qemu
       - run: make build
       - run: HOSTSHIFT_RUN_VM_E2E=1 HOSTSHIFT_VM_LIMA_VM_TYPE=qemu bash tests/e2e/vm/run-vm-e2e.sh --apply
       - name: Upload Lima logs on failure

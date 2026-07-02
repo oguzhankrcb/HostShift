@@ -54,7 +54,7 @@ Default mode is dry-run only. It renders artifacts such as:
 
 Generated Lima templates intentionally ignore automatic guest port forwarding except for Lima-managed SSH. HostShift verifies HTTP and database behavior through SSH-targeted checks, so exposing guest port 80, 3306, 5432, or 5355 to the host only creates noisy and environment-dependent port conflicts.
 
-Set `HOSTSHIFT_VM_LIMA_VM_TYPE=qemu` to force Lima's QEMU driver. GitHub hosted macOS runners use this because the default VZ driver may fail before the guest boot log is available.
+Set `HOSTSHIFT_VM_LIMA_VM_TYPE=qemu` to force Lima's QEMU driver. GitHub hosted macOS runners use this because the default VZ driver may fail before the guest boot log is available; those jobs install both `lima` and `qemu`.
 
 Timeout controls:
 

@@ -73,6 +73,7 @@ test("release workflow cannot publish before real migration gates pass", async (
 
 test("ci workflow uses hosted macOS compatible VM driver and uploads Lima logs", async () => {
   const workflow = await fs.readFile(".github/workflows/ci.yml", "utf8");
+  assert.match(workflow, /brew install lima qemu/);
   assert.match(workflow, /HOSTSHIFT_VM_LIMA_VM_TYPE=qemu/);
   assert.match(workflow, /Upload Lima logs on failure/);
   assert.match(workflow, /~\/\.lima\/\*\*\/ha\.stderr\.log/);
