@@ -72,6 +72,23 @@ test("release validation gates are documented", async () => {
   assert.match(validation, /vm-e2e-apply/);
 });
 
+test("documentation website is scaffolded with Starlight and Docker Compose", async () => {
+  const manifest = JSON.parse(await fs.readFile("docs-site/package.json", "utf8"));
+  const config = await fs.readFile("docs-site/astro.config.mjs", "utf8");
+  const compose = await fs.readFile("docs-site/compose.yml", "utf8");
+  const overview = await fs.readFile("docs-site/src/content/docs/overview.md", "utf8");
+  const runner = await fs.readFile("docs-site/src/content/docs/operations/self-hosted-runner.md", "utf8");
+
+  assert.equal(manifest.dependencies.astro, "7.0.6");
+  assert.equal(manifest.dependencies["@astrojs/starlight"], "0.41.2");
+  assert.match(manifest.scripts.build, /ASTRO_TELEMETRY_DISABLED=1/);
+  assert.match(config, /starlight\(/);
+  assert.match(compose, /4321:4321/);
+  assert.match(compose, /ASTRO_TELEMETRY_DISABLED/);
+  assert.match(overview, /source server exactly as it is/i);
+  assert.match(runner, /hostshift-vm/);
+});
+
 test("release workflow packages only after hosted release gates pass", async () => {
   const workflow = await fs.readFile(".github/workflows/release.yml", "utf8");
   assert.match(workflow, /docker-matrix:/);

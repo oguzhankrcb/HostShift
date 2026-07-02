@@ -51,6 +51,24 @@ make docker-pull-fixtures
 make release-snapshot
 ```
 
+## Documentation Website
+
+The documentation website is built with Astro Starlight under `docs-site/`.
+
+```bash
+cd docs-site
+npm install
+npm run dev
+```
+
+Or run it with Docker Compose:
+
+```bash
+docker compose -f docs-site/compose.yml up --build
+```
+
+Open `http://localhost:4321`.
+
 See `docs/validation.md` for the release gates. In short, quick unit checks are not enough for a release: the real Docker matrix and the VM apply gate must also pass with the current `dist/hostshift` binary.
 
 Docker matrix tests are scaffolded under `tests/integration/docker` and will run with:

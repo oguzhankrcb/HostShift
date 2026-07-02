@@ -1,0 +1,14 @@
+services:
+  docs:
+    build:
+      context: .
+    ports:
+      - "4321:4321"
+    volumes:
+      - ./src:/app/src:ro
+      - ./astro.config.mjs:/app/astro.config.mjs:ro
+      - ./public:/app/public:ro
+    environment:
+      HOST: 0.0.0.0
+      PORT: 4321
+      ASTRO_TELEMETRY_DISABLED: "1"
