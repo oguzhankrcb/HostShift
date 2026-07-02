@@ -63,12 +63,19 @@ test("release workflow cannot publish before real migration gates pass", async (
   assert.match(workflow, /docker-matrix:/);
   assert.match(workflow, /HOSTSHIFT_RUN_DOCKER_MATRIX=1 make test-integration-docker/);
   assert.match(workflow, /vm-e2e-apply:/);
-  assert.match(workflow, /HOSTSHIFT_RUN_VM_E2E=1 bash tests\/e2e\/vm\/run-vm-e2e\.sh --apply/);
+  assert.match(workflow, /HOSTSHIFT_RUN_VM_E2E=1 HOSTSHIFT_VM_LIMA_VM_TYPE=qemu bash tests\/e2e\/vm\/run-vm-e2e\.sh --apply/);
   assert.match(workflow, /needs:\n\s+- quick-gates\n\s+- docker-matrix\n\s+- vm-e2e-apply/);
   assert.match(workflow, /sigstore\/cosign-installer@v3/);
   assert.match(workflow, /cosign sign-blob --yes/);
   assert.match(workflow, /gh release upload "\$GITHUB_REF_NAME" dist\/checksums\.txt\.sig dist\/checksums\.txt\.pem --clobber/);
   assert.match(workflow, /actions\/attest-build-provenance@v2/);
+});
+
+test("ci workflow uses hosted macOS compatible VM driver and uploads Lima logs", async () => {
+  const workflow = await fs.readFile(".github/workflows/ci.yml", "utf8");
+  assert.match(workflow, /HOSTSHIFT_VM_LIMA_VM_TYPE=qemu/);
+  assert.match(workflow, /Upload Lima logs on failure/);
+  assert.match(workflow, /~\/\.lima\/\*\*\/ha\.stderr\.log/);
 });
 
 test("gitignore excludes production secrets and generated artifacts", async () => {

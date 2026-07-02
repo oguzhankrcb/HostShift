@@ -263,6 +263,9 @@ function renderProviderPlan({ providerName, pairKey, role, platformKey, platform
   });
   const plan = JSON.parse(rendered);
   plan.provider = providerName;
+  plan.lima = {
+    vmType: process.env.HOSTSHIFT_VM_LIMA_VM_TYPE || ""
+  };
   return plan;
 }
 
@@ -276,10 +279,16 @@ function renderLimaTemplate(plan) {
   const roleScript = yamlQuote(plan.fixtures.roleBootstrapScript);
   const templateUrl = yamlQuote(plan.platform.templateUrl);
   const mountPoint = yamlQuote("/mnt/hostshift");
-
-  return [
+  const lines = [
     'minimumLimaVersion: "2.0.0"',
-    `base: ${templateUrl}`,
+    `base: ${templateUrl}`
+  ];
+
+  if (plan.lima?.vmType) {
+    lines.push(`vmType: ${yamlQuote(plan.lima.vmType)}`);
+  }
+
+  lines.push(
     "mounts:",
     `  - location: ${repoPath}`,
     `    mountPoint: ${mountPoint}`,
@@ -304,7 +313,9 @@ function renderLimaTemplate(plan) {
     "    file:",
     `      url: ${roleScript}`,
     ""
-  ].join("\n");
+  );
+
+  return lines.join("\n");
 }
 
 function buildCommandPlan(workspaceDir, sourcePlan, targetPlan) {

@@ -60,6 +60,7 @@ test("vm e2e runner renders Lima templates and source-safe manifests", () => {
   assert.equal(pair.sourcePolicy, "strict-read-only");
   assert.match(sourceTemplate, /base: "template:ubuntu-22\.04"/);
   assert.match(targetTemplate, /base: "template:debian-12"/);
+  assert.doesNotMatch(sourceTemplate, /vmType:/);
   assert.match(sourceTemplate, /guestIP: 127\.0\.0\.1\n    guestPortRange: \[1, 65535\]\n    proto: any\n    ignore: true/);
   assert.match(targetTemplate, /guestIP: 0\.0\.0\.0\n    guestIPMustBeZero: false\n    guestPortRange: \[1, 65535\]\n    proto: any\n    ignore: true/);
   assert.match(sourceTemplate, /url: "\.\/fixtures\/common-bootstrap\.sh"/);
@@ -84,6 +85,27 @@ test("vm e2e runner renders Lima templates and source-safe manifests", () => {
   assert.match(vmRunner, /result\.error/);
   assert.match(vmRunner, /HOSTSHIFT_VM_COMMAND_TIMEOUT_MS/);
   assert.match(vmRunner, /timed out after/);
+});
+
+test("vm e2e runner can force Lima QEMU driver for hosted CI", () => {
+  const emitDir = fs.mkdtempSync(path.join(os.tmpdir(), "hostshift-vm-qemu-test-"));
+  const result = spawnSync(
+    process.execPath,
+    ["tests/e2e/vm/run-vm-e2e.mjs", "--pair", "ubuntu22->ubuntu22", "--emit-dir", emitDir],
+    {
+      cwd: process.cwd(),
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        HOSTSHIFT_VM_LIMA_VM_TYPE: "qemu"
+      }
+    }
+  );
+  assert.equal(result.status, 0, result.stderr);
+  const sourceTemplate = fs.readFileSync(path.join(emitDir, "ubuntu22-to-ubuntu22/source.lima.yaml"), "utf8");
+  const sourcePlan = JSON.parse(fs.readFileSync(path.join(emitDir, "ubuntu22-to-ubuntu22/source.plan.json"), "utf8"));
+  assert.match(sourceTemplate, /vmType: "qemu"/);
+  assert.equal(sourcePlan.lima.vmType, "qemu");
 });
 
 test("vm e2e apply path executes limactl lifecycle, source snapshot, and hostshift phases", () => {
