@@ -52,6 +52,23 @@ test("release validation gates are documented", async () => {
   assert.match(validation, /HOSTSHIFT_RUN_VM_E2E=1 bash tests\/e2e\/vm\/run-vm-e2e\.sh --apply/);
   assert.match(validation, /source checksum immutability/i);
   assert.match(validation, /SPDX SBOM/);
+  assert.match(validation, /checksums\.txt\.sig/);
+  assert.match(validation, /checksums\.txt\.pem/);
+  assert.match(validation, /artifact provenance attestation/i);
+  assert.match(validation, /vm-e2e-apply/);
+});
+
+test("release workflow cannot publish before real migration gates pass", async () => {
+  const workflow = await fs.readFile(".github/workflows/release.yml", "utf8");
+  assert.match(workflow, /docker-matrix:/);
+  assert.match(workflow, /HOSTSHIFT_RUN_DOCKER_MATRIX=1 make test-integration-docker/);
+  assert.match(workflow, /vm-e2e-apply:/);
+  assert.match(workflow, /HOSTSHIFT_RUN_VM_E2E=1 bash tests\/e2e\/vm\/run-vm-e2e\.sh --apply/);
+  assert.match(workflow, /needs:\n\s+- quick-gates\n\s+- docker-matrix\n\s+- vm-e2e-apply/);
+  assert.match(workflow, /sigstore\/cosign-installer@v3/);
+  assert.match(workflow, /cosign sign-blob --yes/);
+  assert.match(workflow, /gh release upload "\$GITHUB_REF_NAME" dist\/checksums\.txt\.sig dist\/checksums\.txt\.pem --clobber/);
+  assert.match(workflow, /actions\/attest-build-provenance@v2/);
 });
 
 test("gitignore excludes production secrets and generated artifacts", async () => {

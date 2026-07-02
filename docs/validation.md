@@ -62,9 +62,23 @@ Docker is the fast workload loop, but it cannot prove all platform behavior. Bef
 
 Release artifacts must include:
 
-- signed or checksummed binaries
+- checksummed binaries covered by a keyless-signed checksum file
 - `checksums.txt`
+- `checksums.txt.sig`
+- `checksums.txt.pem`
 - SPDX SBOM
+- GitHub artifact provenance attestation for release artifacts
 - archived README, license, security policy, docs, and examples
 
 `make release-snapshot` is the local artifact smoke test. Tagged GitHub releases use `.github/workflows/release.yml`.
+
+## GitHub Release Gate
+
+Tagged releases must not publish until these workflow jobs pass:
+
+- `quick-gates`: Node tests, Go tests, build, Docker dry-run, VM dry-run, and release snapshot
+- `docker-matrix`: real Docker matrix with `HOSTSHIFT_RUN_DOCKER_MATRIX=1`
+- `vm-e2e-apply`: real Lima VM apply matrix with `HOSTSHIFT_RUN_VM_E2E=1` and `--apply`
+- `release`: GoReleaser packaging, keyless checksum signing, and artifact provenance attestation
+
+Manual `workflow_dispatch` runs produce a snapshot package after the same gates. Tag pushes produce the public GitHub release.
