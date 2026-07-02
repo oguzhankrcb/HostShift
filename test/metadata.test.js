@@ -76,7 +76,7 @@ test("ci workflow uses hosted VM preflight and self-hosted apply gate", async ()
   assert.match(workflow, /vm-e2e-preflight:/);
   assert.match(workflow, /HOSTSHIFT_RUN_VM_E2E=1 make test-e2e-vm/);
   assert.match(workflow, /vm-e2e-apply-self-hosted:/);
-  assert.match(workflow, /runs-on: \[self-hosted, macOS\]/);
+  assert.match(workflow, /runs-on: \[self-hosted, macOS, hostshift-vm\]/);
   assert.match(workflow, /HOSTSHIFT_RUN_VM_E2E=1 bash tests\/e2e\/vm\/run-vm-e2e\.sh --apply/);
   assert.match(workflow, /Upload Lima logs on failure/);
   assert.match(workflow, /~\/\.lima\/\*\*\/ha\.stderr\.log/);
@@ -84,7 +84,7 @@ test("ci workflow uses hosted VM preflight and self-hosted apply gate", async ()
 
 test("self-hosted VM apply workflow preserves the real VM release gate", async () => {
   const workflow = await fs.readFile(".github/workflows/vm-e2e-apply.yml", "utf8");
-  assert.match(workflow, /runs-on: \[self-hosted, macOS\]/);
+  assert.match(workflow, /runs-on: \[self-hosted, macOS, hostshift-vm\]/);
   assert.match(workflow, /HOSTSHIFT_RUN_VM_E2E=1 bash tests\/e2e\/vm\/run-vm-e2e\.sh --apply/);
 });
 

@@ -20,7 +20,7 @@ make release-snapshot
 
 VM command timeouts are controlled with `HOSTSHIFT_VM_COMMAND_TIMEOUT_MS`, `HOSTSHIFT_VM_LIMACTL_TIMEOUT_MS`, `HOSTSHIFT_VM_HOSTSHIFT_TIMEOUT_MS`, and `HOSTSHIFT_VM_SSH_TIMEOUT_MS`. These fail stuck provider, SSH, or HostShift phases explicitly instead of leaving a silent release gate.
 
-GitHub hosted macOS runners can run Lima preflight but cannot reliably boot nested Lima VMs. The real VM apply gate must run locally or on a self-hosted macOS runner through `.github/workflows/vm-e2e-apply.yml` before tagging a release.
+GitHub hosted macOS runners can run Lima preflight but cannot reliably boot nested Lima VMs. The real VM apply gate must run locally or on a self-hosted macOS runner labeled `hostshift-vm` through `.github/workflows/vm-e2e-apply.yml` before tagging a release.
 
 ## Source Safety Gate
 

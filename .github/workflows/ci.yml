@@ -65,7 +65,7 @@ jobs:
 
   vm-e2e-apply-self-hosted:
     if: github.event_name == 'workflow_dispatch' && inputs.run_vm_apply
-    runs-on: [self-hosted, macOS]
+    runs-on: [self-hosted, macOS, hostshift-vm]
     timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
