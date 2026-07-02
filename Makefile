@@ -1,11 +1,13 @@
 GO_CACHE ?= $(PWD)/.cache/go-build
-GO_ENV := GOCACHE=$(GO_CACHE)
+GO_MOD_CACHE ?= $(PWD)/.cache/go-mod
+GO_ENV := GOCACHE=$(GO_CACHE) GOMODCACHE=$(GO_MOD_CACHE)
 
 .PHONY: build test test-go test-node test-integration-docker docker-pull-fixtures test-e2e-vm checksum sbom release-snapshot
 
 build:
 	mkdir -p dist
 	mkdir -p $(GO_CACHE)
+	mkdir -p $(GO_MOD_CACHE)
 	$(GO_ENV) go build -o dist/hostshift ./cmd/hostshift
 
 test: test-node test-go
@@ -15,6 +17,7 @@ test-node:
 
 test-go:
 	mkdir -p $(GO_CACHE)
+	mkdir -p $(GO_MOD_CACHE)
 	$(GO_ENV) go test ./...
 
 test-integration-docker:

@@ -21,7 +21,9 @@ test("readme documents hostshift execution commands", async () => {
   assert.match(readme, /hostshift discover/);
   assert.match(readme, /hostshift prepare/);
   assert.match(readme, /strictly read-only|read-only-source/i);
+  assert.match(readme, /docs\/install\.md/);
   assert.match(readme, /docs\/validation\.md/);
+  assert.match(readme, /examples\/web-stack-v2\.yaml/);
 });
 
 test("skill frontmatter declares distro-neutral migrate skill", async () => {
@@ -44,6 +46,18 @@ test("v2 example profile documents env secret references", async () => {
   assert.match(profile, /targetPasswordEnv: DST_MYSQL_PWD/);
   assert.match(profile, /type: http/);
   assert.match(profile, /type: laravelDatabase/);
+});
+
+test("public web stack example covers cross-distro release scenario", async () => {
+  const profile = await fs.readFile("examples/web-stack-v2.yaml", "utf8");
+  assert.match(profile, /source: ubuntu:22\.04/);
+  assert.match(profile, /target: debian:12/);
+  assert.match(profile, /sourcePolicy: strict-read-only/);
+  assert.match(profile, /type: docker-compose/);
+  assert.match(profile, /type: mysql/);
+  assert.match(profile, /type: postgresql/);
+  assert.match(profile, /type: nginxConfig/);
+  assert.match(profile, /approved: false/);
 });
 
 test("release validation gates are documented", async () => {

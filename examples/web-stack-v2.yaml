@@ -1,0 +1,113 @@
+schemaVersion: 2
+name: ubuntu22-to-debian12-web-stack
+source:
+  ssh: source-web
+target:
+  ssh: target-web
+sourcePolicy: strict-read-only
+platforms:
+  source: ubuntu:22.04
+  target: debian:12
+firewall:
+  enabled: true
+  enable: true
+  rules:
+    - from: 0.0.0.0/0
+      port: 22
+      proto: tcp
+      comment: SSH access
+    - from: ::/0
+      port: 22
+      proto: tcp
+      comment: SSH access IPv6
+    - from: 0.0.0.0/0
+      port: 80
+      proto: tcp
+      comment: HTTP access
+    - from: ::/0
+      port: 80
+      proto: tcp
+      comment: HTTP access IPv6
+    - from: 0.0.0.0/0
+      port: 443
+      proto: tcp
+      comment: HTTPS access
+    - from: ::/0
+      port: 443
+      proto: tcp
+      comment: HTTPS access IPv6
+    - from: 172.17.0.0/16
+      port: 3306
+      proto: tcp
+      comment: Docker bridge MySQL access
+sshd:
+  settings:
+    ClientAliveInterval: 120
+    ClientAliveCountMax: 720
+mysql:
+  settings:
+    bindAddress: 0.0.0.0
+    mysqlxBindAddress: 127.0.0.1
+workloads:
+  - type: docker-compose
+    name: customer-app
+    data:
+      workingDir: /srv/customer-app
+      configFile: /srv/customer-app/docker-compose.yml
+  - type: docker-standalone
+    name: portfolio
+    data:
+      image: portfolio:latest
+  - type: file-set
+    name: application-and-web-config
+    data:
+      paths:
+        - /srv/customer-app
+        - /srv/portfolio
+        - /etc/nginx/sites-available
+        - /etc/nginx/sites-enabled
+      targetPath: /
+  - type: mysql
+    name: customer_app
+    data:
+      sourcePasswordEnv: SRC_MYSQL_PWD
+      targetPasswordEnv: DST_MYSQL_PWD
+  - type: postgresql
+    name: analytics
+    data:
+      sourcePasswordEnv: SRC_PG_PWD
+      targetPasswordEnv: DST_PG_PWD
+checks:
+  - type: http
+    name: customer homepage
+    data:
+      url: http://127.0.0.1/
+      hostHeader: customer.example.com
+      timeoutSeconds: 10
+  - type: laravelDatabase
+    name: customer Laravel DB
+    data:
+      container: customer-app
+  - type: fileExists
+    name: nginx vhost exists
+    data:
+      path: /etc/nginx/sites-available/customer.example.com
+  - type: fileContains
+    name: nginx vhost server name
+    data:
+      path: /etc/nginx/sites-available/customer.example.com
+      contains: server_name customer.example.com
+  - type: nginxConfig
+    name: nginx config test
+    data: {}
+  - type: serviceActive
+    name: nginx service
+    data:
+      service: nginx
+  - type: ufwRule
+    name: HTTP firewall rule
+    data:
+      from: 0.0.0.0/0
+      port: 80
+      proto: tcp
+approved: false

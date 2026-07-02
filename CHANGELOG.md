@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.3.0 - Pending
+
 - Rebuilt HostShift as a Go-first CLI with the Node v0.2 behavior kept as a compatibility reference.
 - Added strict read-only-source planning, source command allowlisting, and mutation rejection tests.
 - Added profile v2 YAML support with JSON Schema validation and profile migration.

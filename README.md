@@ -12,6 +12,8 @@ Release packaging is scaffolded with GoReleaser, local checksum generation, and 
 
 ## Quick Start
 
+Install a release binary with `docs/install.md`, or run from source during development:
+
 ```bash
 go run ./cmd/hostshift version
 go run ./cmd/hostshift doctor --source old-server --target new-server --json
@@ -23,11 +25,13 @@ go run ./cmd/hostshift verify --profile examples/profile.yaml --target new-serve
 go run ./cmd/hostshift profile migrate --input examples/profile.yaml --output /tmp/profile.v2.json
 ```
 
+With an installed binary, replace `go run ./cmd/hostshift` with `hostshift`.
+
 `prepare`, `sync`, and `verify` default to dry-run mode and write resumable state. Add `--apply` only after reviewing blockers and actions.
 
 Sync plans may include `streams`, which pipe a validated source read command into a validated target write command. Examples include `tar --create -> tar --extract`, `docker image save -> docker image load`, `mysqldump -> mysql`, and `pg_dump -> pg_restore`.
 
-See `examples/profile.v2.yaml` for v2 YAML workload metadata and secret environment references.
+See `examples/profile.v2.yaml` and `examples/web-stack-v2.yaml` for v2 YAML workload metadata and secret environment references.
 
 Verify checks currently include HTTP status checks with an optional Host header, Laravel database connectivity through a reviewed target-side container command, target-side `fileExists` / `fileContains` assertions, `mysqlScalar` / `postgresScalar` read-only database assertions, `serviceActive` systemd checks, `ufwRule` and `nftRule` firewall rule checks, and `nginxConfig` target reload validation after config sync.
 
@@ -91,6 +95,8 @@ make sbom
 `make release-snapshot` uses GoReleaser when it is installed. Without GoReleaser it still builds `dist/hostshift`, writes `dist/checksums.txt`, and generates `dist/hostshift.sbom.spdx.json` from the Go module graph. Tagged GitHub releases use `.github/workflows/release.yml`.
 
 Release candidates must satisfy the gates in `docs/validation.md`, including source immutability, the cross-distro Docker matrix, the real VM apply gate, checksums, and SBOM output.
+
+Before publishing a public tag, also complete the checklist in `docs/release.md`: hosted CI candidate, self-hosted or local VM apply, clean working tree, and signed checksum verification.
 
 ## Supported Targets
 

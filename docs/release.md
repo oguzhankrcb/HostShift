@@ -31,6 +31,15 @@ Only tag a release after both the hosted CI candidate and the real VM apply gate
 
 ## Public Release
 
+Pre-tag checklist:
+
+- hosted CI manual candidate passed on `main`
+- self-hosted `VM E2E Apply` passed on the `hostshift-vm` runner or an equivalent local VM apply run passed
+- `make release-snapshot` passed locally
+- `dist/checksums.txt` and `dist/hostshift.sbom.spdx.json` were produced
+- `git status --short` is clean
+- `CHANGELOG.md` has an entry for the version being tagged
+
 Create an annotated tag after the manual candidate succeeds:
 
 ```bash
