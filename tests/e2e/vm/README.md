@@ -52,6 +52,15 @@ Default mode is dry-run only. It renders artifacts such as:
 - checks that the source checksum snapshot did not change
 - stops and deletes the instances unless `HOSTSHIFT_VM_KEEP_INSTANCES=1`
 
+Generated Lima templates intentionally ignore automatic guest port forwarding except for Lima-managed SSH. HostShift verifies HTTP and database behavior through SSH-targeted checks, so exposing guest port 80, 3306, 5432, or 5355 to the host only creates noisy and environment-dependent port conflicts.
+
+Timeout controls:
+
+- `HOSTSHIFT_VM_COMMAND_TIMEOUT_MS` defaults to 15 minutes for generic commands
+- `HOSTSHIFT_VM_LIMACTL_TIMEOUT_MS` defaults to 20 minutes for Lima lifecycle commands
+- `HOSTSHIFT_VM_HOSTSHIFT_TIMEOUT_MS` defaults to 10 minutes for HostShift phases
+- `HOSTSHIFT_VM_SSH_TIMEOUT_MS` defaults to 2 minutes for direct SSH snapshot commands
+
 ## Safety Model
 
 The source VM remains read-only by contract:

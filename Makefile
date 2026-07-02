@@ -1,9 +1,12 @@
+GO_CACHE ?= $(PWD)/.cache/go-build
+GO_ENV := GOCACHE=$(GO_CACHE)
+
 .PHONY: build test test-go test-node test-integration-docker docker-pull-fixtures test-e2e-vm checksum sbom release-snapshot
 
 build:
 	mkdir -p dist
-	mkdir -p .cache/go-build
-	GOCACHE=$(PWD)/.cache/go-build go build -o dist/hostshift ./cmd/hostshift
+	mkdir -p $(GO_CACHE)
+	$(GO_ENV) go build -o dist/hostshift ./cmd/hostshift
 
 test: test-node test-go
 
@@ -11,8 +14,8 @@ test-node:
 	npm test
 
 test-go:
-	mkdir -p .cache/go-build
-	GOCACHE=$(PWD)/.cache/go-build go test ./...
+	mkdir -p $(GO_CACHE)
+	$(GO_ENV) go test ./...
 
 test-integration-docker:
 	bash tests/integration/docker/run-matrix.sh

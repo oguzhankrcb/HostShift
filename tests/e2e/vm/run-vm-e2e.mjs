@@ -15,6 +15,10 @@ const targetBootstrap = path.join(vmDir, "fixtures/target-bootstrap.sh");
 const nodeHostShiftBin = path.join(repoRoot, "bin/hostshift.js");
 const goHostShiftBin = path.join(repoRoot, "dist/hostshift");
 const defaultHostShiftBin = fs.existsSync(goHostShiftBin) ? goHostShiftBin : nodeHostShiftBin;
+const defaultCommandTimeoutMs = readTimeoutEnv("HOSTSHIFT_VM_COMMAND_TIMEOUT_MS", 15 * 60 * 1000);
+const limactlTimeoutMs = readTimeoutEnv("HOSTSHIFT_VM_LIMACTL_TIMEOUT_MS", 20 * 60 * 1000);
+const hostShiftTimeoutMs = readTimeoutEnv("HOSTSHIFT_VM_HOSTSHIFT_TIMEOUT_MS", 10 * 60 * 1000);
+const sshTimeoutMs = readTimeoutEnv("HOSTSHIFT_VM_SSH_TIMEOUT_MS", 2 * 60 * 1000);
 
 const args = parseArgs(process.argv.slice(2));
 const config = loadMatrix(matrixPath);
@@ -282,6 +286,16 @@ function renderLimaTemplate(plan) {
     "    writable: true",
     "ssh:",
     `  localPort: ${plan.ssh.localPort}`,
+    "portForwards:",
+    "  - guestIP: 127.0.0.1",
+    "    guestPortRange: [1, 65535]",
+    "    proto: any",
+    "    ignore: true",
+    "  - guestIP: 0.0.0.0",
+    "    guestIPMustBeZero: false",
+    "    guestPortRange: [1, 65535]",
+    "    proto: any",
+    "    ignore: true",
     "provision:",
     "  - mode: system",
     "    file:",
@@ -340,23 +354,29 @@ function executePair(workspace) {
   try {
     for (const instance of instances) {
       const templatePath = path.join(workspace.workspaceDir, instance.filename);
-      run("limactl", ["validate", templatePath], { cwd: workspace.workspaceDir });
+      logStep(workspace, `validating ${instance.plan.role} template`);
+      run("limactl", ["validate", templatePath], { cwd: workspace.workspaceDir, timeoutMs: limactlTimeoutMs });
     }
 
     for (const instance of instances) {
       const templatePath = path.join(workspace.workspaceDir, instance.filename);
+      logStep(workspace, `starting ${instance.plan.role} VM`);
       run("limactl", ["start", "--tty=false", "--name", instance.plan.instanceName, templatePath], {
-        cwd: workspace.workspaceDir
+        cwd: workspace.workspaceDir,
+        timeoutMs: limactlTimeoutMs
       });
     }
 
+    logStep(workspace, "assembling SSH config");
     const sshConfig = buildApplySshConfig(workspace);
     const sshConfigPath = path.join(workspace.workspaceDir, "ssh_config");
     fs.writeFileSync(sshConfigPath, sshConfig);
 
+    logStep(workspace, "capturing source snapshot before migration");
     const sourceSnapshotBefore = captureSourceSnapshot(workspace.sourcePlan.ssh.alias, sshConfigPath);
     runHostShiftWorkflow(workspace, sshConfigPath, stateDir);
     verifyTargetBootPersistence(workspace, sshConfigPath, stateDir);
+    logStep(workspace, "capturing source snapshot after migration");
     const sourceSnapshotAfter = captureSourceSnapshot(workspace.sourcePlan.ssh.alias, sshConfigPath);
     if (sourceSnapshotBefore !== sourceSnapshotAfter) {
       throw new Error(`source immutability check failed for ${workspace.pair.source} -> ${workspace.pair.target}`);
@@ -367,8 +387,8 @@ function executePair(workspace) {
     }
 
     for (const instance of [...instances].reverse()) {
-      runQuiet("limactl", ["stop", instance.plan.instanceName], { cwd: workspace.workspaceDir });
-      runQuiet("limactl", ["delete", "--force", instance.plan.instanceName], { cwd: workspace.workspaceDir });
+      runQuiet("limactl", ["stop", instance.plan.instanceName], { cwd: workspace.workspaceDir, timeoutMs: limactlTimeoutMs });
+      runQuiet("limactl", ["delete", "--force", instance.plan.instanceName], { cwd: workspace.workspaceDir, timeoutMs: limactlTimeoutMs });
     }
   }
 }
@@ -382,7 +402,7 @@ function buildApplySshConfig(workspace) {
 }
 
 function readLimaSshOptions(instanceName) {
-  const result = run("limactl", ["show-ssh", "--format=options", instanceName], { capture: true });
+  const result = run("limactl", ["show-ssh", "--format=options", instanceName], { capture: true, timeoutMs: limactlTimeoutMs });
   const options = {};
 
   for (const rawLine of result.stdout.split("\n")) {
@@ -449,6 +469,7 @@ function runHostShiftWorkflow(workspace, sshConfigPath, stateDir) {
     HOSTSHIFT_TARGET_SUDO: "1"
   };
 
+  logStep(workspace, "running hostshift discover");
   const discover = runHostShift(hostShiftBin, [
     "discover",
     "--source",
@@ -465,6 +486,7 @@ function runHostShiftWorkflow(workspace, sshConfigPath, stateDir) {
     throw new Error(`discover reported required failures for ${workspace.pair.source}: ${JSON.stringify(discoverBody.requiredFailures)}`);
   }
 
+  logStep(workspace, "planning discovered profile");
   const discoveredPlan = runHostShift(hostShiftBin, [
     "plan",
     "--profile",
@@ -480,6 +502,7 @@ function runHostShiftWorkflow(workspace, sshConfigPath, stateDir) {
 
   fs.writeFileSync(fixtureProfile, `${JSON.stringify(buildFixtureProfile(workspace), null, 2)}\n`);
 
+  logStep(workspace, "planning fixture profile");
   const plan = runHostShift(hostShiftBin, [
     "plan",
     "--profile",
@@ -497,6 +520,7 @@ function runHostShiftWorkflow(workspace, sshConfigPath, stateDir) {
   }
 
   const runPrefix = `${workspace.pair.source}-${workspace.pair.target}`;
+  logStep(workspace, "running hostshift prepare --apply");
   const prepare = runHostShift(hostShiftBin, [
     "prepare",
     "--profile",
@@ -512,6 +536,7 @@ function runHostShiftWorkflow(workspace, sshConfigPath, stateDir) {
   ], env);
   assertPhaseResult(JSON.parse(prepare.stdout), "prepare", { expectStream: false });
 
+  logStep(workspace, "running hostshift sync --apply");
   const sync = runHostShift(hostShiftBin, [
     "sync",
     "--profile",
@@ -527,6 +552,7 @@ function runHostShiftWorkflow(workspace, sshConfigPath, stateDir) {
   ], env);
   assertPhaseResult(JSON.parse(sync.stdout), "sync", { expectStream: true });
 
+  logStep(workspace, "running hostshift verify --apply");
   const verify = runHostShift(hostShiftBin, [
     "verify",
     "--profile",
@@ -548,8 +574,9 @@ function verifyTargetBootPersistence(workspace, sshConfigPath, stateDir) {
   const fixtureProfile = path.join(workspace.workspaceDir, "fixture.profile.json");
   const runPrefix = `${workspace.pair.source}-${workspace.pair.target}`;
 
-  run("limactl", ["stop", workspace.targetPlan.instanceName], { cwd: workspace.workspaceDir });
-  run("limactl", ["start", workspace.targetPlan.instanceName], { cwd: workspace.workspaceDir });
+  logStep(workspace, "restarting target VM for boot persistence");
+  run("limactl", ["stop", workspace.targetPlan.instanceName], { cwd: workspace.workspaceDir, timeoutMs: limactlTimeoutMs });
+  run("limactl", ["start", workspace.targetPlan.instanceName], { cwd: workspace.workspaceDir, timeoutMs: limactlTimeoutMs });
   fs.writeFileSync(sshConfigPath, buildApplySshConfig(workspace));
 
   const env = {
@@ -557,6 +584,7 @@ function verifyTargetBootPersistence(workspace, sshConfigPath, stateDir) {
     HOSTSHIFT_SSH_CONFIG: sshConfigPath,
     HOSTSHIFT_TARGET_SUDO: "1"
   };
+  logStep(workspace, "running post-reboot hostshift verify --apply");
   const verify = runHostShift(hostShiftBin, [
     "verify",
     "--profile",
@@ -747,7 +775,7 @@ function captureSourceSnapshot(sourceAlias, sshConfigPath) {
       "/srv/hostshift-fixture/public/health",
       "/etc/nginx/sites-available/hostshift-fixture.conf"
     ],
-    { capture: true }
+    { capture: true, timeoutMs: sshTimeoutMs }
   );
   return result.stdout.trim();
 }
@@ -757,7 +785,8 @@ function runHostShift(hostShiftBin, args, env) {
   return run(command[0], command.slice(1), {
     cwd: repoRoot,
     env,
-    capture: true
+    capture: true,
+    timeoutMs: hostShiftTimeoutMs
   });
 }
 
@@ -782,7 +811,7 @@ function runProviderPreflight(providerName, provider) {
   }
 
   if (providerName === "lima") {
-    const result = run("limactl", ["--version"], { capture: true });
+    const result = run("limactl", ["--version"], { capture: true, timeoutMs: limactlTimeoutMs });
     const version = result.stdout.trim();
     if (version) {
       console.log(`Lima preflight: ${version}`);
@@ -792,9 +821,22 @@ function runProviderPreflight(providerName, provider) {
 
 function commandExists(bin) {
   const result = spawnSync("sh", ["-lc", `command -v ${shellQuote(bin)}`], {
-    stdio: "ignore"
+    stdio: "ignore",
+    timeout: 30 * 1000
   });
   return result.status === 0;
+}
+
+function readTimeoutEnv(name, fallback) {
+  const raw = process.env[name];
+  if (!raw) {
+    return fallback;
+  }
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error(`invalid ${name}: expected a positive millisecond value`);
+  }
+  return parsed;
 }
 
 function shellQuote(value) {
@@ -810,8 +852,17 @@ function run(command, args, options = {}) {
     cwd: options.cwd,
     env: options.env ?? process.env,
     encoding: "utf8",
-    stdio: options.capture ? "pipe" : "inherit"
+    stdio: options.capture ? "pipe" : "inherit",
+    timeout: options.timeoutMs ?? defaultCommandTimeoutMs
   });
+
+  if (result.error) {
+    const rendered = [command, ...args].map(shellQuote).join(" ");
+    if (result.error.code === "ETIMEDOUT") {
+      throw new Error(`${rendered} timed out after ${options.timeoutMs ?? defaultCommandTimeoutMs}ms`);
+    }
+    throw result.error;
+  }
 
   if (result.status !== 0) {
     const stderr = result.stderr?.trim();
@@ -831,7 +882,8 @@ function runQuiet(command, args, options = {}) {
     cwd: options.cwd,
     env: options.env ?? process.env,
     encoding: "utf8",
-    stdio: "pipe"
+    stdio: "pipe",
+    timeout: options.timeoutMs ?? defaultCommandTimeoutMs
   });
 
   return {
@@ -839,4 +891,8 @@ function runQuiet(command, args, options = {}) {
     stdout: result.stdout ?? "",
     stderr: result.stderr ?? ""
   };
+}
+
+function logStep(workspace, message) {
+  console.log(`[${workspace.pair.source}->${workspace.pair.target}] ${message}`);
 }

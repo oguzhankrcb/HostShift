@@ -4,7 +4,17 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 
 const output = process.argv[2] ?? "dist/hostshift.sbom.spdx.json";
-const result = spawnSync("go", ["list", "-m", "all"], { encoding: "utf8" });
+const goCache = process.env.GOCACHE || path.join(process.cwd(), ".cache/go-build");
+
+fs.mkdirSync(goCache, { recursive: true });
+
+const result = spawnSync("go", ["list", "-m", "all"], {
+  encoding: "utf8",
+  env: {
+    ...process.env,
+    GOCACHE: goCache
+  }
+});
 
 if (result.status !== 0) {
   process.stderr.write(result.stderr || result.stdout || "go list failed\n");

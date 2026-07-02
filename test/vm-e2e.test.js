@@ -60,6 +60,8 @@ test("vm e2e runner renders Lima templates and source-safe manifests", () => {
   assert.equal(pair.sourcePolicy, "strict-read-only");
   assert.match(sourceTemplate, /base: "template:ubuntu-22\.04"/);
   assert.match(targetTemplate, /base: "template:debian-12"/);
+  assert.match(sourceTemplate, /guestIP: 127\.0\.0\.1\n    guestPortRange: \[1, 65535\]\n    proto: any\n    ignore: true/);
+  assert.match(targetTemplate, /guestIP: 0\.0\.0\.0\n    guestIPMustBeZero: false\n    guestPortRange: \[1, 65535\]\n    proto: any\n    ignore: true/);
   assert.match(sourceTemplate, /url: "\.\/fixtures\/common-bootstrap\.sh"/);
   assert.match(sourceTemplate, /url: "\.\/fixtures\/source-bootstrap\.sh"/);
   assert.match(targetTemplate, /url: "\.\/fixtures\/target-bootstrap\.sh"/);
@@ -80,6 +82,8 @@ test("vm e2e runner renders Lima templates and source-safe manifests", () => {
   assert.deepEqual(commands.commands[13], ["limactl", "start", "hostshift-ubuntu22-to-debian12-target"]);
   assert(commands.commands[16].includes("verify"));
   assert.match(vmRunner, /result\.error/);
+  assert.match(vmRunner, /HOSTSHIFT_VM_COMMAND_TIMEOUT_MS/);
+  assert.match(vmRunner, /timed out after/);
 });
 
 test("vm e2e apply path executes limactl lifecycle, source snapshot, and hostshift phases", () => {
@@ -225,6 +229,8 @@ process.exit(1);
   );
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /Lima preflight: limactl version 1\.0\.0-test/);
+  assert.match(result.stdout, /\[ubuntu22->debian12\] running hostshift sync --apply/);
+  assert.match(result.stdout, /\[ubuntu22->debian12\] running post-reboot hostshift verify --apply/);
   assert.match(result.stdout, /VM apply executor completed successfully/);
 
   const workspace = path.join(emitDir, "ubuntu22-to-debian12");

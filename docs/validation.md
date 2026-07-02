@@ -18,6 +18,8 @@ make release-snapshot
 
 `make test-integration-docker` and `make test-e2e-vm` are safe dry-run checks by default. The environment variables opt into real Docker or VM execution and are intentionally explicit.
 
+VM command timeouts are controlled with `HOSTSHIFT_VM_COMMAND_TIMEOUT_MS`, `HOSTSHIFT_VM_LIMACTL_TIMEOUT_MS`, `HOSTSHIFT_VM_HOSTSHIFT_TIMEOUT_MS`, and `HOSTSHIFT_VM_SSH_TIMEOUT_MS`. These fail stuck provider, SSH, or HostShift phases explicitly instead of leaving a silent release gate.
+
 ## Source Safety Gate
 
 Every real migration-style test must prove the source remained unchanged:
