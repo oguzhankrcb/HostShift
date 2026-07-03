@@ -4,7 +4,7 @@ Move Ubuntu and Debian web servers without touching the source.
 
 HostShift discovers a live server over SSH, builds a reviewable migration profile, prepares a clean target, streams data across, and verifies the result. It enforces a strictly read-only source policy: no source-side writes, no `sudo`, no service restarts, no package installs, no firewall changes, no keys added, no snapshots, no maintenance mode.
 
-[Documentation](https://hostshift.karacabay.com) | [Install](#install) | [Codex Plugin](#codex-plugin) | [What You Get](#what-you-get) | [How It Works](#how-it-works) | [Validation](#validation) | [Safety Model](#safety-model)
+[Documentation](https://hostshift.karacabay.com) | [Install](#install) | [AI Integrations](#ai-integrations) | [What You Get](#what-you-get) | [How It Works](#how-it-works) | [Validation](#validation) | [Safety Model](#safety-model)
 
 ---
 
@@ -95,6 +95,16 @@ codex plugin add hostshift@hostshift
 ```
 
 Start a new Codex thread after installing or updating the plugin so the bundled `migrate-server` skill is loaded.
+
+## AI Integrations
+
+HostShift exposes AI integrations as operator layers around the Go CLI:
+
+- Codex plugin: `plugins/hostshift`
+- MCP stdio server: `hostshift mcp stdio`
+- Claude Desktop example: [integrations/claude/claude_desktop_config.example.json](./integrations/claude/claude_desktop_config.example.json)
+
+MCP tools are intentionally non-apply: they can run discovery, planning, dry-runs, cutover dry-runs, and rollback metadata. Target mutation still requires a reviewed human CLI command.
 
 ## Supported Platforms
 

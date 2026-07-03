@@ -410,6 +410,7 @@ Commands:
   verify          --profile <file> [--target <ssh>] [--apply] [--json]
   cutover         --profile <file> [--target <ssh>] [--apply --confirm <code>] [--json]
   rollback        --profile <file> [--json]
+  mcp stdio       run the HostShift MCP stdio server for AI clients
   profile migrate --input <v1-profile> --output <v2-profile>
   status          --run-id <id> [--state-dir <dir>] [--json]
   resume          --run-id <id> [--state-dir <dir>]

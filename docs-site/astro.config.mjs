@@ -50,6 +50,7 @@ export default defineConfig({
           items: [
             { slug: 'reference/architecture' },
             { slug: 'reference/cli' },
+            { slug: 'reference/ai-integrations' },
             { slug: 'reference/profile-v2' },
             { slug: 'reference/source-discovery' },
             { slug: 'reference/workloads' },

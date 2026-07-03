@@ -15,6 +15,8 @@ hero:
 
 HostShift is a Go CLI and Codex skill/plugin project for discovering, planning, moving, and verifying Linux web workloads.
 
+It also ships a stdio MCP server for AI clients such as Claude Desktop. The MCP surface exposes planning and dry-run tools only; apply operations stay in the human-operated CLI.
+
 The public documentation site is published at [hostshift.karacabay.com](https://hostshift.karacabay.com).
 
 The core invariant is strict:

@@ -65,3 +65,13 @@ codex plugin add hostshift@hostshift
 The plugin is an assistant layer around the CLI. It gives Codex the `migrate-server` workflow and source read-only rules; the migration itself still runs through `hostshift`.
 
 Start a new Codex thread after installing or updating the plugin so Codex loads the bundled skill.
+
+## MCP And Claude
+
+HostShift includes a stdio MCP server for AI clients that support MCP:
+
+```bash
+hostshift mcp stdio
+```
+
+Claude Desktop can use `integrations/claude/claude_desktop_config.example.json` as a starting point. The MCP server exposes planning and dry-run tools only; `--apply` remains a human-operated CLI action.

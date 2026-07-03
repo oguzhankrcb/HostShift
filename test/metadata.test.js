@@ -146,6 +146,7 @@ test("root package and workflows validate the documentation website", async () =
 test("documentation website covers the project surface area", async () => {
   const config = await fs.readFile("docs-site/astro.config.mjs", "utf8");
   const install = await fs.readFile("docs-site/src/content/docs/getting-started/install.md", "utf8");
+  const ai = await fs.readFile("docs-site/src/content/docs/reference/ai-integrations.md", "utf8");
   const cli = await fs.readFile("docs-site/src/content/docs/reference/cli.md", "utf8");
   const profile = await fs.readFile("docs-site/src/content/docs/reference/profile-v2.md", "utf8");
   const discovery = await fs.readFile("docs-site/src/content/docs/reference/source-discovery.md", "utf8");
@@ -157,6 +158,7 @@ test("documentation website covers the project surface area", async () => {
 
   for (const slug of [
     "reference/cli",
+    "reference/ai-integrations",
     "reference/profile-v2",
     "reference/source-discovery",
     "reference/workloads",
@@ -170,7 +172,10 @@ test("documentation website covers the project surface area", async () => {
 
   assert.match(install, /codex plugin marketplace add/);
   assert.match(install, /codex plugin add hostshift@hostshift/);
-  for (const command of ["doctor", "discover", "plan", "prepare", "sync", "verify", "cutover", "rollback", "profile migrate", "status", "resume", "policy source"]) {
+  assert.match(install, /hostshift mcp stdio/);
+  assert.match(ai, /Claude Desktop/);
+  assert.match(ai, /No MCP tool exposes `--apply`/);
+  for (const command of ["doctor", "discover", "plan", "prepare", "sync", "verify", "cutover", "rollback", "mcp stdio", "profile migrate", "status", "resume", "policy source"]) {
     assert.match(cli, new RegExp(command.replace(" ", "\\s+")));
   }
   for (const field of ["schemaVersion", "sourcePolicy", "firewall", "sshd", "mysql", "workloads", "checks", "approved"]) {
