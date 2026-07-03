@@ -99,8 +99,10 @@ test("root package and workflows validate the documentation website", async () =
 
   assert.equal(manifest.scripts["docs:build"], "npm --prefix docs-site run build");
   assert.equal(manifest.scripts["docs:compose:config"], "docker compose -f docs-site/compose.yml config");
+  assert.match(ci, /npm --prefix docs-site ci/);
   assert.match(ci, /npm run docs:build/);
   assert.match(ci, /npm run docs:compose:config/);
+  assert.match(release, /npm --prefix docs-site ci/);
   assert.match(release, /npm run docs:build/);
   assert.match(release, /npm run docs:compose:config/);
 });

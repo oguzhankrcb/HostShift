@@ -26,6 +26,7 @@ jobs:
         with:
           node-version: "22"
       - run: npm test
+      - run: npm --prefix docs-site ci
       - run: npm run docs:build
       - run: npm run docs:compose:config
       - run: make test-go
