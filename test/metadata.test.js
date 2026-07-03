@@ -107,6 +107,55 @@ test("root package and workflows validate the documentation website", async () =
   assert.match(release, /npm run docs:compose:config/);
 });
 
+test("documentation website covers the project surface area", async () => {
+  const config = await fs.readFile("docs-site/astro.config.mjs", "utf8");
+  const cli = await fs.readFile("docs-site/src/content/docs/reference/cli.md", "utf8");
+  const profile = await fs.readFile("docs-site/src/content/docs/reference/profile-v2.md", "utf8");
+  const discovery = await fs.readFile("docs-site/src/content/docs/reference/source-discovery.md", "utf8");
+  const workloads = await fs.readFile("docs-site/src/content/docs/reference/workloads.md", "utf8");
+  const checks = await fs.readFile("docs-site/src/content/docs/reference/checks.md", "utf8");
+  const platforms = await fs.readFile("docs-site/src/content/docs/reference/platforms.md", "utf8");
+  const state = await fs.readFile("docs-site/src/content/docs/reference/plans-state.md", "utf8");
+  const matrix = await fs.readFile("docs-site/src/content/docs/reference/test-matrix.md", "utf8");
+
+  for (const slug of [
+    "reference/cli",
+    "reference/profile-v2",
+    "reference/source-discovery",
+    "reference/workloads",
+    "reference/checks",
+    "reference/platforms",
+    "reference/plans-state",
+    "reference/test-matrix"
+  ]) {
+    assert.match(config, new RegExp(slug.replace("/", "\\/")));
+  }
+
+  for (const command of ["doctor", "discover", "plan", "prepare", "sync", "verify", "profile migrate", "status", "resume", "policy source"]) {
+    assert.match(cli, new RegExp(command.replace(" ", "\\s+")));
+  }
+  for (const field of ["schemaVersion", "sourcePolicy", "firewall", "sshd", "mysql", "workloads", "checks", "approved"]) {
+    assert.match(profile, new RegExp(field));
+  }
+  for (const fact of ["osRelease", "packages", "ufwStatus", "nftRuleset", "dockerComposeProjects", "dockerContainers"]) {
+    assert.match(discovery, new RegExp(fact));
+  }
+  for (const type of ["docker-compose", "docker-standalone", "file-set", "mysql", "mariadb", "postgresql"]) {
+    assert.match(workloads, new RegExp(type));
+  }
+  for (const type of ["http", "laravelDatabase", "fileExists", "fileContains", "mysqlScalar", "postgresScalar", "serviceActive", "ufwRule", "nftRule", "nginxConfig"]) {
+    assert.match(checks, new RegExp(type));
+  }
+  assert.match(platforms, /Ubuntu[\s\S]*22\.04[\s\S]*24\.04[\s\S]*25\.10[\s\S]*26\.04/);
+  assert.match(platforms, /Debian[\s\S]*12[\s\S]*13/);
+  assert.match(platforms, /docker-compose-plugin/);
+  assert.match(state, /Action\{id, phase, hostRole, impact, command, preconditions, rollback\}/);
+  assert.match(state, /audit\.jsonl/);
+  assert.match(matrix, /HOSTSHIFT_RUN_DOCKER_MATRIX=1 make test-integration-docker/);
+  assert.match(matrix, /HOSTSHIFT_RUN_VM_E2E=1 bash tests\/e2e\/vm\/run-vm-e2e\.sh --apply/);
+  assert.match(matrix, /self-hosted, macOS, hostshift-vm/);
+});
+
 test("release workflow packages only after hosted release gates pass", async () => {
   const workflow = await fs.readFile(".github/workflows/release.yml", "utf8");
   assert.match(workflow, /docker-matrix:/);

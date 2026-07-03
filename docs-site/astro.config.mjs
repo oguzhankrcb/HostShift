@@ -49,6 +49,14 @@ export default defineConfig({
           label: 'Reference',
           items: [
             { slug: 'reference/architecture' },
+            { slug: 'reference/cli' },
+            { slug: 'reference/profile-v2' },
+            { slug: 'reference/source-discovery' },
+            { slug: 'reference/workloads' },
+            { slug: 'reference/checks' },
+            { slug: 'reference/platforms' },
+            { slug: 'reference/plans-state' },
+            { slug: 'reference/test-matrix' },
             { slug: 'reference/threat-model' },
             { slug: 'reference/security' },
             { slug: 'reference/contributing' }

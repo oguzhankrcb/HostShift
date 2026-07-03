@@ -37,3 +37,5 @@ hostshift verify --profile migration.profile.yaml --target new-server --json
 ```
 
 `prepare`, `sync`, and `verify` default to dry-run mode. Add `--apply` only after reviewing blockers and actions.
+
+For exact flags and output shapes, see [CLI Reference](/reference/cli/). For profile fields, see [Profile v2 Reference](/reference/profile-v2/).

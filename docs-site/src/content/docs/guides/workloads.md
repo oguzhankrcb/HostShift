@@ -11,7 +11,10 @@ HostShift uses workload adapters to plan transfer, target preparation, verificat
 - `docker-standalone`
 - `file-set`
 - `mysql`
+- `mariadb`
 - `postgresql`
+
+For every field, generated command, target package capability, and validation rule, see [Workload Reference](/reference/workloads/).
 
 ## Transfer Strategy
 
@@ -35,6 +38,8 @@ Verify checks include:
 - systemd `serviceActive`
 - UFW and nftables rule checks
 - Nginx config validation and reload
+
+For every check type and its generated target command, see [Check Reference](/reference/checks/).
 
 ## Target Package Planning
 
