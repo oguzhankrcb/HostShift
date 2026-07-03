@@ -43,7 +43,7 @@ Important output fields:
 
 ## discover
 
-Reads allowlisted facts from the source and writes a v2 profile skeleton.
+Reads allowlisted facts from the source and writes a v2 profile with safe workload candidates.
 
 ```bash
 hostshift discover \
@@ -63,7 +63,7 @@ Optional flags:
 - `--profile`: output path. Defaults to `<name>.profile.yaml`.
 - `--json`: machine-readable output.
 
-`discover` fails if a required fact cannot be read. Optional facts are preserved in output with their error so operators can decide whether they matter for the migration.
+`discover` fails if a required fact cannot be read. Optional facts are preserved in output with their error so operators can decide whether they matter for the migration. Generated workload candidates still require operator review before `approved: true`.
 
 ## plan
 
@@ -180,4 +180,3 @@ hostshift policy source
 ```
 
 Forbidden source-side behavior includes `sudo`, package installation, service management, file writes, snapshot creation, maintenance mode, and firewall changes.
-

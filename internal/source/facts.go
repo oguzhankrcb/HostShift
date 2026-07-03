@@ -2,7 +2,9 @@ package source
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -127,7 +129,7 @@ func ProfileFromFacts(name, alias string, facts map[string]FactResult) profile.P
 		Target:        profile.Host{},
 		SourcePolicy:  "strict-read-only",
 		Platforms:     profile.Platforms{},
-		Workloads:     []profile.Workload{},
+		Workloads:     workloadsFromFacts(facts),
 		Approved:      false,
 	}
 	if osFact := facts["osRelease"]; osFact.OK {
@@ -135,4 +137,197 @@ func ProfileFromFacts(name, alias string, facts map[string]FactResult) profile.P
 		prof.Platforms.Source = release.ID + ":" + release.VersionID
 	}
 	return prof
+}
+
+type composeProjectFact struct {
+	Name        string `json:"Name"`
+	ConfigFiles string `json:"ConfigFiles"`
+}
+
+type dockerContainerFact struct {
+	Names  string `json:"Names"`
+	Image  string `json:"Image"`
+	Labels string `json:"Labels"`
+}
+
+func workloadsFromFacts(facts map[string]FactResult) []profile.Workload {
+	workloads := []profile.Workload{}
+	seenFileSets := map[string]bool{}
+	for _, project := range composeProjectsFromFacts(facts) {
+		workloads = append(workloads, profile.Workload{
+			Type: "docker-compose",
+			Name: safeName(project.Name, "compose"),
+			Data: map[string]any{
+				"workingDir": project.workingDir,
+				"configFile": project.configFile,
+			},
+		})
+		addFileSet(&workloads, seenFileSets, project.workingDir, []string{project.workingDir}, "/")
+	}
+	for _, container := range standaloneContainersFromFacts(facts) {
+		workloads = append(workloads, profile.Workload{
+			Type: "docker-standalone",
+			Name: safeName(container.Names, "container"),
+			Data: map[string]any{
+				"image": container.Image,
+			},
+		})
+	}
+	if factOK(facts, "nginxConfigDump") {
+		addFileSet(&workloads, seenFileSets, "nginx-config", []string{"/etc/nginx"}, "/")
+	}
+	if factOK(facts, "apacheConfigDump") {
+		addFileSet(&workloads, seenFileSets, "apache-config", []string{"/etc/apache2"}, "/")
+	}
+	if factValue(facts, "letsEncryptFiles") != "" {
+		addFileSet(&workloads, seenFileSets, "letsencrypt", []string{"/etc/letsencrypt"}, "/")
+	}
+	for _, database := range databaseNames(facts, "mysqlDatabases") {
+		workloads = append(workloads, profile.Workload{Type: "mysql", Name: database, Data: map[string]any{"engine": "mysql"}})
+	}
+	for _, database := range databaseNames(facts, "postgresDatabases") {
+		workloads = append(workloads, profile.Workload{Type: "postgresql", Name: database, Data: map[string]any{"engine": "postgresql"}})
+	}
+	return workloads
+}
+
+type composeProject struct {
+	Name       string
+	configFile string
+	workingDir string
+}
+
+func composeProjectsFromFacts(facts map[string]FactResult) []composeProject {
+	raw := factValue(facts, "dockerComposeProjects")
+	if raw == "" {
+		return nil
+	}
+	var projects []composeProjectFact
+	if err := json.Unmarshal([]byte(raw), &projects); err != nil {
+		return nil
+	}
+	out := []composeProject{}
+	for _, project := range projects {
+		configFile := strings.Split(project.ConfigFiles, ",")[0]
+		if configFile == "" {
+			continue
+		}
+		if _, err := safety.TransferPath(configFile); err != nil {
+			continue
+		}
+		workingDir := parentDir(configFile)
+		if _, err := safety.TransferPath(workingDir); err != nil {
+			continue
+		}
+		out = append(out, composeProject{Name: project.Name, configFile: configFile, workingDir: workingDir})
+	}
+	return out
+}
+
+func standaloneContainersFromFacts(facts map[string]FactResult) []dockerContainerFact {
+	raw := factValue(facts, "dockerContainers")
+	if raw == "" {
+		return nil
+	}
+	out := []dockerContainerFact{}
+	for _, line := range strings.Split(raw, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		var container dockerContainerFact
+		if err := json.Unmarshal([]byte(line), &container); err != nil {
+			continue
+		}
+		if container.Names == "" || container.Image == "" || strings.Contains(container.Labels, "com.docker.compose.project=") {
+			continue
+		}
+		if err := safety.DockerName(container.Names); err != nil {
+			continue
+		}
+		if err := safety.DockerImage(container.Image); err != nil {
+			continue
+		}
+		out = append(out, container)
+	}
+	return out
+}
+
+func databaseNames(facts map[string]FactResult, factName string) []string {
+	system := map[string]bool{
+		"information_schema": true,
+		"mysql":              true,
+		"performance_schema": true,
+		"sys":                true,
+		"postgres":           true,
+		"template0":          true,
+		"template1":          true,
+	}
+	out := []string{}
+	for _, line := range strings.Split(factValue(facts, factName), "\n") {
+		name := strings.TrimSpace(line)
+		if name == "" || system[name] {
+			continue
+		}
+		if err := safety.DatabaseName(name); err != nil {
+			continue
+		}
+		out = append(out, name)
+	}
+	return out
+}
+
+func addFileSet(workloads *[]profile.Workload, seen map[string]bool, name string, paths []string, targetPath string) {
+	safe := safeName(name, "files")
+	if seen[safe] {
+		return
+	}
+	for _, item := range paths {
+		if _, err := safety.TransferPath(item); err != nil {
+			return
+		}
+	}
+	seen[safe] = true
+	*workloads = append(*workloads, profile.Workload{
+		Type: "file-set",
+		Name: safe,
+		Data: map[string]any{
+			"paths":      paths,
+			"targetPath": targetPath,
+		},
+	})
+}
+
+func factOK(facts map[string]FactResult, name string) bool {
+	fact, ok := facts[name]
+	return ok && fact.OK
+}
+
+func factValue(facts map[string]FactResult, name string) string {
+	fact, ok := facts[name]
+	if !ok || !fact.OK {
+		return ""
+	}
+	return strings.TrimSpace(fact.Value)
+}
+
+func parentDir(path string) string {
+	path = strings.TrimRight(path, "/")
+	index := strings.LastIndex(path, "/")
+	if index <= 0 {
+		return "/"
+	}
+	return path[:index]
+}
+
+var unsafeNameChars = regexp.MustCompile(`[^a-zA-Z0-9_.-]+`)
+
+func safeName(value, fallback string) string {
+	value = strings.Trim(value, "/")
+	value = unsafeNameChars.ReplaceAllString(value, "-")
+	value = strings.Trim(value, "-.")
+	if value == "" {
+		return fallback
+	}
+	return value
 }

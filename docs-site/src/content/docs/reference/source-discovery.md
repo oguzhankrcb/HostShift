@@ -63,9 +63,21 @@ Discovery writes a profile with:
 - `sourcePolicy: strict-read-only`
 - `approved: false`
 - `platforms.source` populated from `/etc/os-release` when available
-- empty workloads and checks
+- safe workload candidates derived from reviewed facts
+- empty checks
 
-Operators must fill in target, workloads, checks, and approval after reviewing the discovery output.
+Generated workload candidates currently include:
+
+- Docker Compose projects from `docker compose ls --format json`
+- matching Compose working directories as `file-set` workloads
+- standalone Docker containers from `docker ps --format`
+- `/etc/nginx` when `nginx -T` succeeds
+- `/etc/apache2` when `apache2ctl -S` succeeds
+- `/etc/letsencrypt` when certificate files are discovered
+- non-system MySQL/MariaDB databases
+- non-system PostgreSQL databases
+
+Operators must still review the generated profile, fill in the target, add checks, remove unwanted candidates, add missing workload metadata such as password environment variable names, and set `approved: true` only after review.
 
 ## Source Immutability
 
@@ -80,4 +92,3 @@ Discovery does not use:
 - firewall changes
 
 The same source command guard also protects source-side sync streams.
-
