@@ -135,6 +135,33 @@ hostshift verify --profile profile.yaml --target new-server --apply --state-dir 
 
 Verification actions run only on the target. They cover HTTP health, Laravel DB connectivity, file assertions, database scalar assertions, service status, firewall rule checks, and Nginx config validation.
 
+## cutover
+
+Plans or applies target-only cutover actions.
+
+```bash
+hostshift cutover --profile profile.yaml --target new-server --json
+hostshift cutover --profile profile.yaml --target new-server --apply --confirm START-MIGRATION --state-dir .hostshift --run-id cutover-001 --json
+```
+
+Dry-run output includes:
+
+- `confirmationCode`
+- `sourceWillBeModified: false`
+- target-only cutover actions such as `docker compose up -d --build` and standalone `docker run`
+
+Apply refuses blockers and requires the exact confirmation code. DNS remains manual.
+
+## rollback
+
+Reports rollback guidance and target rollback metadata.
+
+```bash
+hostshift rollback --profile profile.yaml --json
+```
+
+Rollback output always states `sourceChanged: false` because HostShift never mutates the source. Automatic rollback is intentionally disabled; operators should keep DNS on the source and inspect target-side rollback metadata before stopping target services.
+
 ## profile migrate
 
 Reads a v1 profile and writes a v2 profile.

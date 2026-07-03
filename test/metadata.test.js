@@ -170,7 +170,7 @@ test("documentation website covers the project surface area", async () => {
 
   assert.match(install, /codex plugin marketplace add/);
   assert.match(install, /codex plugin add hostshift@hostshift/);
-  for (const command of ["doctor", "discover", "plan", "prepare", "sync", "verify", "profile migrate", "status", "resume", "policy source"]) {
+  for (const command of ["doctor", "discover", "plan", "prepare", "sync", "verify", "cutover", "rollback", "profile migrate", "status", "resume", "policy source"]) {
     assert.match(cli, new RegExp(command.replace(" ", "\\s+")));
   }
   for (const field of ["schemaVersion", "sourcePolicy", "firewall", "sshd", "mysql", "workloads", "checks", "approved"]) {

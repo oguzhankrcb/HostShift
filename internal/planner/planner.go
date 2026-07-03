@@ -59,10 +59,8 @@ func Build(prof profile.Profile, now time.Time) (Plan, error) {
 	}
 	actions = append(actions, targetConfigurationActions(prof)...)
 	for _, workload := range prof.Workloads {
-		action, stream, hasStream := actionsForWorkload(workload)
-		if action.ID != "" {
-			actions = append(actions, action)
-		}
+		workloadActions, stream, hasStream := actionsForWorkload(workload)
+		actions = append(actions, workloadActions...)
 		if hasStream {
 			streams = append(streams, stream)
 		}
@@ -452,32 +450,49 @@ func actionForCheck(check profile.Check) core.Action {
 	}
 }
 
-func actionsForWorkload(workload profile.Workload) (core.Action, core.StreamAction, bool) {
+func actionsForWorkload(workload profile.Workload) ([]core.Action, core.StreamAction, bool) {
 	id := "target.workload." + strings.ReplaceAll(workload.Type+"."+workload.Name, " ", "-")
 	switch workload.Type {
 	case "docker-compose":
 		workingDir := dataString(workload.Data, "workingDir", "WorkingDir")
 		configFile := dataString(workload.Data, "configFile", "ConfigFile")
-		command := []string{"docker", "compose"}
-		if configFile != "" {
-			command = append(command, "-f", configFile)
-		}
-		command = append(command, "config")
-		if workingDir != "" {
-			command = []string{"sh", "-lc", "cd " + shellQuote(workingDir) + " && " + joinShell(command)}
-		}
-		return core.Action{ID: id, Phase: core.PhasePrepare, HostRole: core.HostRoleTarget, Impact: core.ImpactWrite, Command: command}, core.StreamAction{}, false
+		prepareCommand := composeCommand(workingDir, configFile, "config")
+		cutoverCommand := composeCommand(workingDir, configFile, "up", "-d", "--build")
+		return []core.Action{
+			{
+				ID:       id,
+				Phase:    core.PhasePrepare,
+				HostRole: core.HostRoleTarget,
+				Impact:   core.ImpactWrite,
+				Command:  prepareCommand,
+			},
+			{
+				ID:       id + ".up",
+				Phase:    core.PhaseCutover,
+				HostRole: core.HostRoleTarget,
+				Impact:   core.ImpactService,
+				Command:  cutoverCommand,
+				Rollback: []string{strings.Join(composeCommand(workingDir, configFile, "down"), " ")},
+			},
+		}, core.StreamAction{}, false
 	case "docker-standalone":
 		image := dataString(workload.Data, "image", "Image")
 		if image == "" {
 			image = workload.Name
 		}
-		return core.Action{}, core.StreamAction{
-			ID:            id + ".image",
-			Phase:         core.PhaseSync,
-			SourceCommand: []string{"docker", "image", "save", image},
-			TargetCommand: []string{"docker", "image", "load"},
-		}, true
+		return []core.Action{{
+				ID:       id + ".run",
+				Phase:    core.PhaseCutover,
+				HostRole: core.HostRoleTarget,
+				Impact:   core.ImpactService,
+				Command:  []string{"sh", "-lc", standaloneRunScript(workload, image)},
+				Rollback: []string{"docker stop " + shellQuote(workload.Name) + " || true"},
+			}}, core.StreamAction{
+				ID:            id + ".image",
+				Phase:         core.PhaseSync,
+				SourceCommand: []string{"docker", "image", "save", image},
+				TargetCommand: []string{"docker", "image", "load"},
+			}, true
 	case "file-set":
 		paths := dataStringSlice(workload.Data, "paths", "Paths")
 		targetPath := dataString(workload.Data, "targetPath", "TargetPath")
@@ -488,7 +503,7 @@ func actionsForWorkload(workload profile.Workload) (core.Action, core.StreamActi
 		for _, item := range paths {
 			sourceCommand = append(sourceCommand, strings.TrimPrefix(item, "/"))
 		}
-		return core.Action{}, core.StreamAction{
+		return nil, core.StreamAction{
 			ID:            id + ".tar",
 			Phase:         core.PhaseSync,
 			SourceCommand: sourceCommand,
@@ -508,7 +523,7 @@ func actionsForWorkload(workload profile.Workload) (core.Action, core.StreamActi
 			mysqlCommand = "mysql --password=${" + safeEnvName(targetEnv) + "}"
 		}
 		targetCommand := []string{"sh", "-lc", mysqlDumpCompatibilityFilter() + " | " + mysqlCommand}
-		return core.Action{}, core.StreamAction{
+		return nil, core.StreamAction{
 			ID:            id + ".dump",
 			Phase:         core.PhaseSync,
 			SourceCommand: sourceCommand,
@@ -526,14 +541,14 @@ func actionsForWorkload(workload profile.Workload) (core.Action, core.StreamActi
 		if targetEnv := dataString(workload.Data, "targetPasswordEnv", "TargetPasswordEnv"); targetEnv != "" {
 			targetCommand = []string{"env", "PGPASSWORD=${" + safeEnvName(targetEnv) + "}", "pg_restore", "--clean", "--if-exists", "--no-owner", "--no-acl", "--dbname", workload.Name}
 		}
-		return core.Action{}, core.StreamAction{
+		return nil, core.StreamAction{
 			ID:            id + ".dump",
 			Phase:         core.PhaseSync,
 			SourceCommand: sourceCommand,
 			TargetCommand: targetCommand,
 		}, true
 	default:
-		return core.Action{ID: id, Phase: core.PhasePlan, HostRole: core.HostRoleLocal, Impact: core.ImpactReadOnly, Command: []string{"hostshift", "inspect-workload", workload.Type}}, core.StreamAction{}, false
+		return []core.Action{{ID: id, Phase: core.PhasePlan, HostRole: core.HostRoleLocal, Impact: core.ImpactReadOnly, Command: []string{"hostshift", "inspect-workload", workload.Type}}}, core.StreamAction{}, false
 	}
 }
 
@@ -542,6 +557,52 @@ func mysqlDumpCompatibilityFilter() string {
 		shellQuote("s/utf8mb4_0900_ai_ci/utf8mb4_unicode_ci/g") +
 		" -e " +
 		shellQuote("s/ \\/\\*!80016 DEFAULT ENCRYPTION='N' \\*\\///g")
+}
+
+func composeCommand(workingDir, configFile string, args ...string) []string {
+	command := []string{"docker", "compose"}
+	if configFile != "" {
+		command = append(command, "-f", configFile)
+	}
+	command = append(command, args...)
+	if workingDir == "" {
+		return command
+	}
+	return []string{"sh", "-lc", "cd " + shellQuote(workingDir) + " && " + joinShell(command)}
+}
+
+func standaloneRunScript(workload profile.Workload, image string) string {
+	name := workload.Name
+	restartPolicy := dataString(workload.Data, "restartPolicy", "RestartPolicy")
+	if restartPolicy == "" {
+		restartPolicy = "no"
+	}
+	args := []string{"docker", "run", "-d", "--name", shellQuote(name), "--restart", shellQuote(restartPolicy)}
+	for containerPort, bindings := range dataPortBindings(workload.Data) {
+		for _, binding := range bindings {
+			hostPort := binding["HostPort"]
+			if hostPort == "" {
+				continue
+			}
+			hostIP := binding["HostIp"]
+			published := hostPort + ":" + containerPort
+			if hostIP != "" && hostIP != "0.0.0.0" && hostIP != "::" {
+				published = hostIP + ":" + published
+			}
+			args = append(args, "-p", shellQuote(published))
+		}
+	}
+	for key, value := range dataStringMap(workload.Data, "safeEnvironment", "SafeEnvironment") {
+		args = append(args, "-e", shellQuote(key+"="+value))
+	}
+	if user := dataString(workload.Data, "user", "User"); user != "" {
+		args = append(args, "--user", shellQuote(user))
+	}
+	if workingDir := dataString(workload.Data, "workingDir", "WorkingDir"); workingDir != "" {
+		args = append(args, "--workdir", shellQuote(workingDir))
+	}
+	args = append(args, shellQuote(image))
+	return "if docker inspect " + shellQuote(name) + " >/dev/null 2>&1; then docker start " + shellQuote(name) + "; else " + strings.Join(args, " ") + "; fi"
 }
 
 func dataStringSlice(data any, keys ...string) []string {
@@ -584,6 +645,68 @@ func dataStringSlice(data any, keys ...string) []string {
 		}
 	}
 	return nil
+}
+
+func dataStringMap(data any, keys ...string) map[string]string {
+	if item, ok := data.(map[string]any); ok {
+		for _, key := range keys {
+			raw, ok := item[key]
+			if !ok {
+				continue
+			}
+			out := map[string]string{}
+			switch values := raw.(type) {
+			case map[string]string:
+				return values
+			case map[string]any:
+				for k, v := range values {
+					if str, ok := v.(string); ok {
+						out[k] = str
+					}
+				}
+			}
+			if len(out) > 0 {
+				return out
+			}
+		}
+	}
+	return nil
+}
+
+func dataPortBindings(data any) map[string][]map[string]string {
+	item, ok := data.(map[string]any)
+	if !ok {
+		return nil
+	}
+	raw, ok := item["portBindings"]
+	if !ok {
+		raw = item["PortBindings"]
+	}
+	values, ok := raw.(map[string]any)
+	if !ok {
+		return nil
+	}
+	out := map[string][]map[string]string{}
+	for containerPort, rawBindings := range values {
+		list, ok := rawBindings.([]any)
+		if !ok {
+			continue
+		}
+		for _, rawBinding := range list {
+			binding, ok := rawBinding.(map[string]any)
+			if !ok {
+				continue
+			}
+			normalized := map[string]string{}
+			for _, key := range []string{"HostIp", "HostPort"} {
+				if value, ok := binding[key].(string); ok {
+					normalized[key] = value
+				}
+			}
+			out[containerPort] = append(out[containerPort], normalized)
+		}
+	}
+	return out
 }
 
 var envNamePattern = regexp.MustCompile(`^[A-Z_][A-Z0-9_]*$`)

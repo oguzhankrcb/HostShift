@@ -149,7 +149,8 @@ Redis is intentionally blocked unless an existing snapshot or replica can be rea
 5. **Prepare** applies target-only package and config changes when approved.
 6. **Sync** streams data from source stdout into target-side writes.
 7. **Verify** runs target-side checks and records audit output.
-8. **Resume/status** continue interrupted runs from state.
+8. **Cutover** runs reviewed target-only start actions such as Compose `up` or standalone container `run`.
+9. **Rollback/status/resume** report target rollback metadata and continue interrupted runs from state.
 
 Sync plans may include streams such as `tar --create -> tar --extract`, `docker image save -> docker image load`, `mysqldump -> mysql`, and `pg_dump -> pg_restore`. The source side produces stdout; the target side mutates only the target.
 

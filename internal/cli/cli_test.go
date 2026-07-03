@@ -157,6 +157,107 @@ approved: false
 	}
 }
 
+func TestCutoverDryRunReportsConfirmationCodeAndTargetActions(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "profile.yaml")
+	body := []byte(`schemaVersion: 2
+name: cutover-app
+source:
+  ssh: old-server
+target:
+  ssh: new-server
+platforms:
+  source: ubuntu:24.04
+  target: ubuntu:24.04
+sourcePolicy: strict-read-only
+approved: true
+workloads:
+  - type: docker-compose
+    name: web
+    data:
+      workingDir: /srv/web
+      configFile: /srv/web/docker-compose.yml
+`)
+	if err := os.WriteFile(path, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var stdout bytes.Buffer
+	if err := Run(context.Background(), []string{"cutover", "--profile", path, "--json", "--state-dir", dir, "--run-id", "cutover-test"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	out := stdout.String()
+	if !strings.Contains(out, `"confirmationCode": "START-CUTOVER-APP"`) {
+		t.Fatalf("expected confirmation code in cutover dry-run: %s", out)
+	}
+	if !strings.Contains(out, `"sourceWillBeModified": false`) {
+		t.Fatalf("cutover output did not preserve source safety: %s", out)
+	}
+	if !strings.Contains(out, "target.workload.docker-compose.web.up") {
+		t.Fatalf("expected docker compose cutover action: %s", out)
+	}
+}
+
+func TestCutoverApplyRequiresExactConfirmationCode(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "profile.yaml")
+	body := []byte(`schemaVersion: 2
+name: cutover-app
+source:
+  ssh: old-server
+target:
+  ssh: new-server
+platforms:
+  source: ubuntu:24.04
+  target: ubuntu:24.04
+sourcePolicy: strict-read-only
+approved: true
+workloads:
+  - type: docker-compose
+    name: web
+    data:
+      workingDir: /srv/web
+      configFile: /srv/web/docker-compose.yml
+`)
+	if err := os.WriteFile(path, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	err := Run(context.Background(), []string{"cutover", "--profile", path, "--apply", "--confirm", "WRONG", "--state-dir", dir, "--run-id", "cutover-test"}, &bytes.Buffer{}, &bytes.Buffer{})
+	if err == nil {
+		t.Fatal("expected invalid confirmation code")
+	}
+	if !strings.Contains(err.Error(), "invalid confirmation code") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestRollbackStatesThatSourceWasNotChanged(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "profile.yaml")
+	body := []byte(`schemaVersion: 2
+name: rollback-app
+source:
+  ssh: old-server
+target:
+  ssh: new-server
+sourcePolicy: strict-read-only
+approved: false
+`)
+	if err := os.WriteFile(path, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var stdout bytes.Buffer
+	if err := Run(context.Background(), []string{"rollback", "--profile", path, "--json"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	out := stdout.String()
+	if !strings.Contains(out, `"sourceChanged": false`) {
+		t.Fatalf("rollback should state source was unchanged: %s", out)
+	}
+	if !strings.Contains(out, `"automatic": false`) {
+		t.Fatalf("rollback should be manual by default: %s", out)
+	}
+}
+
 func TestVerifyDryRunIncludesTypedChecks(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "profile.yaml")

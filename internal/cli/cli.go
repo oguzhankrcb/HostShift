@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/oguzhankaracabay/hostshift/internal/core"
@@ -42,6 +43,10 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return runPhase(ctx, args[1:], stdout, core.PhaseSync)
 	case "verify":
 		return runPhase(ctx, args[1:], stdout, core.PhaseVerify)
+	case "cutover":
+		return cutover(ctx, args[1:], stdout)
+	case "rollback":
+		return rollback(args[1:], stdout)
 	case "profile":
 		return profileCommand(args[1:], stdout)
 	case "status":
@@ -53,6 +58,106 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	default:
 		return fmt.Errorf("unknown command: %s", args[0])
 	}
+}
+
+func cutover(ctx context.Context, args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("cutover", flag.ContinueOnError)
+	profilePath := fs.String("profile", "", "profile path")
+	target := fs.String("target", "", "target ssh alias override")
+	apply := fs.Bool("apply", false, "execute target cutover actions")
+	confirm := fs.String("confirm", "", "confirmation code")
+	stateDir := fs.String("state-dir", "", "state directory")
+	runID := fs.String("run-id", "", "run id")
+	jsonOutput := fs.Bool("json", false, "json output")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if *profilePath == "" {
+		return fmt.Errorf("--profile is required")
+	}
+	prof, err := profile.Load(*profilePath)
+	if err != nil {
+		return err
+	}
+	if *target != "" {
+		if err := safety.SSHAlias(*target); err != nil {
+			return err
+		}
+		prof.Target.SSH = *target
+	}
+	plan, err := planner.Build(prof, time.Now().UTC())
+	if err != nil {
+		return err
+	}
+	code := confirmationCode(prof)
+	if !*apply {
+		actions := []core.Action{}
+		for _, action := range plan.Actions {
+			if action.Phase == core.PhaseCutover {
+				actions = append(actions, action)
+			}
+		}
+		return write(stdout, map[string]any{
+			"dryRun":               true,
+			"confirmationCode":     code,
+			"sourceWillBeModified": false,
+			"blockers":             plan.Blockers,
+			"actions":              actions,
+		}, *jsonOutput)
+	}
+	if len(plan.Blockers) > 0 {
+		return fmt.Errorf("cannot apply while plan has blockers: %s", strings.Join(plan.Blockers, "; "))
+	}
+	if *confirm != code {
+		return fmt.Errorf("invalid confirmation code; expected %s", code)
+	}
+	results, err := executor.Phase(ctx, prof, plan, core.PhaseCutover, ssh.Runner{}, executor.Options{
+		Apply:    true,
+		StateDir: *stateDir,
+		RunID:    *runID,
+	})
+	if err != nil {
+		return err
+	}
+	return write(stdout, map[string]any{
+		"phase":                core.PhaseCutover,
+		"apply":                true,
+		"sourceWillBeModified": false,
+		"results":              results,
+	}, *jsonOutput)
+}
+
+func rollback(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("rollback", flag.ContinueOnError)
+	profilePath := fs.String("profile", "", "profile path")
+	jsonOutput := fs.Bool("json", false, "json output")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if *profilePath == "" {
+		return fmt.Errorf("--profile is required")
+	}
+	prof, err := profile.Load(*profilePath)
+	if err != nil {
+		return err
+	}
+	plan, err := planner.Build(prof, time.Now().UTC())
+	if err != nil {
+		return err
+	}
+	rollbackActions := map[string][]string{}
+	for _, action := range plan.Actions {
+		if len(action.Rollback) > 0 {
+			rollbackActions[action.ID] = action.Rollback
+		}
+	}
+	return write(stdout, map[string]any{
+		"automatic":       false,
+		"sourceChanged":   false,
+		"sourcePolicy":    prof.SourcePolicy,
+		"targetRollbacks": rollbackActions,
+		"message":         "The source was never changed. Keep DNS on the source and inspect the target before stopping target services.",
+	}, *jsonOutput)
 }
 
 func doctor(args []string, stdout io.Writer) error {
@@ -270,6 +375,10 @@ func policy(args []string, stdout io.Writer) error {
 	}, true)
 }
 
+func confirmationCode(prof profile.Profile) string {
+	return "START-" + strings.ToUpper(prof.Name)
+}
+
 func write(stdout io.Writer, value any, jsonOutput bool) error {
 	if jsonOutput {
 		encoder := json.NewEncoder(stdout)
@@ -299,6 +408,8 @@ Commands:
   prepare         --profile <file> [--target <ssh>] [--apply] [--json]
   sync            --profile <file> [--target <ssh>] [--apply] [--json]
   verify          --profile <file> [--target <ssh>] [--apply] [--json]
+  cutover         --profile <file> [--target <ssh>] [--apply --confirm <code>] [--json]
+  rollback        --profile <file> [--json]
   profile migrate --input <v1-profile> --output <v2-profile>
   status          --run-id <id> [--state-dir <dir>] [--json]
   resume          --run-id <id> [--state-dir <dir>]

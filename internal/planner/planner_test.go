@@ -350,6 +350,62 @@ func TestComposeUsesWorkingDirAndConfigFile(t *testing.T) {
 	if last.Command[0] != "sh" || !strings.Contains(last.Command[2], "/srv/web/docker-compose.yml") {
 		t.Fatalf("expected compose command with working dir and config file, got %+v", last.Command)
 	}
+	if last.Phase != "cutover" || !strings.Contains(last.Command[2], "up") || !strings.Contains(last.Command[2], "--build") {
+		t.Fatalf("expected compose cutover up action, got %+v", last)
+	}
+	if len(last.Rollback) == 0 || !strings.Contains(last.Rollback[0], "down") {
+		t.Fatalf("expected compose rollback metadata, got %+v", last.Rollback)
+	}
+}
+
+func TestStandaloneContainerPlansCutoverRunAction(t *testing.T) {
+	prof := profile.Profile{
+		SchemaVersion: profile.CurrentSchemaVersion,
+		Name:          "example",
+		Source:        profile.Host{SSH: "old"},
+		Target:        profile.Host{SSH: "new"},
+		SourcePolicy:  "strict-read-only",
+		Approved:      true,
+		Workloads: []profile.Workload{{
+			Type: "docker-standalone",
+			Name: "portfolio",
+			Data: map[string]any{
+				"image":         "portfolio:latest",
+				"restartPolicy": "always",
+				"safeEnvironment": map[string]any{
+					"NODE_ENV": "production",
+				},
+				"portBindings": map[string]any{
+					"3000/tcp": []any{map[string]any{"HostPort": "3001"}},
+				},
+			},
+		}},
+	}
+	plan, err := Build(prof, time.Date(2026, 6, 11, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var runActionFound bool
+	for _, action := range plan.Actions {
+		if action.ID == "target.workload.docker-standalone.portfolio.run" {
+			runActionFound = true
+			if action.Phase != "cutover" || action.HostRole != "target" || action.Impact != "service" {
+				t.Fatalf("unexpected standalone run action metadata: %+v", action)
+			}
+			script := strings.Join(action.Command, " ")
+			for _, expected := range []string{"docker inspect", "docker run", "portfolio:latest", "NODE_ENV=production", "3001:3000/tcp"} {
+				if !strings.Contains(script, expected) {
+					t.Fatalf("expected %q in standalone run script: %+v", expected, action.Command)
+				}
+			}
+			if len(action.Rollback) == 0 || !strings.Contains(action.Rollback[0], "docker stop") {
+				t.Fatalf("expected rollback metadata, got %+v", action.Rollback)
+			}
+		}
+	}
+	if !runActionFound {
+		t.Fatalf("expected standalone cutover action, got %+v", plan.Actions)
+	}
 }
 
 func TestDatabasePasswordEnvReferencesAreNotLiteralSecrets(t *testing.T) {
