@@ -73,9 +73,12 @@ Generated workload candidates currently include:
 - standalone Docker containers from `docker ps --format`
 - `/etc/nginx` when `nginx -T` succeeds
 - `/etc/apache2` when `apache2ctl -S` succeeds
+- an `apache-vhost` activation candidate when Apache config is discovered
 - `/etc/letsencrypt` when certificate files are discovered
 - non-system MySQL/MariaDB databases
 - non-system PostgreSQL databases
+
+HostShift does not automatically generate `systemd-service` workloads from enabled service lists because it cannot safely distinguish application units from distribution/system units without operator review.
 
 Operators must still review the generated profile, fill in the target, add checks, remove unwanted candidates, add missing workload metadata such as password environment variable names, and set `approved: true` only after review.
 

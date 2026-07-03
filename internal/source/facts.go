@@ -178,6 +178,11 @@ func workloadsFromFacts(facts map[string]FactResult) []profile.Workload {
 	}
 	if factOK(facts, "apacheConfigDump") {
 		addFileSet(&workloads, seenFileSets, "apache-config", []string{"/etc/apache2"}, "/")
+		workloads = append(workloads, profile.Workload{
+			Type: "apache-vhost",
+			Name: "apache2",
+			Data: map[string]any{},
+		})
 	}
 	if factValue(facts, "letsEncryptFiles") != "" {
 		addFileSet(&workloads, seenFileSets, "letsencrypt", []string{"/etc/letsencrypt"}, "/")

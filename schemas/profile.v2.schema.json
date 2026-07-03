@@ -92,6 +92,10 @@
               "paths": { "type": "array", "items": { "type": "string" }, "description": "Absolute source paths for file-set tar streaming." },
               "targetPath": { "type": "string", "description": "Absolute target extraction path for file-set tar streaming." },
               "image": { "type": "string", "description": "Standalone Docker image reference to stream from source to target." },
+              "modules": { "type": "array", "items": { "type": "string", "pattern": "^[A-Za-z0-9_.@-]+$" }, "description": "Apache modules to enable on the target." },
+              "sites": { "type": "array", "items": { "type": "string", "pattern": "^[A-Za-z0-9_.@-]+$" }, "description": "Apache sites to enable on the target." },
+              "service": { "type": "string", "pattern": "^[A-Za-z0-9_.@-]+$", "description": "Systemd service to enable and start on cutover." },
+              "unitPath": { "type": "string", "pattern": "^/etc/systemd/system/.+\\.service$", "description": "Optional systemd unit file path expected on the target." },
               "sourcePasswordEnv": { "type": "string", "pattern": "^[A-Z_][A-Z0-9_]*$", "description": "Source-side environment variable name containing a database password." },
               "targetPasswordEnv": { "type": "string", "pattern": "^[A-Z_][A-Z0-9_]*$", "description": "Target-side environment variable name containing a database password." }
             }

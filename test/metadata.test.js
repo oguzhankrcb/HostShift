@@ -184,7 +184,7 @@ test("documentation website covers the project surface area", async () => {
   for (const fact of ["osRelease", "packages", "ufwStatus", "nftRuleset", "dockerComposeProjects", "dockerContainers"]) {
     assert.match(discovery, new RegExp(fact));
   }
-  for (const type of ["docker-compose", "docker-standalone", "file-set", "mysql", "mariadb", "postgresql"]) {
+  for (const type of ["docker-compose", "docker-standalone", "file-set", "apache-vhost", "systemd-service", "mysql", "mariadb", "postgresql"]) {
     assert.match(workloads, new RegExp(type));
   }
   for (const type of ["http", "laravelDatabase", "fileExists", "fileContains", "mysqlScalar", "postgresScalar", "serviceActive", "ufwRule", "nftRule", "nginxConfig"]) {

@@ -91,8 +91,65 @@ Target capabilities:
 
 - `tar`
 - `nginx` when any path includes `/etc/nginx`
+- `apache` when any path includes `/etc/apache2`
 
 HostShift rejects broad or machine-identity paths through the transfer path safety rules.
+
+## apache-vhost
+
+Enables Apache modules and sites after Apache config files have been synced, validates the target config, and reloads Apache.
+
+```yaml
+- type: apache-vhost
+  name: customer-apache
+  data:
+    modules:
+      - rewrite
+      - ssl
+    sites:
+      - customer.conf
+```
+
+Generated verify action:
+
+```text
+a2enmod <module> && a2ensite <site> && apache2ctl configtest && (systemctl reload apache2 || systemctl restart apache2)
+```
+
+When Apache config is migrated, HostShift also plans a target-only prepare action to disable the packaged `000-default.conf` site.
+
+Target capability:
+
+- `apache`
+
+## systemd-service
+
+Enables and starts an application service during cutover.
+
+```yaml
+- type: systemd-service
+  name: customer-worker
+  data:
+    service: customer-worker.service
+    unitPath: /etc/systemd/system/customer-worker.service
+```
+
+Fields:
+
+- `service`: optional service name. Defaults to the workload name.
+- `unitPath`: optional expected unit file path. If set, it must be under `/etc/systemd/system/` and end with `.service`.
+
+Generated cutover action:
+
+```text
+systemctl daemon-reload && systemctl enable --now <service>
+```
+
+Rollback metadata:
+
+```text
+systemctl disable --now <service> || true
+```
 
 ## mysql
 
@@ -173,4 +230,3 @@ hostshift inspect-workload <type>
 ```
 
 They do not silently apply target mutations.
-

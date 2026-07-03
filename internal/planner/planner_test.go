@@ -692,6 +692,112 @@ func TestNginxFileSetDisablesPackagedDefaultSiteOnTarget(t *testing.T) {
 	t.Fatalf("expected nginx default-site action, got %+v", plan.Actions)
 }
 
+func TestApacheVhostPlansActivationAndPackages(t *testing.T) {
+	prof := profile.Profile{
+		SchemaVersion: profile.CurrentSchemaVersion,
+		Name:          "example",
+		Source:        profile.Host{SSH: "old"},
+		Target:        profile.Host{SSH: "new"},
+		SourcePolicy:  "strict-read-only",
+		Platforms:     profile.Platforms{Source: "ubuntu:24.04", Target: "debian:12"},
+		Approved:      true,
+		Workloads: []profile.Workload{
+			{
+				Type: "file-set",
+				Name: "apache-files",
+				Data: map[string]any{"paths": []any{"/etc/apache2/sites-available/example.conf"}, "targetPath": "/"},
+			},
+			{
+				Type: "apache-vhost",
+				Name: "example",
+				Data: map[string]any{
+					"modules": []any{"rewrite", "ssl"},
+					"sites":   []any{"example.conf"},
+				},
+			},
+		},
+	}
+	plan, err := Build(prof, time.Date(2026, 6, 11, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var packageCommand []string
+	var disabledDefault bool
+	var activated *strings.Builder
+	for _, action := range plan.Actions {
+		switch action.ID {
+		case "target.prepare.packages":
+			packageCommand = action.Command
+		case "target.apache.disable-default-site":
+			disabledDefault = true
+			if action.Phase != "prepare" || action.HostRole != "target" || action.Impact != "service" {
+				t.Fatalf("unexpected apache default-site action: %+v", action)
+			}
+		case "target.workload.apache-vhost.example.activate":
+			builder := &strings.Builder{}
+			builder.WriteString(strings.Join(action.Command, " "))
+			activated = builder
+			if action.Phase != "verify" || action.HostRole != "target" || action.Impact != "service" {
+				t.Fatalf("unexpected apache activation metadata: %+v", action)
+			}
+			if len(action.Rollback) == 0 || !strings.Contains(action.Rollback[0], "a2dissite") {
+				t.Fatalf("expected apache rollback metadata, got %+v", action.Rollback)
+			}
+		}
+	}
+	if !strings.Contains(strings.Join(packageCommand, " "), "apache2") {
+		t.Fatalf("expected apache package capability, got %+v", packageCommand)
+	}
+	if !disabledDefault {
+		t.Fatalf("expected apache default-site disable action, got %+v", plan.Actions)
+	}
+	if activated == nil {
+		t.Fatalf("expected apache activation action, got %+v", plan.Actions)
+	}
+	for _, expected := range []string{"a2enmod 'rewrite'", "a2enmod 'ssl'", "a2ensite 'example.conf'", "apache2ctl configtest", "systemctl reload apache2"} {
+		if !strings.Contains(activated.String(), expected) {
+			t.Fatalf("expected %q in apache activation command: %s", expected, activated.String())
+		}
+	}
+}
+
+func TestSystemdServicePlansCutoverAction(t *testing.T) {
+	prof := profile.Profile{
+		SchemaVersion: profile.CurrentSchemaVersion,
+		Name:          "example",
+		Source:        profile.Host{SSH: "old"},
+		Target:        profile.Host{SSH: "new"},
+		SourcePolicy:  "strict-read-only",
+		Approved:      true,
+		Workloads: []profile.Workload{{
+			Type: "systemd-service",
+			Name: "portfolio",
+			Data: map[string]any{"service": "portfolio.service", "unitPath": "/etc/systemd/system/portfolio.service"},
+		}},
+	}
+	plan, err := Build(prof, time.Date(2026, 6, 11, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, action := range plan.Actions {
+		if action.ID != "target.workload.systemd-service.portfolio.start" {
+			continue
+		}
+		if action.Phase != "cutover" || action.HostRole != "target" || action.Impact != "service" {
+			t.Fatalf("unexpected systemd action metadata: %+v", action)
+		}
+		script := strings.Join(action.Command, " ")
+		if !strings.Contains(script, "systemctl daemon-reload") || !strings.Contains(script, "systemctl enable --now 'portfolio.service'") {
+			t.Fatalf("unexpected systemd command: %+v", action.Command)
+		}
+		if len(action.Rollback) == 0 || !strings.Contains(action.Rollback[0], "systemctl disable --now 'portfolio.service'") {
+			t.Fatalf("expected systemd rollback metadata, got %+v", action.Rollback)
+		}
+		return
+	}
+	t.Fatalf("expected systemd cutover action, got %+v", plan.Actions)
+}
+
 func TestServiceAndFirewallChecksProduceReadOnlyVerifyActions(t *testing.T) {
 	prof := profile.Profile{
 		SchemaVersion: profile.CurrentSchemaVersion,

@@ -116,6 +116,9 @@ func TestValidateRejectsUnsafeWorkloadMetadata(t *testing.T) {
 		{Type: "docker-compose", Name: "web", Data: map[string]any{"workingDir": "/etc"}},
 		{Type: "docker-standalone", Name: "worker", Data: map[string]any{"image": "bad image"}},
 		{Type: "file-set", Name: "files", Data: map[string]any{"paths": []any{"/etc"}}},
+		{Type: "apache-vhost", Name: "apache", Data: map[string]any{"sites": []any{"bad site.conf"}}},
+		{Type: "systemd-service", Name: "app", Data: map[string]any{"service": "bad service"}},
+		{Type: "systemd-service", Name: "app", Data: map[string]any{"unitPath": "/etc/systemd"}},
 	}
 	for _, workload := range tests {
 		prof := base
@@ -123,6 +126,24 @@ func TestValidateRejectsUnsafeWorkloadMetadata(t *testing.T) {
 		if _, err := Validate(prof); err == nil {
 			t.Fatalf("expected unsafe workload to fail validation: %+v", workload)
 		}
+	}
+}
+
+func TestValidateAcceptsApacheAndSystemdWorkloads(t *testing.T) {
+	prof := Profile{
+		SchemaVersion: CurrentSchemaVersion,
+		Name:          "example",
+		Source:        Host{SSH: "old"},
+		Target:        Host{SSH: "new"},
+		SourcePolicy:  "strict-read-only",
+		Approved:      false,
+		Workloads: []Workload{
+			{Type: "apache-vhost", Name: "apache", Data: map[string]any{"modules": []any{"rewrite", "ssl"}, "sites": []any{"example.conf"}}},
+			{Type: "systemd-service", Name: "portfolio", Data: map[string]any{"service": "portfolio.service", "unitPath": "/etc/systemd/system/portfolio.service"}},
+		},
+	}
+	if _, err := Validate(prof); err != nil {
+		t.Fatalf("expected apache and systemd workloads to validate: %v", err)
 	}
 }
 

@@ -142,8 +142,9 @@ Current workload coverage includes:
 - streamed Docker images
 - MySQL and MariaDB
 - PostgreSQL
-- Nginx and Apache configuration
-- systemd service checks
+- Nginx configuration and reload validation
+- Apache vhost activation and reload validation
+- systemd application service cutover and service checks
 - SSH server settings
 - UFW and nftables firewall rules
 - Laravel-style database connectivity checks

@@ -329,6 +329,33 @@ func validateWorkload(workload Workload) error {
 		if err := validateFileSetData(workload.Data); err != nil {
 			return fmt.Errorf("file-set workload %s is invalid: %w", workload.Name, err)
 		}
+	case "apache-vhost":
+		for _, value := range dataStringSlice(workload.Data, "modules", "Modules") {
+			if err := safety.ServiceName(value); err != nil {
+				return fmt.Errorf("apache-vhost workload %s has unsafe modules value: %w", workload.Name, err)
+			}
+		}
+		for _, value := range dataStringSlice(workload.Data, "sites", "Sites") {
+			if err := safety.ServiceName(value); err != nil {
+				return fmt.Errorf("apache-vhost workload %s has unsafe sites value: %w", workload.Name, err)
+			}
+		}
+	case "systemd-service":
+		service := dataString(workload.Data, "service", "Service")
+		if service == "" {
+			service = workload.Name
+		}
+		if err := safety.ServiceName(service); err != nil {
+			return fmt.Errorf("systemd-service workload %s has unsafe service: %w", workload.Name, err)
+		}
+		if unitPath := dataString(workload.Data, "unitPath", "UnitPath"); unitPath != "" {
+			if _, err := safety.TransferPath(unitPath); err != nil {
+				return fmt.Errorf("systemd-service workload %s has unsafe unitPath: %w", workload.Name, err)
+			}
+			if !strings.HasPrefix(unitPath, "/etc/systemd/system/") || !strings.HasSuffix(unitPath, ".service") {
+				return fmt.Errorf("systemd-service workload %s unitPath must be under /etc/systemd/system and end with .service", workload.Name)
+			}
+		}
 	case "mysql", "mariadb", "postgresql":
 		if err := safety.DatabaseName(workload.Name); err != nil {
 			return err

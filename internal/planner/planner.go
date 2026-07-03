@@ -109,7 +109,12 @@ func requiredCapabilities(prof profile.Profile) []string {
 				if item == "/etc/nginx" || strings.HasPrefix(item, "/etc/nginx/") {
 					set["nginx"] = true
 				}
+				if item == "/etc/apache2" || strings.HasPrefix(item, "/etc/apache2/") {
+					set["apache"] = true
+				}
 			}
+		case "apache-vhost":
+			set["apache"] = true
 		case "mysql":
 			set["mysql-client"] = true
 		case "mariadb":
@@ -133,7 +138,7 @@ func requiredCapabilities(prof profile.Profile) []string {
 		}
 	}
 	out := []string{}
-	for _, capability := range []string{"rsync", "tar", "curl", "ufw", "openssh-server", "nginx", "docker-runtime", "docker-compose", "mysql-server", "mysql-client", "mariadb-client", "postgresql-server", "postgresql-client"} {
+	for _, capability := range []string{"rsync", "tar", "curl", "ufw", "openssh-server", "nginx", "apache", "docker-runtime", "docker-compose", "mysql-server", "mysql-client", "mariadb-client", "postgresql-server", "postgresql-client"} {
 		if set[capability] {
 			out = append(out, capability)
 		}
@@ -160,6 +165,17 @@ func targetConfigurationActions(prof profile.Profile) []core.Action {
 			Rollback: []string{"test ! -e /etc/nginx/sites-available/default || ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default"},
 		})
 	}
+	if migratesApacheConfig(prof.Workloads) {
+		actions = append(actions, core.Action{
+			ID:            "target.apache.disable-default-site",
+			Phase:         core.PhasePrepare,
+			HostRole:      core.HostRoleTarget,
+			Impact:        core.ImpactService,
+			Command:       []string{"sh", "-lc", "a2dissite 000-default.conf || true"},
+			Preconditions: []string{"Apache is installed on target"},
+			Rollback:      []string{"a2ensite 000-default.conf || true"},
+		})
+	}
 	return actions
 }
 
@@ -170,6 +186,23 @@ func migratesNginxConfig(workloads []profile.Workload) bool {
 		}
 		for _, item := range dataStringSlice(workload.Data, "paths", "Paths") {
 			if item == "/etc/nginx" || strings.HasPrefix(item, "/etc/nginx/") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func migratesApacheConfig(workloads []profile.Workload) bool {
+	for _, workload := range workloads {
+		if workload.Type == "apache-vhost" {
+			return true
+		}
+		if workload.Type != "file-set" {
+			continue
+		}
+		for _, item := range dataStringSlice(workload.Data, "paths", "Paths") {
+			if item == "/etc/apache2" || strings.HasPrefix(item, "/etc/apache2/") {
 				return true
 			}
 		}
@@ -547,9 +580,54 @@ func actionsForWorkload(workload profile.Workload) ([]core.Action, core.StreamAc
 			SourceCommand: sourceCommand,
 			TargetCommand: targetCommand,
 		}, true
+	case "apache-vhost":
+		return []core.Action{{
+			ID:            id + ".activate",
+			Phase:         core.PhaseVerify,
+			HostRole:      core.HostRoleTarget,
+			Impact:        core.ImpactService,
+			Command:       []string{"sh", "-lc", apacheActivationScript(workload)},
+			Preconditions: []string{"Apache config files are present on target"},
+			Rollback:      apacheRollback(workload),
+		}}, core.StreamAction{}, false
+	case "systemd-service":
+		service := dataString(workload.Data, "service", "Service")
+		if service == "" {
+			service = workload.Name
+		}
+		return []core.Action{{
+			ID:            id + ".start",
+			Phase:         core.PhaseCutover,
+			HostRole:      core.HostRoleTarget,
+			Impact:        core.ImpactService,
+			Command:       []string{"sh", "-lc", "systemctl daemon-reload && systemctl enable --now " + shellQuote(service)},
+			Preconditions: []string{"Systemd unit and application files are present on target"},
+			Rollback:      []string{"systemctl disable --now " + shellQuote(service) + " || true"},
+		}}, core.StreamAction{}, false
 	default:
 		return []core.Action{{ID: id, Phase: core.PhasePlan, HostRole: core.HostRoleLocal, Impact: core.ImpactReadOnly, Command: []string{"hostshift", "inspect-workload", workload.Type}}}, core.StreamAction{}, false
 	}
+}
+
+func apacheActivationScript(workload profile.Workload) string {
+	parts := []string{}
+	for _, module := range dataStringSlice(workload.Data, "modules", "Modules") {
+		parts = append(parts, "a2enmod "+shellQuote(module))
+	}
+	for _, site := range dataStringSlice(workload.Data, "sites", "Sites") {
+		parts = append(parts, "a2ensite "+shellQuote(site))
+	}
+	parts = append(parts, "apache2ctl configtest", "(systemctl reload apache2 || systemctl restart apache2)")
+	return strings.Join(parts, " && ")
+}
+
+func apacheRollback(workload profile.Workload) []string {
+	parts := []string{}
+	for _, site := range dataStringSlice(workload.Data, "sites", "Sites") {
+		parts = append(parts, "a2dissite "+shellQuote(site))
+	}
+	parts = append(parts, "systemctl reload apache2 || true")
+	return []string{strings.Join(parts, " && ")}
 }
 
 func mysqlDumpCompatibilityFilter() string {

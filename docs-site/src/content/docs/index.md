@@ -31,6 +31,8 @@ The core invariant is strict:
 - Bind mount and file-set transfer
 - MySQL/MariaDB and PostgreSQL stream migrations
 - Nginx config checks and target reload validation
+- Apache vhost activation and target reload validation
+- systemd application service cutover
 - Laravel-style database connectivity checks
 - SSH keepalive, MySQL bind-address, UFW, and nftables target configuration
 - Docker matrix and Lima VM validation gates
