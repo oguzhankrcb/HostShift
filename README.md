@@ -4,7 +4,7 @@ Move Ubuntu and Debian web servers without touching the source.
 
 HostShift discovers a live server over SSH, builds a reviewable migration profile, prepares a clean target, streams data across, and verifies the result. It enforces a strictly read-only source policy: no source-side writes, no `sudo`, no service restarts, no package installs, no firewall changes, no keys added, no snapshots, no maintenance mode.
 
-[Install](#install) | [Codex Plugin](#codex-plugin) | [What You Get](#what-you-get) | [How It Works](#how-it-works) | [Validation](#validation) | [Safety Model](#safety-model)
+[Documentation](https://hostshift.karacabay.com) | [Install](#install) | [Codex Plugin](#codex-plugin) | [What You Get](#what-you-get) | [How It Works](#how-it-works) | [Validation](#validation) | [Safety Model](#safety-model)
 
 ---
 
@@ -214,7 +214,9 @@ Known limits are reported instead of hidden. Live filesystem streaming is not a 
 
 ## Documentation
 
-The documentation website is built with Astro Starlight under [docs-site](./docs-site).
+The documentation website is published at [hostshift.karacabay.com](https://hostshift.karacabay.com). If you prefer the full guide format, click there for installation, profiles, workloads, validation, and reference pages.
+
+The site source is built with Astro Starlight under [docs-site](./docs-site).
 
 ```bash
 cd docs-site

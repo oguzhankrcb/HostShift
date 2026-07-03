@@ -15,6 +15,8 @@ hero:
 
 HostShift is a Go CLI and Codex skill/plugin project for discovering, planning, moving, and verifying Linux web workloads.
 
+The public documentation site is published at [hostshift.karacabay.com](https://hostshift.karacabay.com).
+
 The core invariant is strict:
 
 > The source server is an observation endpoint. HostShift may read facts and stream read-only exports, but it must not write files, install packages, manage services, alter firewall rules, create snapshots, add keys, or place applications into maintenance mode on the source.

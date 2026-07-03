@@ -2,7 +2,7 @@ import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 
 export default defineConfig({
-  site: 'https://oguzhankrcb.github.io/HostShift',
+  site: 'https://hostshift.karacabay.com',
   integrations: [
     starlight({
       title: 'HostShift',
