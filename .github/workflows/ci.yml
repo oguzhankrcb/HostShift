@@ -26,6 +26,8 @@ jobs:
         with:
           node-version: "22"
       - run: npm test
+      - run: npm run docs:build
+      - run: npm run docs:compose:config
       - run: make test-go
       - run: make build
       - run: make test-integration-docker

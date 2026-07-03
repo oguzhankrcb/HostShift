@@ -76,6 +76,7 @@ test("documentation website is scaffolded with Starlight and Docker Compose", as
   const manifest = JSON.parse(await fs.readFile("docs-site/package.json", "utf8"));
   const config = await fs.readFile("docs-site/astro.config.mjs", "utf8");
   const compose = await fs.readFile("docs-site/compose.yml", "utf8");
+  const dockerfile = await fs.readFile("docs-site/Dockerfile", "utf8");
   const overview = await fs.readFile("docs-site/src/content/docs/overview.md", "utf8");
   const runner = await fs.readFile("docs-site/src/content/docs/operations/self-hosted-runner.md", "utf8");
 
@@ -83,10 +84,25 @@ test("documentation website is scaffolded with Starlight and Docker Compose", as
   assert.equal(manifest.dependencies["@astrojs/starlight"], "0.41.2");
   assert.match(manifest.scripts.build, /ASTRO_TELEMETRY_DISABLED=1/);
   assert.match(config, /starlight\(/);
+  assert.match(config, /disable404Route: true/);
   assert.match(compose, /4321:4321/);
   assert.match(compose, /ASTRO_TELEMETRY_DISABLED/);
+  assert.match(dockerfile, /CMD \["npm", "run", "dev"\]/);
   assert.match(overview, /source server exactly as it is/i);
   assert.match(runner, /hostshift-vm/);
+});
+
+test("root package and workflows validate the documentation website", async () => {
+  const manifest = JSON.parse(await fs.readFile("package.json", "utf8"));
+  const ci = await fs.readFile(".github/workflows/ci.yml", "utf8");
+  const release = await fs.readFile(".github/workflows/release.yml", "utf8");
+
+  assert.equal(manifest.scripts["docs:build"], "npm --prefix docs-site run build");
+  assert.equal(manifest.scripts["docs:compose:config"], "docker compose -f docs-site/compose.yml config");
+  assert.match(ci, /npm run docs:build/);
+  assert.match(ci, /npm run docs:compose:config/);
+  assert.match(release, /npm run docs:build/);
+  assert.match(release, /npm run docs:compose:config/);
 });
 
 test("release workflow packages only after hosted release gates pass", async () => {

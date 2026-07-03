@@ -13,6 +13,7 @@
     "test:go": "go test ./...",
     "docs:dev": "npm --prefix docs-site run dev",
     "docs:build": "npm --prefix docs-site run build",
+    "docs:compose:config": "docker compose -f docs-site/compose.yml config",
     "docs:preview": "npm --prefix docs-site run preview"
   },
   "engines": {
