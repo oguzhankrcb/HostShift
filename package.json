@@ -3,13 +3,9 @@
   "version": "0.3.0",
   "description": "Read-only-source Ubuntu and Debian server migration tooling",
   "type": "module",
-  "bin": {
-    "hostshift": "./bin/hostshift.js",
-    "server-migrate": "./bin/server-migrate.js"
-  },
   "scripts": {
     "test": "node --test",
-    "check": "node --check bin/server-migrate.js && node --check bin/hostshift.js && node --test",
+    "check": "node --test",
     "test:go": "go test ./...",
     "docs:dev": "npm --prefix docs-site run dev",
     "docs:build": "npm --prefix docs-site run build",

@@ -32,9 +32,8 @@ const pairs = Object.entries(matrix).flatMap(([source, targets]) =>
 
 const composeDir = fileURLToPath(new URL(".", import.meta.url));
 const repoRoot = fileURLToPath(new URL("../../../", import.meta.url));
-const hostshiftNodeCli = fileURLToPath(new URL("../../../bin/hostshift.js", import.meta.url));
 const hostshiftGoCli = fileURLToPath(new URL("../../../dist/hostshift", import.meta.url));
-const hostshiftCli = fs.existsSync(hostshiftGoCli) ? hostshiftGoCli : hostshiftNodeCli;
+const hostshiftCommand = resolveHostShiftCommand("HOSTSHIFT_DOCKER_HOSTSHIFT_BIN", hostshiftGoCli);
 
 const pairFilter = readPairFilter(process.argv.slice(2));
 const selectedPairs = pairFilter ? pairs.filter((pair) => `${pair.source}->${pair.target}` === pairFilter) : pairs;
@@ -62,7 +61,7 @@ const commandTimeoutMs = readTimeoutMs("HOSTSHIFT_DOCKER_COMMAND_TIMEOUT_MS", 10
 const buildTimeoutMs = readTimeoutMs("HOSTSHIFT_DOCKER_BUILD_TIMEOUT_MS", 20 * 60 * 1000);
 const pullTimeoutMs = readTimeoutMs("HOSTSHIFT_DOCKER_PULL_TIMEOUT_MS", buildTimeoutMs);
 console.log(`HostShift Docker migration matrix: ${selectedPairs.length} pairs`);
-console.log(`HostShift CLI: ${hostshiftCli}`);
+console.log(`HostShift CLI: ${hostshiftCommand.label}`);
 
 const compose = spawnSync("docker", ["compose", "version"], { stdio: "inherit" });
 if (compose.status !== 0) {
@@ -333,10 +332,18 @@ function runJSON(args, env) {
 }
 
 function runHostShift(args, options = {}) {
-  if (hostshiftCli === hostshiftGoCli) {
-    return run(hostshiftCli, args, options);
+  return run(hostshiftCommand.command, [...hostshiftCommand.prefixArgs, ...args], options);
+}
+
+function resolveHostShiftCommand(envName, builtBinary) {
+  const override = process.env[envName];
+  if (override) {
+    return { command: override, prefixArgs: [], label: override };
   }
-  return run(process.execPath, [hostshiftNodeCli, ...args], options);
+  if (fs.existsSync(builtBinary)) {
+    return { command: builtBinary, prefixArgs: [], label: builtBinary };
+  }
+  return { command: "go", prefixArgs: ["run", "./cmd/hostshift"], label: "go run ./cmd/hostshift" };
 }
 
 function verifyApplyArtifacts(sshConfig) {

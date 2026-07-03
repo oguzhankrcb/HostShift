@@ -3,7 +3,7 @@ title: CLI Reference
 description: HostShift command reference for migration, safety, state, and profile operations.
 ---
 
-The primary binary is `hostshift`. The legacy Node entrypoint remains available as `server-migrate` while Go parity is maintained, but new workflows should use `hostshift`.
+The primary binary is `hostshift`. Migration behavior lives in the Go CLI; there is no Node migration runtime or compatibility entrypoint.
 
 All commands that can mutate the target default to dry-run mode unless `--apply` is passed.
 

@@ -12,9 +12,8 @@ const planTemplatePath = path.join(vmDir, "providers/lima/instance-plan.json.tmp
 const commonBootstrap = path.join(vmDir, "fixtures/common-bootstrap.sh");
 const sourceBootstrap = path.join(vmDir, "fixtures/source-bootstrap.sh");
 const targetBootstrap = path.join(vmDir, "fixtures/target-bootstrap.sh");
-const nodeHostShiftBin = path.join(repoRoot, "bin/hostshift.js");
 const goHostShiftBin = path.join(repoRoot, "dist/hostshift");
-const defaultHostShiftBin = fs.existsSync(goHostShiftBin) ? goHostShiftBin : nodeHostShiftBin;
+const defaultHostShiftCommand = resolveHostShiftCommand("HOSTSHIFT_VM_HOSTSHIFT_BIN", goHostShiftBin);
 const defaultCommandTimeoutMs = readTimeoutEnv("HOSTSHIFT_VM_COMMAND_TIMEOUT_MS", 15 * 60 * 1000);
 const limactlTimeoutMs = readTimeoutEnv("HOSTSHIFT_VM_LIMACTL_TIMEOUT_MS", 20 * 60 * 1000);
 const hostShiftTimeoutMs = readTimeoutEnv("HOSTSHIFT_VM_HOSTSHIFT_TIMEOUT_MS", 10 * 60 * 1000);
@@ -320,7 +319,6 @@ function renderLimaTemplate(plan) {
 
 function buildCommandPlan(workspaceDir, sourcePlan, targetPlan) {
   const template = (filename) => path.join(workspaceDir, filename);
-  const hostShiftBin = process.env.HOSTSHIFT_VM_HOSTSHIFT_BIN || defaultHostShiftBin;
   const discoveredProfile = path.join(workspaceDir, "discovered.profile.yaml");
   const fixtureProfile = path.join(workspaceDir, "fixture.profile.json");
   const stateDir = path.join(workspaceDir, "state");
@@ -334,17 +332,17 @@ function buildCommandPlan(workspaceDir, sourcePlan, targetPlan) {
       ["limactl", "start", "--tty=false", "--name", targetPlan.instanceName, template("target.lima.yaml")],
       ["limactl", "show-ssh", "--format=options", sourcePlan.instanceName],
       ["limactl", "show-ssh", "--format=options", targetPlan.instanceName],
-      hostShiftCommand(hostShiftBin, ["discover", "--source", sourcePlan.ssh.alias, "--name", sourcePlan.platform.key, "--profile", discoveredProfile, "--json"]),
-      hostShiftCommand(hostShiftBin, ["plan", "--profile", discoveredProfile, "--target", targetPlan.ssh.alias, "--json"]),
-      hostShiftCommand(hostShiftBin, ["plan", "--profile", fixtureProfile, "--target", targetPlan.ssh.alias, "--json"]),
-      hostShiftCommand(hostShiftBin, ["prepare", "--profile", fixtureProfile, "--target", targetPlan.ssh.alias, "--apply", "--json", "--state-dir", stateDir, "--run-id", "vm-prepare"]),
-      hostShiftCommand(hostShiftBin, ["sync", "--profile", fixtureProfile, "--target", targetPlan.ssh.alias, "--apply", "--json", "--state-dir", stateDir, "--run-id", "vm-sync"]),
-      hostShiftCommand(hostShiftBin, ["verify", "--profile", fixtureProfile, "--target", targetPlan.ssh.alias, "--apply", "--json", "--state-dir", stateDir, "--run-id", "vm-verify"]),
+      hostShiftCommand(["discover", "--source", sourcePlan.ssh.alias, "--name", sourcePlan.platform.key, "--profile", discoveredProfile, "--json"]),
+      hostShiftCommand(["plan", "--profile", discoveredProfile, "--target", targetPlan.ssh.alias, "--json"]),
+      hostShiftCommand(["plan", "--profile", fixtureProfile, "--target", targetPlan.ssh.alias, "--json"]),
+      hostShiftCommand(["prepare", "--profile", fixtureProfile, "--target", targetPlan.ssh.alias, "--apply", "--json", "--state-dir", stateDir, "--run-id", "vm-prepare"]),
+      hostShiftCommand(["sync", "--profile", fixtureProfile, "--target", targetPlan.ssh.alias, "--apply", "--json", "--state-dir", stateDir, "--run-id", "vm-sync"]),
+      hostShiftCommand(["verify", "--profile", fixtureProfile, "--target", targetPlan.ssh.alias, "--apply", "--json", "--state-dir", stateDir, "--run-id", "vm-verify"]),
       ["limactl", "stop", targetPlan.instanceName],
       ["limactl", "start", targetPlan.instanceName],
       ["limactl", "show-ssh", "--format=options", sourcePlan.instanceName],
       ["limactl", "show-ssh", "--format=options", targetPlan.instanceName],
-      hostShiftCommand(hostShiftBin, ["verify", "--profile", fixtureProfile, "--target", targetPlan.ssh.alias, "--apply", "--json", "--state-dir", stateDir, "--run-id", "vm-post-reboot-verify"]),
+      hostShiftCommand(["verify", "--profile", fixtureProfile, "--target", targetPlan.ssh.alias, "--apply", "--json", "--state-dir", stateDir, "--run-id", "vm-post-reboot-verify"]),
       ["limactl", "stop", targetPlan.instanceName],
       ["limactl", "stop", sourcePlan.instanceName],
       ["limactl", "delete", "--force", targetPlan.instanceName],
@@ -471,7 +469,6 @@ function sshAliasConfig(alias, options) {
 }
 
 function runHostShiftWorkflow(workspace, sshConfigPath, stateDir) {
-  const hostShiftBin = process.env.HOSTSHIFT_VM_HOSTSHIFT_BIN || defaultHostShiftBin;
   const discoveredProfile = path.join(workspace.workspaceDir, "discovered.profile.yaml");
   const fixtureProfile = path.join(workspace.workspaceDir, "fixture.profile.json");
   const env = {
@@ -481,7 +478,7 @@ function runHostShiftWorkflow(workspace, sshConfigPath, stateDir) {
   };
 
   logStep(workspace, "running hostshift discover");
-  const discover = runHostShift(hostShiftBin, [
+  const discover = runHostShift([
     "discover",
     "--source",
     workspace.sourcePlan.ssh.alias,
@@ -498,7 +495,7 @@ function runHostShiftWorkflow(workspace, sshConfigPath, stateDir) {
   }
 
   logStep(workspace, "planning discovered profile");
-  const discoveredPlan = runHostShift(hostShiftBin, [
+  const discoveredPlan = runHostShift([
     "plan",
     "--profile",
     discoveredProfile,
@@ -514,7 +511,7 @@ function runHostShiftWorkflow(workspace, sshConfigPath, stateDir) {
   fs.writeFileSync(fixtureProfile, `${JSON.stringify(buildFixtureProfile(workspace), null, 2)}\n`);
 
   logStep(workspace, "planning fixture profile");
-  const plan = runHostShift(hostShiftBin, [
+  const plan = runHostShift([
     "plan",
     "--profile",
     fixtureProfile,
@@ -532,7 +529,7 @@ function runHostShiftWorkflow(workspace, sshConfigPath, stateDir) {
 
   const runPrefix = `${workspace.pair.source}-${workspace.pair.target}`;
   logStep(workspace, "running hostshift prepare --apply");
-  const prepare = runHostShift(hostShiftBin, [
+  const prepare = runHostShift([
     "prepare",
     "--profile",
     fixtureProfile,
@@ -548,7 +545,7 @@ function runHostShiftWorkflow(workspace, sshConfigPath, stateDir) {
   assertPhaseResult(JSON.parse(prepare.stdout), "prepare", { expectStream: false });
 
   logStep(workspace, "running hostshift sync --apply");
-  const sync = runHostShift(hostShiftBin, [
+  const sync = runHostShift([
     "sync",
     "--profile",
     fixtureProfile,
@@ -564,7 +561,7 @@ function runHostShiftWorkflow(workspace, sshConfigPath, stateDir) {
   assertPhaseResult(JSON.parse(sync.stdout), "sync", { expectStream: true });
 
   logStep(workspace, "running hostshift verify --apply");
-  const verify = runHostShift(hostShiftBin, [
+  const verify = runHostShift([
     "verify",
     "--profile",
     fixtureProfile,
@@ -581,7 +578,6 @@ function runHostShiftWorkflow(workspace, sshConfigPath, stateDir) {
 }
 
 function verifyTargetBootPersistence(workspace, sshConfigPath, stateDir) {
-  const hostShiftBin = process.env.HOSTSHIFT_VM_HOSTSHIFT_BIN || defaultHostShiftBin;
   const fixtureProfile = path.join(workspace.workspaceDir, "fixture.profile.json");
   const runPrefix = `${workspace.pair.source}-${workspace.pair.target}`;
 
@@ -596,7 +592,7 @@ function verifyTargetBootPersistence(workspace, sshConfigPath, stateDir) {
     HOSTSHIFT_TARGET_SUDO: "1"
   };
   logStep(workspace, "running post-reboot hostshift verify --apply");
-  const verify = runHostShift(hostShiftBin, [
+  const verify = runHostShift([
     "verify",
     "--profile",
     fixtureProfile,
@@ -791,8 +787,8 @@ function captureSourceSnapshot(sourceAlias, sshConfigPath) {
   return result.stdout.trim();
 }
 
-function runHostShift(hostShiftBin, args, env) {
-  const command = hostShiftCommand(hostShiftBin, args);
+function runHostShift(args, env) {
+  const command = hostShiftCommand(args);
   return run(command[0], command.slice(1), {
     cwd: repoRoot,
     env,
@@ -801,12 +797,19 @@ function runHostShift(hostShiftBin, args, env) {
   });
 }
 
-function hostShiftCommand(hostShiftBin, args) {
-  const isNodeScript = hostShiftBin.endsWith(".js") || hostShiftBin.endsWith(".mjs") || hostShiftBin.endsWith(".cjs");
-  if (isNodeScript) {
-    return [process.execPath, hostShiftBin, ...args];
+function hostShiftCommand(args) {
+  return [defaultHostShiftCommand.command, ...defaultHostShiftCommand.prefixArgs, ...args];
+}
+
+function resolveHostShiftCommand(envName, builtBinary) {
+  const override = process.env[envName];
+  if (override) {
+    return { command: override, prefixArgs: [], label: override };
   }
-  return [hostShiftBin, ...args];
+  if (fs.existsSync(builtBinary)) {
+    return { command: builtBinary, prefixArgs: [], label: builtBinary };
+  }
+  return { command: "go", prefixArgs: ["run", "./cmd/hostshift"], label: "go run ./cmd/hostshift" };
 }
 
 function runProviderPreflight(providerName, provider) {

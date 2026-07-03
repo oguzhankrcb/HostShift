@@ -37,4 +37,4 @@ Use the reference section for exact CLI flags, profile v2 fields, workload/check
 
 ## Current Milestone
 
-HostShift is preparing its first public `v0.3.0` release. The Go CLI is the primary implementation; the earlier Node CLI remains a compatibility reference until parity is no longer needed.
+HostShift is preparing its first public `v0.3.0` release. The Go CLI is the migration implementation; the earlier Node migration runtime has been removed.

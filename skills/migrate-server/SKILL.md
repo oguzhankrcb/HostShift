@@ -5,7 +5,7 @@ description: Safely discover, plan, prepare, stream, verify, and audit Ubuntu or
 
 # Migrate Server
 
-Use the bundled `hostshift` CLI when available. The legacy `server-migrate` Node CLI remains a compatibility reference during the Go port.
+Use the bundled `hostshift` CLI. HostShift migration behavior lives in the Go binary; do not fall back to removed Node entrypoints or ad hoc shell migrations.
 
 ## Safety Rules
 
@@ -27,15 +27,6 @@ Run from the plugin root:
 go run ./cmd/hostshift doctor --source old-server --target new-server --json
 go run ./cmd/hostshift plan --profile example.profile.yaml --target new-server --json
 go run ./cmd/hostshift profile migrate --input old-v1.profile.yaml --output new-v2.profile.json
-```
-
-During the Go transition, use the Node CLI only for legacy behavior that has not reached Go parity:
-
-```bash
-node bin/server-migrate.js discover --source old-server --name example
-node bin/server-migrate.js prepare --profile example.profile.yaml
-node bin/server-migrate.js sync --profile example.profile.yaml
-node bin/server-migrate.js verify --profile example.profile.yaml
 ```
 
 Use `--apply` only after displaying the exact target mutations and source read commands to the user. Run application checks before any manual DNS change. Run `drift` after migration.

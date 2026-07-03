@@ -39,7 +39,7 @@ Default mode is dry-run only. It renders artifacts such as:
 
 `HOSTSHIFT_RUN_VM_E2E=1` adds provider preflight. For Lima this currently means validating that `limactl` exists and responds correctly.
 
-`--apply` now performs the first real provider workflow. The runner uses `dist/hostshift` when it exists and falls back to the Node reference CLI only when the Go binary has not been built. Override with `HOSTSHIFT_VM_HOSTSHIFT_BIN=/path/to/hostshift` when testing a specific binary.
+`--apply` now performs the first real provider workflow. The runner uses `dist/hostshift` when it exists and falls back to `go run ./cmd/hostshift` when the Go binary has not been built. Override with `HOSTSHIFT_VM_HOSTSHIFT_BIN=/path/to/hostshift` when testing a specific binary.
 
 - validates the rendered Lima templates
 - boots source and target instances

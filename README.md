@@ -257,7 +257,7 @@ Before publishing a public tag, complete [docs/release.md](./docs/release.md): h
 
 ## Status
 
-HostShift is in the validation milestone. The Go `hostshift` CLI is the primary implementation. The legacy Node CLI remains as the v0.2 behavior reference until parity is complete. Cloud and DNS automation are intentionally outside the core.
+HostShift is in the validation milestone. The Go `hostshift` CLI is the implementation used for discovery, planning, transfer, verification, cutover, and rollback. Cloud and DNS automation are intentionally outside the core.
 
 ## License
 

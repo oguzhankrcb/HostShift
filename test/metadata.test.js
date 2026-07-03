@@ -44,10 +44,10 @@ test("packaged Codex plugin includes manifest, skill, and safety model", async (
   assert.match(safety, /immutable observation endpoint/);
 });
 
-test("package exposes hostshift and legacy server-migrate bins", async () => {
+test("package no longer exposes Node runtime bins", async () => {
   const manifest = JSON.parse(await fs.readFile("package.json", "utf8"));
-  assert.equal(manifest.bin.hostshift, "./bin/hostshift.js");
-  assert.equal(manifest.bin["server-migrate"], "./bin/server-migrate.js");
+  assert.equal(manifest.bin, undefined);
+  assert.equal(manifest.scripts.check, "node --test");
 });
 
 test("readme documents hostshift execution commands", async () => {
