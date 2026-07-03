@@ -1,0 +1,20 @@
+{
+  "name": "hostshift",
+  "interface": {
+    "displayName": "HostShift"
+  },
+  "plugins": [
+    {
+      "name": "hostshift",
+      "source": {
+        "source": "local",
+        "path": "./plugins/hostshift"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

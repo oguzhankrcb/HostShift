@@ -10,6 +10,40 @@ test("plugin manifest has required local plugin fields", async () => {
   assert(Array.isArray(manifest.interface.defaultPrompt));
 });
 
+test("repo marketplace exposes the packaged HostShift plugin", async () => {
+  const marketplace = JSON.parse(await fs.readFile(".agents/plugins/marketplace.json", "utf8"));
+  assert.equal(marketplace.name, "hostshift");
+  assert.equal(marketplace.interface.displayName, "HostShift");
+  assert.equal(marketplace.plugins.length, 1);
+
+  const [entry] = marketplace.plugins;
+  assert.equal(entry.name, "hostshift");
+  assert.deepEqual(entry.source, {
+    source: "local",
+    path: "./plugins/hostshift"
+  });
+  assert.equal(entry.policy.installation, "AVAILABLE");
+  assert.equal(entry.policy.authentication, "ON_INSTALL");
+  assert.equal(entry.category, "Developer Tools");
+});
+
+test("packaged Codex plugin includes manifest, skill, and safety model", async () => {
+  const manifest = JSON.parse(await fs.readFile("plugins/hostshift/.codex-plugin/plugin.json", "utf8"));
+  const skill = await fs.readFile("plugins/hostshift/skills/migrate-server/SKILL.md", "utf8");
+  const safety = await fs.readFile("plugins/hostshift/skills/migrate-server/references/safety-model.md", "utf8");
+
+  assert.equal(manifest.name, "hostshift");
+  assert.equal(manifest.version, "0.3.0");
+  assert.equal(manifest.license, "Apache-2.0");
+  assert.equal(manifest.repository, "https://github.com/oguzhankrcb/HostShift");
+  assert.equal(manifest.skills, "./skills/");
+  assert.equal(manifest.interface.displayName, "HostShift");
+  assert.match(skill, /^---\nname: migrate-server\n/m);
+  assert.match(skill, /The skill is an operator layer/);
+  assert.match(skill, /Do not silently fall back to ad hoc shell commands/);
+  assert.match(safety, /immutable observation endpoint/);
+});
+
 test("package exposes hostshift and legacy server-migrate bins", async () => {
   const manifest = JSON.parse(await fs.readFile("package.json", "utf8"));
   assert.equal(manifest.bin.hostshift, "./bin/hostshift.js");
@@ -21,6 +55,8 @@ test("readme documents hostshift execution commands", async () => {
   assert.match(readme, /hostshift discover/);
   assert.match(readme, /hostshift prepare/);
   assert.match(readme, /strictly read-only|read-only-source/i);
+  assert.match(readme, /codex plugin marketplace add/);
+  assert.match(readme, /codex plugin add hostshift@hostshift/);
   assert.match(readme, /docs\/install\.md/);
   assert.match(readme, /docs\/validation\.md/);
   assert.match(readme, /examples\/web-stack-v2\.yaml/);
@@ -109,6 +145,7 @@ test("root package and workflows validate the documentation website", async () =
 
 test("documentation website covers the project surface area", async () => {
   const config = await fs.readFile("docs-site/astro.config.mjs", "utf8");
+  const install = await fs.readFile("docs-site/src/content/docs/getting-started/install.md", "utf8");
   const cli = await fs.readFile("docs-site/src/content/docs/reference/cli.md", "utf8");
   const profile = await fs.readFile("docs-site/src/content/docs/reference/profile-v2.md", "utf8");
   const discovery = await fs.readFile("docs-site/src/content/docs/reference/source-discovery.md", "utf8");
@@ -131,6 +168,8 @@ test("documentation website covers the project surface area", async () => {
     assert.match(config, new RegExp(slug.replace("/", "\\/")));
   }
 
+  assert.match(install, /codex plugin marketplace add/);
+  assert.match(install, /codex plugin add hostshift@hostshift/);
   for (const command of ["doctor", "discover", "plan", "prepare", "sync", "verify", "profile migrate", "status", "resume", "policy source"]) {
     assert.match(cli, new RegExp(command.replace(" ", "\\s+")));
   }

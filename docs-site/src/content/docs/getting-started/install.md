@@ -45,3 +45,23 @@ cd HostShift
 make build
 ./dist/hostshift version
 ```
+
+## Codex Plugin
+
+HostShift also ships as a Codex plugin from the same repository. Install the CLI first, then add the repo marketplace:
+
+```bash
+codex plugin marketplace add https://github.com/oguzhankrcb/HostShift.git
+codex plugin add hostshift@hostshift
+```
+
+For local plugin development from a checkout:
+
+```bash
+codex plugin marketplace add .
+codex plugin add hostshift@hostshift
+```
+
+The plugin is an assistant layer around the CLI. It gives Codex the `migrate-server` workflow and source read-only rules; the migration itself still runs through `hostshift`.
+
+Start a new Codex thread after installing or updating the plugin so Codex loads the bundled skill.

@@ -43,6 +43,26 @@ make build
 ./dist/hostshift version
 ```
 
+## Codex Plugin
+
+The Codex plugin is distributed from the same repository through a repo marketplace. Install the CLI first, then add the marketplace:
+
+```bash
+codex plugin marketplace add https://github.com/oguzhankrcb/HostShift.git
+codex plugin add hostshift@hostshift
+```
+
+For local plugin development from a checkout:
+
+```bash
+codex plugin marketplace add .
+codex plugin add hostshift@hostshift
+```
+
+The plugin is an assistant layer around the CLI. It helps Codex follow HostShift's reviewed migration workflow and source read-only policy; the actual migration actions still run through `hostshift`.
+
+After installing or updating the plugin, start a new Codex thread before testing `migrate-server`.
+
 ## First Rehearsal
 
 Start with dry-run commands. `prepare`, `sync`, and `verify` do not execute target mutations unless `--apply` is passed.

@@ -69,6 +69,26 @@ docker compose -f docs-site/compose.yml up --build
 
 Open `http://localhost:4321`.
 
+## Codex Plugin
+
+HostShift also ships as a Codex plugin package under `plugins/hostshift`. The plugin does not replace the CLI; it gives Codex the migration workflow, source-safety rules, and operator guidance while the deterministic `hostshift` binary performs discovery, planning, transfer, and verification.
+
+This repository includes a repo marketplace at `.agents/plugins/marketplace.json`. Add it to Codex, then install the plugin from the `hostshift` marketplace:
+
+```bash
+codex plugin marketplace add https://github.com/oguzhankrcb/HostShift.git
+codex plugin add hostshift@hostshift
+```
+
+For local development from a checkout, add the repository root instead:
+
+```bash
+codex plugin marketplace add .
+codex plugin add hostshift@hostshift
+```
+
+Start a new Codex thread after installing or updating the plugin so the bundled `migrate-server` skill is loaded.
+
 See `docs/validation.md` for the release gates. In short, quick unit checks are not enough for a release: the real Docker matrix and the VM apply gate must also pass with the current `dist/hostshift` binary.
 
 Docker matrix tests are scaffolded under `tests/integration/docker` and will run with:

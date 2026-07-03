@@ -1,0 +1,38 @@
+{
+  "name": "hostshift",
+  "version": "0.3.0",
+  "description": "Plan and perform read-only-source Ubuntu and Debian server migrations.",
+  "author": {
+    "name": "Oguzhan Karacabay",
+    "url": "https://github.com/oguzhankrcb"
+  },
+  "homepage": "https://github.com/oguzhankrcb/HostShift",
+  "repository": "https://github.com/oguzhankrcb/HostShift",
+  "license": "Apache-2.0",
+  "keywords": [
+    "server-migration",
+    "ubuntu",
+    "debian",
+    "devops",
+    "ssh"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "HostShift",
+    "shortDescription": "Migrate Ubuntu and Debian servers without changing the source.",
+    "longDescription": "Discovers Ubuntu and Debian web servers, builds reviewable migration profiles, prepares clean targets, streams data without writing to the source, and verifies cutovers.",
+    "developerName": "Oguzhan Karacabay",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/oguzhankrcb/HostShift",
+    "defaultPrompt": [
+      "Discover a source server without changing it.",
+      "Build a reviewed HostShift migration plan.",
+      "Verify a prepared target server."
+    ],
+    "brandColor": "#2563EB"
+  }
+}
