@@ -41,6 +41,7 @@ var aptCapabilities = map[string]string{
 	"docker-compose":    "docker-compose-plugin",
 	"nginx":             "nginx",
 	"apache":            "apache2",
+	"cron":              "cron",
 	"openssh-server":    "openssh-server",
 	"mysql-server":      "mysql-server",
 	"mysql-client":      "mysql-client",

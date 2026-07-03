@@ -181,7 +181,7 @@ test("documentation website covers the project surface area", async () => {
   for (const field of ["schemaVersion", "sourcePolicy", "firewall", "sshd", "mysql", "workloads", "checks", "approved"]) {
     assert.match(profile, new RegExp(field));
   }
-  for (const fact of ["osRelease", "packages", "ufwStatus", "nftRuleset", "dockerComposeProjects", "dockerContainers"]) {
+  for (const fact of ["osRelease", "packages", "ufwStatus", "nftRuleset", "customSystemdUnits", "dockerComposeProjects", "dockerContainers"]) {
     assert.match(discovery, new RegExp(fact));
   }
   for (const type of ["docker-compose", "docker-standalone", "file-set", "apache-vhost", "systemd-service", "mysql", "mariadb", "postgresql"]) {
@@ -193,6 +193,7 @@ test("documentation website covers the project surface area", async () => {
   assert.match(platforms, /Ubuntu[\s\S]*22\.04[\s\S]*24\.04[\s\S]*25\.10[\s\S]*26\.04/);
   assert.match(platforms, /Debian[\s\S]*12[\s\S]*13/);
   assert.match(platforms, /docker-compose-plugin/);
+  assert.match(platforms, /`cron`[\s\S]*`cron`[\s\S]*`cron`/);
   assert.match(state, /Action\{id, phase, hostRole, impact, command, preconditions, rollback\}/);
   assert.match(state, /audit\.jsonl/);
   assert.match(matrix, /HOSTSHIFT_RUN_DOCKER_MATRIX=1 make test-integration-docker/);

@@ -59,6 +59,7 @@ var Facts = []FactSpec{
 	{Name: "users", Command: []string{"getent", "passwd"}},
 	{Name: "groups", Command: []string{"getent", "group"}},
 	{Name: "cron", Command: []string{"find", "/etc/cron.d", "/etc/cron.daily", "/etc/cron.hourly", "/etc/cron.monthly", "/etc/cron.weekly", "-maxdepth", "1", "-type", "f", "-print"}, Optional: true},
+	{Name: "customSystemdUnits", Command: []string{"find", "/etc/systemd/system", "-maxdepth", "2", "-type", "f", "-name", "*.service", "-print"}, Optional: true},
 	{Name: "dockerVersion", Command: []string{"docker", "version", "--format", "{{json .Server.Version}}"}, Optional: true},
 	{Name: "dockerComposeProjects", Command: []string{"docker", "compose", "ls", "--format", "json"}, Optional: true},
 	{Name: "dockerContainers", Command: []string{"docker", "ps", "--format", "{{json .}}"}, Optional: true},
@@ -187,6 +188,22 @@ func workloadsFromFacts(facts map[string]FactResult) []profile.Workload {
 	if factValue(facts, "letsEncryptFiles") != "" {
 		addFileSet(&workloads, seenFileSets, "letsencrypt", []string{"/etc/letsencrypt"}, "/")
 	}
+	if paths := safeTransferPaths(factValue(facts, "cron")); len(paths) > 0 {
+		addFileSet(&workloads, seenFileSets, "cron-config", paths, "/")
+	}
+	if paths := safeSystemdUnitPaths(factValue(facts, "customSystemdUnits")); len(paths) > 0 {
+		addFileSet(&workloads, seenFileSets, "systemd-units", paths, "/")
+		for _, unit := range enabledCustomUnits(paths, factValue(facts, "enabledServices")) {
+			workloads = append(workloads, profile.Workload{
+				Type: "systemd-service",
+				Name: safeName(strings.TrimSuffix(unit.service, ".service"), "systemd-service"),
+				Data: map[string]any{
+					"service":  unit.service,
+					"unitPath": unit.path,
+				},
+			})
+		}
+	}
 	for _, database := range databaseNames(facts, "mysqlDatabases") {
 		workloads = append(workloads, profile.Workload{Type: "mysql", Name: database, Data: map[string]any{"engine": "mysql"}})
 	}
@@ -194,6 +211,58 @@ func workloadsFromFacts(facts map[string]FactResult) []profile.Workload {
 		workloads = append(workloads, profile.Workload{Type: "postgresql", Name: database, Data: map[string]any{"engine": "postgresql"}})
 	}
 	return workloads
+}
+
+func safeTransferPaths(raw string) []string {
+	out := []string{}
+	for _, line := range strings.Split(raw, "\n") {
+		item := strings.TrimSpace(line)
+		if item == "" {
+			continue
+		}
+		if normalized, err := safety.TransferPath(item); err == nil {
+			out = append(out, normalized)
+		}
+	}
+	return out
+}
+
+func safeSystemdUnitPaths(raw string) []string {
+	out := []string{}
+	for _, path := range safeTransferPaths(raw) {
+		name := strings.TrimPrefix(path, "/etc/systemd/system/")
+		if name != path && !strings.Contains(name, "/") && strings.HasSuffix(name, ".service") {
+			out = append(out, path)
+		}
+	}
+	return out
+}
+
+type enabledUnit struct {
+	service string
+	path    string
+}
+
+func enabledCustomUnits(paths []string, enabledServices string) []enabledUnit {
+	enabled := map[string]bool{}
+	for _, line := range strings.Split(enabledServices, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 2 || fields[1] != "enabled" {
+			continue
+		}
+		name := fields[0]
+		if strings.HasSuffix(name, ".service") {
+			enabled[name] = true
+		}
+	}
+	out := []enabledUnit{}
+	for _, path := range paths {
+		service := path[strings.LastIndex(path, "/")+1:]
+		if enabled[service] {
+			out = append(out, enabledUnit{service: service, path: path})
+		}
+	}
+	return out
 }
 
 type composeProject struct {

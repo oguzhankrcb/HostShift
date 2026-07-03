@@ -112,6 +112,13 @@ func requiredCapabilities(prof profile.Profile) []string {
 				if item == "/etc/apache2" || strings.HasPrefix(item, "/etc/apache2/") {
 					set["apache"] = true
 				}
+				if item == "/etc/cron.d" || strings.HasPrefix(item, "/etc/cron.d/") ||
+					item == "/etc/cron.daily" || strings.HasPrefix(item, "/etc/cron.daily/") ||
+					item == "/etc/cron.hourly" || strings.HasPrefix(item, "/etc/cron.hourly/") ||
+					item == "/etc/cron.monthly" || strings.HasPrefix(item, "/etc/cron.monthly/") ||
+					item == "/etc/cron.weekly" || strings.HasPrefix(item, "/etc/cron.weekly/") {
+					set["cron"] = true
+				}
 			}
 		case "apache-vhost":
 			set["apache"] = true
@@ -138,7 +145,7 @@ func requiredCapabilities(prof profile.Profile) []string {
 		}
 	}
 	out := []string{}
-	for _, capability := range []string{"rsync", "tar", "curl", "ufw", "openssh-server", "nginx", "apache", "docker-runtime", "docker-compose", "mysql-server", "mysql-client", "mariadb-client", "postgresql-server", "postgresql-client"} {
+	for _, capability := range []string{"rsync", "tar", "curl", "ufw", "openssh-server", "nginx", "apache", "cron", "docker-runtime", "docker-compose", "mysql-server", "mysql-client", "mariadb-client", "postgresql-server", "postgresql-client"} {
 		if set[capability] {
 			out = append(out, capability)
 		}

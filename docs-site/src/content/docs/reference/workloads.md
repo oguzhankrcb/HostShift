@@ -92,6 +92,7 @@ Target capabilities:
 - `tar`
 - `nginx` when any path includes `/etc/nginx`
 - `apache` when any path includes `/etc/apache2`
+- `cron` when any path includes `/etc/cron.d`, `/etc/cron.daily`, `/etc/cron.hourly`, `/etc/cron.monthly`, or `/etc/cron.weekly`
 
 HostShift rejects broad or machine-identity paths through the transfer path safety rules.
 
@@ -150,6 +151,8 @@ Rollback metadata:
 ```text
 systemctl disable --now <service> || true
 ```
+
+Discovery can suggest `systemd-service` for custom unit files under `/etc/systemd/system` when the matching service is enabled. Operators must still review these candidates before setting `approved: true`.
 
 ## mysql
 

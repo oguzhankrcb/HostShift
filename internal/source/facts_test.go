@@ -21,7 +21,7 @@ func (f *fakeRunner) Run(_ context.Context, _ string, command []string) ([]byte,
 
 func TestFactNamesExposeAllowlist(t *testing.T) {
 	names := FactNames()
-	for _, expected := range []string{"osRelease", "dockerComposeProjects", "nftRuleset"} {
+	for _, expected := range []string{"osRelease", "dockerComposeProjects", "nftRuleset", "customSystemdUnits"} {
 		if !slices.Contains(names, expected) {
 			t.Fatalf("expected %s in fact allowlist", expected)
 		}
@@ -71,12 +71,14 @@ func TestProfileFromFactsSuggestsSafeWorkloads(t *testing.T) {
 		"apacheConfigDump":    {OK: true, Value: "VirtualHost configuration:\n*:80 example.conf"},
 		"dockerVersion":       {OK: true, Value: `"25.0.0"`},
 		"dockerNetworks":      {OK: true, Value: "{}"},
-		"enabledServices":     {OK: true, Value: "nginx.service enabled"},
+		"enabledServices":     {OK: true, Value: "nginx.service enabled\nportfolio.service enabled"},
 		"runningServices":     {OK: true, Value: "nginx.service loaded active running"},
 		"listeners":           {OK: true, Value: "LISTEN 0 4096 *:80"},
 		"ufwStatus":           {OK: true, Value: "Status: active"},
 		"nftRuleset":          {OK: true, Value: "table inet filter {}"},
 		"sshdEffectiveConfig": {OK: true, Value: "port 22"},
+		"cron":                {OK: true, Value: "/etc/cron.d/app\n/etc/cron.daily/backup"},
+		"customSystemdUnits":  {OK: true, Value: "/etc/systemd/system/portfolio.service\n/etc/systemd/system/multi-user.target.wants/ignored.service"},
 	}
 	prof := ProfileFromFacts("example", "source-host", facts)
 	want := map[string]bool{
@@ -87,6 +89,9 @@ func TestProfileFromFactsSuggestsSafeWorkloads(t *testing.T) {
 		"file-set:apache-config":        true,
 		"apache-vhost:apache2":          true,
 		"file-set:letsencrypt":          true,
+		"file-set:cron-config":          true,
+		"file-set:systemd-units":        true,
+		"systemd-service:portfolio":     true,
 		"mysql:app":                     true,
 		"postgresql:analytics":          true,
 	}

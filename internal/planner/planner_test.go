@@ -84,6 +84,7 @@ func TestTargetPackagePreparationUsesPlatformCapabilities(t *testing.T) {
 		Workloads: []profile.Workload{
 			{Type: "file-set", Name: "files"},
 			{Type: "file-set", Name: "nginx-files", Data: map[string]any{"paths": []any{"/etc/nginx/sites-available/example.conf"}, "targetPath": "/"}},
+			{Type: "file-set", Name: "cron-files", Data: map[string]any{"paths": []any{"/etc/cron.d/app"}, "targetPath": "/"}},
 			{Type: "docker-compose", Name: "web"},
 			{Type: "mysql", Name: "app"},
 		},
@@ -106,7 +107,7 @@ func TestTargetPackagePreparationUsesPlatformCapabilities(t *testing.T) {
 	if len(actionCommand) == 0 {
 		t.Fatalf("expected package prepare action, got %+v", plan.Actions)
 	}
-	expected := []string{"apt-get", "install", "-y", "rsync", "tar", "curl", "nginx", "docker.io", "docker-compose-plugin", "default-mysql-client"}
+	expected := []string{"apt-get", "install", "-y", "rsync", "tar", "curl", "nginx", "cron", "docker.io", "docker-compose-plugin", "default-mysql-client"}
 	if strings.Join(actionCommand, " ") != strings.Join(expected, " ") {
 		t.Fatalf("unexpected package command:\nwant: %+v\n got: %+v", expected, actionCommand)
 	}

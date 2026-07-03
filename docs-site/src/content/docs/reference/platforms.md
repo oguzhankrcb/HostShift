@@ -43,6 +43,7 @@ HostShift plans target package installation from abstract capabilities:
 | `docker-compose` | `docker-compose-plugin` | `docker-compose-plugin` |
 | `nginx` | `nginx` | `nginx` |
 | `apache` | `apache2` | `apache2` |
+| `cron` | `cron` | `cron` |
 | `openssh-server` | `openssh-server` | `openssh-server` |
 | `mysql-server` | `mysql-server` | `default-mysql-server` |
 | `mysql-client` | `mysql-client` | `default-mysql-client` |
@@ -64,4 +65,3 @@ Ubuntu and Debian adapters currently assume:
 - firewall backends: UFW and nftables
 
 Docker tests cover fast SSH-driven migration behavior. VM tests cover package install, systemd, firewall, and reboot persistence behavior.
-

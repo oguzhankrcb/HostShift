@@ -145,6 +145,7 @@ Current workload coverage includes:
 - Nginx configuration and reload validation
 - Apache vhost activation and reload validation
 - systemd application service cutover and service checks
+- cron file transfer and target cron package planning
 - SSH server settings
 - UFW and nftables firewall rules
 - Laravel-style database connectivity checks

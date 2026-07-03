@@ -352,7 +352,8 @@ func validateWorkload(workload Workload) error {
 			if _, err := safety.TransferPath(unitPath); err != nil {
 				return fmt.Errorf("systemd-service workload %s has unsafe unitPath: %w", workload.Name, err)
 			}
-			if !strings.HasPrefix(unitPath, "/etc/systemd/system/") || !strings.HasSuffix(unitPath, ".service") {
+			unitName := strings.TrimPrefix(unitPath, "/etc/systemd/system/")
+			if unitName == unitPath || strings.Contains(unitName, "/") || !strings.HasSuffix(unitName, ".service") {
 				return fmt.Errorf("systemd-service workload %s unitPath must be under /etc/systemd/system and end with .service", workload.Name)
 			}
 		}
