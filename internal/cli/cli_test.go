@@ -116,6 +116,7 @@ workloads:
 		`"safeForAI": true`,
 		`"Profile is not approved"`,
 		`"Profile has no verification checks."`,
+		`"Container workload has no HTTP or application database check."`,
 		`"Cross-distribution migration ubuntu:24.04`,
 		`debian:13 requires workload compatibility checks"`,
 		`"operatorChecklist"`,
@@ -124,6 +125,75 @@ workloads:
 		if !strings.Contains(out, expected) {
 			t.Fatalf("expected review output to contain %q: %s", expected, out)
 		}
+	}
+}
+
+func TestReviewReportsWorkloadSpecificMissingEvidence(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "profile.yaml")
+	body := []byte(`schemaVersion: 2
+name: review-workloads
+source:
+  ssh: old-server
+target:
+  ssh: new-server
+platforms:
+  source: ubuntu:24.04
+  target: ubuntu:24.04
+sourcePolicy: strict-read-only
+approved: true
+workloads:
+  - type: mysql
+    name: app
+    data:
+      sourcePasswordEnv: SRC_MYSQL_PWD
+  - type: postgresql
+    name: analytics
+    data:
+      sourcePasswordEnv: SRC_PG_PWD
+      targetPasswordEnv: DST_PG_PWD
+  - type: systemd-service
+    name: queue
+    data:
+      service: queue.service
+  - type: file-set
+    name: nginx-config
+    data:
+      paths:
+        - /etc/nginx/sites-available/app.conf
+      targetPath: /
+  - type: cron
+    name: cron
+checks:
+  - type: postgresScalar
+    name: analytics-count
+    data:
+      database: analytics
+      query: SELECT COUNT(*) FROM metrics
+      expected: "2"
+`)
+	if err := os.WriteFile(path, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var stdout bytes.Buffer
+	if err := Run(context.Background(), []string{"review", "--profile", path, "--json"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	out := stdout.String()
+	for _, expected := range []string{
+		`"status": "ready-for-dry-run"`,
+		`"MySQL/MariaDB workload has no scalar data verification check."`,
+		`"MySQL/MariaDB workload does not declare targetPasswordEnv."`,
+		`"systemd-service workload has no matching serviceActive check."`,
+		`"Nginx file-set has no nginxConfig validation check."`,
+		`"cron workload has no target serviceActive check."`,
+	} {
+		if !strings.Contains(out, expected) {
+			t.Fatalf("expected review output to contain %q: %s", expected, out)
+		}
+	}
+	if strings.Contains(out, "PostgreSQL workload has no scalar data verification check.") {
+		t.Fatalf("postgresScalar check should satisfy PostgreSQL workload evidence: %s", out)
 	}
 }
 

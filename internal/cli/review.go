@@ -105,6 +105,7 @@ func reviewPlan(prof profile.Profile, plan planner.Plan) profileReview {
 			Recommendation: "Run discover again or add reviewed workloads before migration.",
 		})
 	}
+	findings = append(findings, workloadReviewFindings(prof)...)
 	for _, stream := range plan.Streams {
 		if len(stream.Preconditions) == 0 {
 			findings = append(findings, reviewFinding{
@@ -166,4 +167,202 @@ func reviewPlan(prof profile.Profile, plan planner.Plan) profileReview {
 		OperatorChecklist:    checklist,
 		AIBrief:              brief,
 	}
+}
+
+type reviewCheckIndex struct {
+	types     map[string]bool
+	mysql     map[string]bool
+	postgres  map[string]bool
+	services  map[string]bool
+	filePaths map[string]bool
+}
+
+func workloadReviewFindings(prof profile.Profile) []reviewFinding {
+	index := buildReviewCheckIndex(prof.Checks)
+	findings := []reviewFinding{}
+	for _, workload := range prof.Workloads {
+		evidence := workload.Type + ":" + workload.Name
+		switch workload.Type {
+		case "docker-compose", "docker-standalone":
+			if !index.types["http"] && !index.types["laravelDatabase"] {
+				findings = append(findings, reviewFinding{
+					Severity:       "warning",
+					Category:       "workload-verification",
+					Message:        "Container workload has no HTTP or application database check.",
+					Evidence:       evidence,
+					Recommendation: "Add an http check for the public health endpoint or a laravelDatabase check for the migrated application container.",
+				})
+			}
+		case "mysql", "mariadb":
+			if !index.mysql[workload.Name] {
+				findings = append(findings, reviewFinding{
+					Severity:       "warning",
+					Category:       "workload-verification",
+					Message:        "MySQL/MariaDB workload has no scalar data verification check.",
+					Evidence:       evidence,
+					Recommendation: "Add a mysqlScalar check that proves an important table count or checksum on the target.",
+				})
+			}
+			findings = append(findings, databaseSecretFindings(workload, "MySQL/MariaDB")...)
+		case "postgresql":
+			if !index.postgres[workload.Name] {
+				findings = append(findings, reviewFinding{
+					Severity:       "warning",
+					Category:       "workload-verification",
+					Message:        "PostgreSQL workload has no scalar data verification check.",
+					Evidence:       evidence,
+					Recommendation: "Add a postgresScalar check that proves an important table count or checksum on the target.",
+				})
+			}
+			findings = append(findings, databaseSecretFindings(workload, "PostgreSQL")...)
+		case "redis":
+			if !index.services["redis-server"] && !index.services["redis"] {
+				findings = append(findings, reviewFinding{
+					Severity:       "info",
+					Category:       "workload-verification",
+					Message:        "Redis workload has no target serviceActive check.",
+					Evidence:       evidence,
+					Recommendation: "Add a serviceActive check for redis-server or redis, plus an application-level check that proves cache/session behavior if relevant.",
+				})
+			}
+		case "systemd-service":
+			service := reviewDataString(workload.Data, "service", "Service")
+			if service == "" {
+				service = workload.Name
+			}
+			if !index.services[service] {
+				findings = append(findings, reviewFinding{
+					Severity:       "warning",
+					Category:       "workload-verification",
+					Message:        "systemd-service workload has no matching serviceActive check.",
+					Evidence:       evidence,
+					Recommendation: "Add a serviceActive check for " + service + " so verify proves the target service is running.",
+				})
+			}
+		case "cron":
+			service := reviewDataString(workload.Data, "service", "Service")
+			if service == "" {
+				if !index.services["cron"] && !index.services["crond"] && !index.services["cron.service"] && !index.services["crond.service"] {
+					findings = append(findings, reviewFinding{
+						Severity:       "info",
+						Category:       "workload-verification",
+						Message:        "cron workload has no target serviceActive check.",
+						Evidence:       evidence,
+						Recommendation: "Add a serviceActive check for cron or crond when the target platform supports systemd cron verification.",
+					})
+				}
+			} else if !index.services[service] {
+				findings = append(findings, reviewFinding{
+					Severity:       "info",
+					Category:       "workload-verification",
+					Message:        "cron workload has no matching serviceActive check.",
+					Evidence:       evidence,
+					Recommendation: "Add a serviceActive check for " + service + " when the target platform supports systemd cron verification.",
+				})
+			}
+		case "file-set":
+			for _, item := range reviewDataStringSlice(workload.Data, "paths", "Paths") {
+				if item == "/etc/nginx" || strings.HasPrefix(item, "/etc/nginx/") {
+					if !index.types["nginxConfig"] {
+						findings = append(findings, reviewFinding{
+							Severity:       "warning",
+							Category:       "workload-verification",
+							Message:        "Nginx file-set has no nginxConfig validation check.",
+							Evidence:       evidence,
+							Recommendation: "Add an nginxConfig check so verify tests the target config and reload path.",
+						})
+					}
+					break
+				}
+			}
+		case "apache-vhost":
+			if !index.services["apache2"] && !index.services["apache2.service"] {
+				findings = append(findings, reviewFinding{
+					Severity:       "info",
+					Category:       "workload-verification",
+					Message:        "Apache vhost workload has no target serviceActive check.",
+					Evidence:       evidence,
+					Recommendation: "Add a serviceActive check for apache2 after vhost activation if the migrated site depends on Apache.",
+				})
+			}
+		}
+	}
+	return findings
+}
+
+func databaseSecretFindings(workload profile.Workload, label string) []reviewFinding {
+	findings := []reviewFinding{}
+	for _, key := range []string{"sourcePasswordEnv", "targetPasswordEnv"} {
+		if reviewDataString(workload.Data, key) == "" {
+			findings = append(findings, reviewFinding{
+				Severity:       "info",
+				Category:       "secret-review",
+				Message:        label + " workload does not declare " + key + ".",
+				Evidence:       workload.Type + ":" + workload.Name,
+				Recommendation: "If password authentication is required, reference an environment variable name in " + key + "; never store literal credentials in the profile.",
+			})
+		}
+	}
+	return findings
+}
+
+func buildReviewCheckIndex(checks []profile.Check) reviewCheckIndex {
+	index := reviewCheckIndex{
+		types:     map[string]bool{},
+		mysql:     map[string]bool{},
+		postgres:  map[string]bool{},
+		services:  map[string]bool{},
+		filePaths: map[string]bool{},
+	}
+	for _, check := range checks {
+		index.types[check.Type] = true
+		switch check.Type {
+		case "mysqlScalar":
+			index.mysql[reviewDataString(check.Data, "database", "Database")] = true
+		case "postgresScalar":
+			index.postgres[reviewDataString(check.Data, "database", "Database")] = true
+		case "serviceActive":
+			index.services[reviewDataString(check.Data, "service", "Service")] = true
+		case "fileExists", "fileContains":
+			index.filePaths[reviewDataString(check.Data, "path", "Path")] = true
+		}
+	}
+	return index
+}
+
+func reviewDataString(data any, keys ...string) string {
+	if item, ok := data.(map[string]any); ok {
+		for _, key := range keys {
+			if raw, ok := item[key]; ok {
+				if str, ok := raw.(string); ok {
+					return str
+				}
+			}
+		}
+	}
+	return ""
+}
+
+func reviewDataStringSlice(data any, keys ...string) []string {
+	if item, ok := data.(map[string]any); ok {
+		for _, key := range keys {
+			raw, ok := item[key]
+			if !ok {
+				continue
+			}
+			switch values := raw.(type) {
+			case []any:
+				out := []string{}
+				for _, value := range values {
+					if str, ok := value.(string); ok {
+						out = append(out, str)
+					}
+				}
+				return out
+			case []string:
+				return values
+			}
+		}
+	}
+	return nil
 }

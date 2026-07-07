@@ -168,7 +168,7 @@ Redis workloads are blocked unless the profile names an existing RDB snapshot or
 3. **Profile** records workloads, target config, checks, and env-var secret references.
 4. **Plan** turns the profile into reviewable actions and streams.
 5. **Explain** summarizes blockers, warnings, streams, target impacts, and safe next actions for AI-assisted review.
-6. **Review** emits structured findings, recommendations, an operator checklist, and an AI safety brief.
+6. **Review** emits structured findings, workload-aware recommendations, an operator checklist, and an AI safety brief.
 7. **Prepare** applies target-only package and config changes when approved.
 8. **Sync** streams data from source stdout into target-side writes.
 9. **Verify** runs target-side checks and records audit output.
