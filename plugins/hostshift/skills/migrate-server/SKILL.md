@@ -30,6 +30,7 @@ hostshift doctor --source old-server --target new-server --json
 hostshift discover --source old-server --name example --profile example.profile.yaml --json
 hostshift plan --profile example.profile.yaml --target new-server --json
 hostshift explain --profile example.profile.yaml --target new-server --json
+hostshift review --profile example.profile.yaml --target new-server --json
 hostshift prepare --profile example.profile.yaml --target new-server --json
 hostshift sync --profile example.profile.yaml --target new-server --json
 hostshift verify --profile example.profile.yaml --target new-server --json

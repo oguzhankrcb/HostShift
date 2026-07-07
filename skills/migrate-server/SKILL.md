@@ -27,6 +27,7 @@ Run from the plugin root:
 go run ./cmd/hostshift doctor --source old-server --target new-server --json
 go run ./cmd/hostshift plan --profile example.profile.yaml --target new-server --json
 go run ./cmd/hostshift explain --profile example.profile.yaml --target new-server --json
+go run ./cmd/hostshift review --profile example.profile.yaml --target new-server --json
 go run ./cmd/hostshift profile migrate --input old-v1.profile.yaml --output new-v2.profile.json
 ```
 

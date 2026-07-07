@@ -109,6 +109,31 @@ Optional flags:
 
 The explanation contains blocker and warning summaries, workload and stream counts, target impact counts, safe next actions for a human operator, and source safety notes for AI clients.
 
+## review
+
+Builds the same plan and returns structured migration findings for AI-assisted profile review without applying anything.
+
+```bash
+hostshift review --profile examples/web-stack-v2.yaml --target new-server --json
+```
+
+Required flags:
+
+- `--profile`: v1 or v2 profile path.
+
+Optional flags:
+
+- `--target`: override the target SSH alias in the profile.
+- `--json`: machine-readable output.
+
+The review output contains:
+
+- `status`: `blocked`, `needs-review`, or `ready-for-dry-run`
+- `findings`: blocker, warning, and info records with recommendations
+- `operatorChecklist`: human review steps before any apply command
+- `aiBrief`: constraints AI clients must follow, including no MCP apply operations
+- `sourceWillBeModified: false`
+
 ## prepare
 
 Plans or applies target preparation actions.
@@ -189,7 +214,7 @@ Runs the HostShift MCP server over stdin/stdout for AI clients.
 hostshift mcp stdio
 ```
 
-The MCP server exposes discovery, planning, explanation, dry-run, cutover dry-run, and rollback metadata tools. It does not expose apply tools.
+The MCP server exposes discovery, planning, explanation, structured review, dry-run, cutover dry-run, and rollback metadata tools. It does not expose apply tools.
 
 ## mcp doctor
 

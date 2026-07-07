@@ -25,6 +25,7 @@ The server exposes safe planning tools:
 - `hostshift_discover`
 - `hostshift_plan`
 - `hostshift_explain`
+- `hostshift_review`
 - `hostshift_prepare_dry_run`
 - `hostshift_sync_dry_run`
 - `hostshift_verify_dry_run`
@@ -33,7 +34,7 @@ The server exposes safe planning tools:
 
 No MCP tool exposes `--apply`. Target mutations still require a human-operated CLI command.
 
-Use `hostshift_explain` when an AI client needs a concise migration brief. It summarizes blockers, warnings, workloads, streams, target impacts, source-safety notes, and the next safe operator actions without running any remote mutation.
+Use `hostshift_explain` when an AI client needs a concise migration brief. Use `hostshift_review` when it needs structured findings, recommendations, an operator checklist, and an AI safety brief. Both commands run without remote mutation.
 
 ## Claude Desktop
 
@@ -66,4 +67,4 @@ The Codex plugin under `plugins/hostshift` provides the `migrate-server` skill. 
 
 AI clients may inspect plans and run source read-only discovery through HostShift. They must not bypass HostShift by running arbitrary SSH commands.
 
-If an AI client suggests an apply command, run `hostshift_explain`, `hostshift plan`, or the matching dry-run first and review blockers, actions, streams, and rollback metadata manually.
+If an AI client suggests an apply command, run `hostshift_review`, `hostshift_explain`, `hostshift plan`, or the matching dry-run first and review blockers, actions, streams, and rollback metadata manually.

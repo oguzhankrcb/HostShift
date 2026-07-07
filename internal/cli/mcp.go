@@ -23,7 +23,7 @@ func hostshiftMCPServer() mcp.Server {
 		Name:         "hostshift",
 		Title:        "HostShift",
 		Version:      version.Version,
-		Instructions: "HostShift exposes read-only-source server migration planning and explanation tools. MCP tools do not expose --apply; target mutations require the human-operated CLI.",
+		Instructions: "HostShift exposes read-only-source server migration planning, explanation, review, and dry-run tools. MCP tools do not expose --apply; target mutations require the human-operated CLI.",
 		Tools: []mcp.Tool{
 			cliTool("hostshift_doctor", "HostShift Doctor", "Validate source and target SSH aliases and report the source safety contract.", objectSchema(map[string]any{
 				"source": stringSchema("Source SSH alias."),
@@ -44,6 +44,7 @@ func hostshiftMCPServer() mcp.Server {
 			}),
 			phaseTool("hostshift_plan", "HostShift Plan", "Build the migration plan without applying target changes.", "plan"),
 			phaseTool("hostshift_explain", "HostShift Explain", "Summarize blockers, warnings, workload counts, streams, target impacts, and safe next actions for AI-assisted review.", "explain"),
+			phaseTool("hostshift_review", "HostShift Review", "Return structured migration findings, operator checklist, and AI safety brief without applying changes.", "review"),
 			phaseTool("hostshift_prepare_dry_run", "HostShift Prepare Dry Run", "Show target preparation actions without applying them.", "prepare"),
 			phaseTool("hostshift_sync_dry_run", "HostShift Sync Dry Run", "Show source-to-target streams without applying them.", "sync"),
 			phaseTool("hostshift_verify_dry_run", "HostShift Verify Dry Run", "Show target verification checks without applying them.", "verify"),
@@ -161,6 +162,7 @@ func requiredMCPToolNames() []string {
 		"hostshift_discover",
 		"hostshift_plan",
 		"hostshift_explain",
+		"hostshift_review",
 		"hostshift_prepare_dry_run",
 		"hostshift_sync_dry_run",
 		"hostshift_verify_dry_run",

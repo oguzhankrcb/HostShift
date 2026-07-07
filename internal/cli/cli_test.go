@@ -82,6 +82,51 @@ checks:
 	}
 }
 
+func TestReviewReportsStructuredFindingsForAIClients(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "profile.yaml")
+	body := []byte(`schemaVersion: 2
+name: review-app
+source:
+  ssh: old-server
+target:
+  ssh: new-server
+platforms:
+  source: ubuntu:24.04
+  target: debian:13
+sourcePolicy: strict-read-only
+approved: false
+workloads:
+  - type: docker-compose
+    name: web
+    data:
+      workingDir: /srv/web
+      configFile: /srv/web/docker-compose.yml
+`)
+	if err := os.WriteFile(path, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var stdout bytes.Buffer
+	if err := Run(context.Background(), []string{"review", "--profile", path, "--json"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	out := stdout.String()
+	for _, expected := range []string{
+		`"status": "blocked"`,
+		`"safeForAI": true`,
+		`"Profile is not approved"`,
+		`"Profile has no verification checks."`,
+		`"Cross-distribution migration ubuntu:24.04`,
+		`debian:13 requires workload compatibility checks"`,
+		`"operatorChecklist"`,
+		`"Do not suggest MCP apply operations; MCP exposes planning, review, and dry-run tools only."`,
+	} {
+		if !strings.Contains(out, expected) {
+			t.Fatalf("expected review output to contain %q: %s", expected, out)
+		}
+	}
+}
+
 func TestProfileMigrateWritesV2YAML(t *testing.T) {
 	dir := t.TempDir()
 	input := filepath.Join(dir, "v1.yaml")

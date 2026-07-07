@@ -32,11 +32,12 @@ hostshift doctor --source old-server --target new-server --json
 hostshift discover --source old-server --name migration --profile migration.profile.yaml --json
 hostshift plan --profile migration.profile.yaml --target new-server --json
 hostshift explain --profile migration.profile.yaml --target new-server --json
+hostshift review --profile migration.profile.yaml --target new-server --json
 hostshift prepare --profile migration.profile.yaml --target new-server --json
 hostshift sync --profile migration.profile.yaml --target new-server --json
 hostshift verify --profile migration.profile.yaml --target new-server --json
 ```
 
-`explain`, `prepare`, `sync`, and `verify` default to non-apply review behavior. Add `--apply` only after reviewing blockers and actions.
+`explain`, `review`, `prepare`, `sync`, and `verify` default to non-apply review behavior. Add `--apply` only after reviewing blockers and actions.
 
 For exact flags and output shapes, see [CLI Reference](/reference/cli/). For profile fields, see [Profile v2 Reference](/reference/profile-v2/).

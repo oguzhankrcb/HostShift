@@ -112,7 +112,7 @@ Validate the MCP and Claude integration surface:
 hostshift mcp doctor --json
 ```
 
-MCP tools are intentionally non-apply: they can run discovery, planning, AI-friendly explanation, dry-runs, cutover dry-runs, and rollback metadata. Target mutation still requires a reviewed human CLI command.
+MCP tools are intentionally non-apply: they can run discovery, planning, AI-friendly explanation, structured review, dry-runs, cutover dry-runs, and rollback metadata. Target mutation still requires a reviewed human CLI command.
 
 ## Supported Platforms
 
@@ -168,11 +168,12 @@ Redis workloads are blocked unless the profile names an existing RDB snapshot or
 3. **Profile** records workloads, target config, checks, and env-var secret references.
 4. **Plan** turns the profile into reviewable actions and streams.
 5. **Explain** summarizes blockers, warnings, streams, target impacts, and safe next actions for AI-assisted review.
-6. **Prepare** applies target-only package and config changes when approved.
-7. **Sync** streams data from source stdout into target-side writes.
-8. **Verify** runs target-side checks and records audit output.
-9. **Cutover** runs reviewed target-only start actions such as Compose `up` or standalone container `run`.
-10. **Rollback/status/resume** report target rollback metadata and continue interrupted runs from state.
+6. **Review** emits structured findings, recommendations, an operator checklist, and an AI safety brief.
+7. **Prepare** applies target-only package and config changes when approved.
+8. **Sync** streams data from source stdout into target-side writes.
+9. **Verify** runs target-side checks and records audit output.
+10. **Cutover** runs reviewed target-only start actions such as Compose `up` or standalone container `run`.
+11. **Rollback/status/resume** report target rollback metadata and continue interrupted runs from state.
 
 Sync plans may include streams such as `tar --create -> tar --extract`, `docker image save -> docker image load`, `mysqldump -> mysql`, and `pg_dump -> pg_restore`. The source side produces stdout; the target side mutates only the target.
 

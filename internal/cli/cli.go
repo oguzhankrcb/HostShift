@@ -43,6 +43,8 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return plan(args[1:], stdout)
 	case "explain":
 		return explain(args[1:], stdout)
+	case "review":
+		return review(args[1:], stdout)
 	case "prepare":
 		return runPhase(ctx, args[1:], stdout, core.PhasePrepare)
 	case "sync":
@@ -883,6 +885,7 @@ Commands:
   discover        --source <ssh> --name <name> [--profile <file>] [--json]
   plan            --profile <file> [--target <ssh>] [--json]
   explain         --profile <file> [--target <ssh>] [--json]
+  review          --profile <file> [--target <ssh>] [--json]
   prepare         --profile <file> [--target <ssh>] [--apply] [--json]
   sync            --profile <file> [--target <ssh>] [--apply] [--json]
   verify          --profile <file> [--target <ssh>] [--apply] [--json]
