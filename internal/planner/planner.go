@@ -2,6 +2,7 @@ package planner
 
 import (
 	"fmt"
+	"path"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -59,6 +60,7 @@ func Build(prof profile.Profile, now time.Time) (Plan, error) {
 	}
 	actions = append(actions, targetConfigurationActions(prof)...)
 	for _, workload := range prof.Workloads {
+		blockers = append(blockers, blockersForWorkload(workload)...)
 		workloadActions, stream, hasStream := actionsForWorkload(workload)
 		actions = append(actions, workloadActions...)
 		if hasStream {
@@ -129,6 +131,9 @@ func requiredCapabilities(prof profile.Profile) []string {
 		case "postgresql":
 			set["postgresql-server"] = true
 			set["postgresql-client"] = true
+		case "redis":
+			set["redis-server"] = true
+			set["redis-tools"] = true
 		}
 	}
 	for _, check := range prof.Checks {
@@ -145,12 +150,27 @@ func requiredCapabilities(prof profile.Profile) []string {
 		}
 	}
 	out := []string{}
-	for _, capability := range []string{"rsync", "tar", "curl", "ufw", "openssh-server", "nginx", "apache", "cron", "docker-runtime", "docker-compose", "mysql-server", "mysql-client", "mariadb-client", "postgresql-server", "postgresql-client"} {
+	for _, capability := range []string{"rsync", "tar", "curl", "ufw", "openssh-server", "nginx", "apache", "cron", "docker-runtime", "docker-compose", "mysql-server", "mysql-client", "mariadb-client", "postgresql-server", "postgresql-client", "redis-server", "redis-tools"} {
 		if set[capability] {
 			out = append(out, capability)
 		}
 	}
 	return out
+}
+
+func blockersForWorkload(workload profile.Workload) []string {
+	if workload.Type != "redis" {
+		return nil
+	}
+	hasSnapshot := dataString(workload.Data, "snapshotPath", "SnapshotPath") != ""
+	hasReplica := dataString(workload.Data, "replicaHost", "ReplicaHost") != ""
+	if hasSnapshot && hasReplica {
+		return []string{fmt.Sprintf("Redis workload %s must choose either snapshotPath or replicaHost, not both", workload.Name)}
+	}
+	if !hasSnapshot && !hasReplica {
+		return []string{fmt.Sprintf("Redis workload %s requires snapshotPath or replicaHost for source read-only export", workload.Name)}
+	}
+	return nil
 }
 
 func targetConfigurationActions(prof profile.Profile) []core.Action {
@@ -587,6 +607,9 @@ func actionsForWorkload(workload profile.Workload) ([]core.Action, core.StreamAc
 			SourceCommand: sourceCommand,
 			TargetCommand: targetCommand,
 		}, true
+	case "redis":
+		actions, stream, ok := redisWorkloadActions(id, workload)
+		return actions, stream, ok
 	case "apache-vhost":
 		return []core.Action{{
 			ID:            id + ".activate",
@@ -614,6 +637,44 @@ func actionsForWorkload(workload profile.Workload) ([]core.Action, core.StreamAc
 	default:
 		return []core.Action{{ID: id, Phase: core.PhasePlan, HostRole: core.HostRoleLocal, Impact: core.ImpactReadOnly, Command: []string{"hostshift", "inspect-workload", workload.Type}}}, core.StreamAction{}, false
 	}
+}
+
+func redisWorkloadActions(id string, workload profile.Workload) ([]core.Action, core.StreamAction, bool) {
+	snapshotPath := dataString(workload.Data, "snapshotPath", "SnapshotPath")
+	replicaHost := dataString(workload.Data, "replicaHost", "ReplicaHost")
+	if (snapshotPath == "" && replicaHost == "") || (snapshotPath != "" && replicaHost != "") {
+		return nil, core.StreamAction{}, false
+	}
+	targetPath := dataString(workload.Data, "targetPath", "TargetPath")
+	if targetPath == "" {
+		targetPath = "/var/lib/redis/dump.rdb"
+	}
+	targetScript := "install -d -m 755 " + shellQuote(path.Dir(targetPath)) + " && cat > " + shellQuote(targetPath)
+	stream := core.StreamAction{
+		ID:            id + ".rdb",
+		Phase:         core.PhaseSync,
+		TargetCommand: []string{"sh", "-lc", targetScript},
+		Preconditions: []string{"Target Redis is installed; source uses an existing snapshot or read-only replica stream"},
+		Rollback:      []string{"rm -f " + shellQuote(targetPath)},
+	}
+	if snapshotPath != "" {
+		stream.SourceCommand = []string{"cat", snapshotPath}
+	} else {
+		port := dataInt(workload.Data, "replicaPort", "ReplicaPort")
+		if port == 0 {
+			port = 6379
+		}
+		stream.SourceCommand = []string{"redis-cli", "-h", replicaHost, "-p", strconv.Itoa(port), "--rdb", "-"}
+	}
+	return []core.Action{{
+		ID:            id + ".restart",
+		Phase:         core.PhaseCutover,
+		HostRole:      core.HostRoleTarget,
+		Impact:        core.ImpactService,
+		Command:       []string{"sh", "-lc", "systemctl restart redis-server || systemctl restart redis"},
+		Preconditions: []string{"Redis RDB file has been streamed to the target path"},
+		Rollback:      []string{"systemctl restart redis-server || systemctl restart redis || true"},
+	}}, stream, true
 }
 
 func apacheActivationScript(workload profile.Workload) string {

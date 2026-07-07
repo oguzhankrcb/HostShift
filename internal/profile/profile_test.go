@@ -119,6 +119,10 @@ func TestValidateRejectsUnsafeWorkloadMetadata(t *testing.T) {
 		{Type: "apache-vhost", Name: "apache", Data: map[string]any{"sites": []any{"bad site.conf"}}},
 		{Type: "systemd-service", Name: "app", Data: map[string]any{"service": "bad service"}},
 		{Type: "systemd-service", Name: "app", Data: map[string]any{"unitPath": "/etc/systemd"}},
+		{Type: "redis", Name: "cache", Data: map[string]any{"snapshotPath": "/etc"}},
+		{Type: "redis", Name: "cache", Data: map[string]any{"targetPath": "/var"}},
+		{Type: "redis", Name: "cache", Data: map[string]any{"replicaHost": "bad host"}},
+		{Type: "redis", Name: "cache", Data: map[string]any{"replicaHost": "127.0.0.1", "replicaPort": 70000}},
 	}
 	for _, workload := range tests {
 		prof := base
@@ -129,7 +133,7 @@ func TestValidateRejectsUnsafeWorkloadMetadata(t *testing.T) {
 	}
 }
 
-func TestValidateAcceptsApacheAndSystemdWorkloads(t *testing.T) {
+func TestValidateAcceptsApacheSystemdAndRedisWorkloads(t *testing.T) {
 	prof := Profile{
 		SchemaVersion: CurrentSchemaVersion,
 		Name:          "example",
@@ -140,10 +144,12 @@ func TestValidateAcceptsApacheAndSystemdWorkloads(t *testing.T) {
 		Workloads: []Workload{
 			{Type: "apache-vhost", Name: "apache", Data: map[string]any{"modules": []any{"rewrite", "ssl"}, "sites": []any{"example.conf"}}},
 			{Type: "systemd-service", Name: "portfolio", Data: map[string]any{"service": "portfolio.service", "unitPath": "/etc/systemd/system/portfolio.service"}},
+			{Type: "redis", Name: "cache-snapshot", Data: map[string]any{"snapshotPath": "/var/lib/redis/dump.rdb", "targetPath": "/var/lib/redis/dump.rdb"}},
+			{Type: "redis", Name: "cache-replica", Data: map[string]any{"replicaHost": "127.0.0.1", "replicaPort": 6380}},
 		},
 	}
 	if _, err := Validate(prof); err != nil {
-		t.Fatalf("expected apache and systemd workloads to validate: %v", err)
+		t.Fatalf("expected apache, systemd, and redis workloads to validate: %v", err)
 	}
 }
 

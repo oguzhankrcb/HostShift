@@ -224,6 +224,65 @@ Target capabilities:
 - `postgresql-server`
 - `postgresql-client`
 
+## redis
+
+Streams Redis data without creating a source-side snapshot.
+
+Existing snapshot strategy:
+
+```yaml
+- type: redis
+  name: cache
+  data:
+    snapshotPath: /var/lib/redis/dump.rdb
+    targetPath: /var/lib/redis/dump.rdb
+```
+
+Replica stream strategy:
+
+```yaml
+- type: redis
+  name: cache
+  data:
+    replicaHost: 127.0.0.1
+    replicaPort: 6380
+    targetPath: /var/lib/redis/dump.rdb
+```
+
+Fields:
+
+- `snapshotPath`: existing source RDB file. HostShift reads it with `cat`; it does not run `SAVE` or `BGSAVE`.
+- `replicaHost`: Redis replica endpoint used with `redis-cli --rdb -`.
+- `replicaPort`: optional replica port. Defaults to `6379`.
+- `targetPath`: optional target RDB path. Defaults to `/var/lib/redis/dump.rdb`.
+
+Exactly one of `snapshotPath` or `replicaHost` must be set. If neither is set, or both are set, the plan reports a blocker.
+
+Generated sync stream for an existing snapshot:
+
+```text
+source: cat <snapshotPath>
+target: install -d <target directory> && cat > <targetPath>
+```
+
+Generated sync stream for a replica:
+
+```text
+source: redis-cli -h <replicaHost> -p <replicaPort> --rdb -
+target: install -d <target directory> && cat > <targetPath>
+```
+
+Generated cutover action:
+
+```text
+systemctl restart redis-server || systemctl restart redis
+```
+
+Target capabilities:
+
+- `redis-server`
+- `redis-tools`
+
 ## Unknown Workloads
 
 Unknown workload types are represented as local read-only inspect actions during planning:

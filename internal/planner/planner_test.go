@@ -299,6 +299,112 @@ func TestDatabaseWorkloadsProduceStreams(t *testing.T) {
 	}
 }
 
+func TestRedisSnapshotWorkloadProducesReadOnlyStreamAndRestart(t *testing.T) {
+	prof := profile.Profile{
+		SchemaVersion: profile.CurrentSchemaVersion,
+		Name:          "example",
+		Source:        profile.Host{SSH: "old"},
+		Target:        profile.Host{SSH: "new"},
+		SourcePolicy:  "strict-read-only",
+		Platforms:     profile.Platforms{Source: "ubuntu:24.04", Target: "debian:13"},
+		Approved:      true,
+		Workloads: []profile.Workload{{
+			Type: "redis",
+			Name: "cache",
+			Data: map[string]any{
+				"snapshotPath": "/var/lib/redis/dump.rdb",
+				"targetPath":   "/var/lib/redis/dump.rdb",
+			},
+		}},
+	}
+	plan, err := Build(prof, time.Date(2026, 6, 11, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plan.Blockers) != 0 {
+		t.Fatalf("expected redis snapshot workload to plan without blockers, got %+v", plan.Blockers)
+	}
+	if len(plan.Streams) != 1 {
+		t.Fatalf("expected one redis stream, got %+v", plan.Streams)
+	}
+	stream := plan.Streams[0]
+	if strings.Join(stream.SourceCommand, " ") != "cat /var/lib/redis/dump.rdb" {
+		t.Fatalf("unexpected redis snapshot source command: %+v", stream.SourceCommand)
+	}
+	if stream.TargetCommand[0] != "sh" || !strings.Contains(stream.TargetCommand[2], "cat > '/var/lib/redis/dump.rdb'") {
+		t.Fatalf("unexpected redis snapshot target command: %+v", stream.TargetCommand)
+	}
+	var packageCommand []string
+	ids := map[string]bool{}
+	for _, action := range plan.Actions {
+		ids[action.ID] = true
+		if action.ID == "target.prepare.packages" {
+			packageCommand = action.Command
+		}
+	}
+	packages := strings.Join(packageCommand, " ")
+	if !strings.Contains(packages, "redis-server") || !strings.Contains(packages, "redis-tools") {
+		t.Fatalf("expected redis packages in prepare command, got %+v", packageCommand)
+	}
+	if !ids["target.workload.redis.cache.restart"] {
+		t.Fatalf("expected redis restart action, got %+v", plan.Actions)
+	}
+}
+
+func TestRedisReplicaWorkloadUsesRedisCliRDBStream(t *testing.T) {
+	prof := profile.Profile{
+		SchemaVersion: profile.CurrentSchemaVersion,
+		Name:          "example",
+		Source:        profile.Host{SSH: "old"},
+		Target:        profile.Host{SSH: "new"},
+		SourcePolicy:  "strict-read-only",
+		Platforms:     profile.Platforms{Source: "ubuntu:24.04", Target: "ubuntu:24.04"},
+		Approved:      true,
+		Workloads: []profile.Workload{{
+			Type: "redis",
+			Name: "cache",
+			Data: map[string]any{
+				"replicaHost": "127.0.0.1",
+				"replicaPort": 6380,
+			},
+		}},
+	}
+	plan, err := Build(prof, time.Date(2026, 6, 11, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plan.Streams) != 1 {
+		t.Fatalf("expected one redis stream, got %+v", plan.Streams)
+	}
+	source := strings.Join(plan.Streams[0].SourceCommand, " ")
+	if source != "redis-cli -h 127.0.0.1 -p 6380 --rdb -" {
+		t.Fatalf("unexpected redis replica source command: %s", source)
+	}
+}
+
+func TestRedisWorkloadWithoutSafeReadStrategyBlocks(t *testing.T) {
+	prof := profile.Profile{
+		SchemaVersion: profile.CurrentSchemaVersion,
+		Name:          "example",
+		Source:        profile.Host{SSH: "old"},
+		Target:        profile.Host{SSH: "new"},
+		SourcePolicy:  "strict-read-only",
+		Platforms:     profile.Platforms{Source: "ubuntu:24.04", Target: "ubuntu:24.04"},
+		Approved:      true,
+		Workloads:     []profile.Workload{{Type: "redis", Name: "cache"}},
+	}
+	plan, err := Build(prof, time.Date(2026, 6, 11, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plan.Blockers) == 0 || !strings.Contains(strings.Join(plan.Blockers, "\n"), "requires snapshotPath or replicaHost") {
+		t.Fatalf("expected redis safe read strategy blocker, got %+v", plan.Blockers)
+	}
+	if len(plan.Streams) != 0 {
+		t.Fatalf("blocked redis workload must not emit stream, got %+v", plan.Streams)
+	}
+}
+
 func TestFileSetWorkloadProducesTarStream(t *testing.T) {
 	prof := profile.Profile{
 		SchemaVersion: profile.CurrentSchemaVersion,

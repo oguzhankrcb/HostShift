@@ -96,6 +96,9 @@
               "sites": { "type": "array", "items": { "type": "string", "pattern": "^[A-Za-z0-9_.@-]+$" }, "description": "Apache sites to enable on the target." },
               "service": { "type": "string", "pattern": "^[A-Za-z0-9_.@-]+$", "description": "Systemd service to enable and start on cutover." },
               "unitPath": { "type": "string", "pattern": "^/etc/systemd/system/.+\\.service$", "description": "Optional systemd unit file path expected on the target." },
+              "snapshotPath": { "type": "string", "description": "Existing source Redis RDB snapshot path to stream without creating a new snapshot." },
+              "replicaHost": { "type": "string", "pattern": "^[A-Za-z0-9_.:-]+$", "description": "Read-only Redis replica endpoint host used for redis-cli --rdb streaming." },
+              "replicaPort": { "type": "integer", "minimum": 1, "maximum": 65535, "description": "Redis replica endpoint port. Defaults to 6379." },
               "sourcePasswordEnv": { "type": "string", "pattern": "^[A-Z_][A-Z0-9_]*$", "description": "Source-side environment variable name containing a database password." },
               "targetPasswordEnv": { "type": "string", "pattern": "^[A-Z_][A-Z0-9_]*$", "description": "Target-side environment variable name containing a database password." }
             }

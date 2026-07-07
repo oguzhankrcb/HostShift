@@ -105,6 +105,11 @@ workloads:
     data:
       sourcePasswordEnv: SRC_MYSQL_PWD
       targetPasswordEnv: DST_MYSQL_PWD
+  - type: redis
+    name: cache
+    data:
+      snapshotPath: /var/lib/redis/dump.rdb
+      targetPath: /var/lib/redis/dump.rdb
 ```
 
 Supported workload types are documented in [Workload Reference](/reference/workloads/).
@@ -165,4 +170,3 @@ v1 fields map as follows:
 | `databases` | `workloads[type=mysql|mariadb|postgresql]` |
 | `healthChecks` | `checks` |
 | `applicationChecks` | `checks` |
-

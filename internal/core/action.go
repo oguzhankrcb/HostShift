@@ -116,6 +116,12 @@ func (s StreamAction) Validate() error {
 	if len(s.TargetCommand) == 0 {
 		return fmt.Errorf("stream action %s has no target command", s.ID)
 	}
+	if err := safety.SourceCommand(s.SourceCommand); err != nil {
+		return fmt.Errorf("stream action %s has unsafe source command: %w", s.ID, err)
+	}
+	if err := safety.TargetCommand(s.TargetCommand); err != nil {
+		return fmt.Errorf("stream action %s has unsafe target command: %w", s.ID, err)
+	}
 	return nil
 }
 

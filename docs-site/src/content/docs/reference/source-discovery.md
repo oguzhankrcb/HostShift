@@ -79,10 +79,13 @@ Generated workload candidates currently include:
 - cron files under `/etc/cron.d`, `/etc/cron.daily`, `/etc/cron.hourly`, `/etc/cron.monthly`, and `/etc/cron.weekly`
 - custom systemd unit files under `/etc/systemd/system`
 - `systemd-service` cutover candidates for discovered custom units that are enabled
+- `redis` candidates when `redis-server` is found through packages or systemd facts
 - non-system MySQL/MariaDB databases
 - non-system PostgreSQL databases
 
 HostShift does not generate `systemd-service` workloads from distribution service lists alone because it cannot safely distinguish application units from system units without operator review.
+
+Redis candidates intentionally do not include a default export strategy. Operators must add either `snapshotPath` for an existing RDB file or `replicaHost` for a read-only replica stream before approval.
 
 Operators must still review the generated profile, fill in the target, add checks, remove unwanted candidates, add missing workload metadata such as password environment variable names, and set `approved: true` only after review.
 

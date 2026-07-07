@@ -204,6 +204,13 @@ func workloadsFromFacts(facts map[string]FactResult) []profile.Workload {
 			})
 		}
 	}
+	if redisDetected(facts) {
+		workloads = append(workloads, profile.Workload{
+			Type: "redis",
+			Name: "redis",
+			Data: map[string]any{},
+		})
+	}
 	for _, database := range databaseNames(facts, "mysqlDatabases") {
 		workloads = append(workloads, profile.Workload{Type: "mysql", Name: database, Data: map[string]any{"engine": "mysql"}})
 	}
@@ -325,6 +332,22 @@ func standaloneContainersFromFacts(facts map[string]FactResult) []dockerContaine
 		out = append(out, container)
 	}
 	return out
+}
+
+func redisDetected(facts map[string]FactResult) bool {
+	for _, factName := range []string{"enabledServices", "runningServices"} {
+		value := factValue(facts, factName)
+		if strings.Contains(value, "redis-server.service") || strings.Contains(value, "redis.service") {
+			return true
+		}
+	}
+	for _, line := range strings.Split(factValue(facts, "packages"), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) > 0 && fields[0] == "redis-server" {
+			return true
+		}
+	}
+	return false
 }
 
 func databaseNames(facts map[string]FactResult, factName string) []string {

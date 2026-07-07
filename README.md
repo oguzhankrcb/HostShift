@@ -142,6 +142,7 @@ Current workload coverage includes:
 - streamed Docker images
 - MySQL and MariaDB
 - PostgreSQL
+- Redis through existing RDB snapshots or read-only replica streams
 - Nginx configuration and reload validation
 - Apache vhost activation and reload validation
 - systemd application service cutover and service checks
@@ -150,7 +151,7 @@ Current workload coverage includes:
 - UFW and nftables firewall rules
 - Laravel-style database connectivity checks
 
-Redis is intentionally blocked unless an existing snapshot or replica can be read without modifying the source. Docker named volumes are blockers until the profile gives an explicit safe strategy.
+Redis workloads are blocked unless the profile names an existing RDB snapshot or a read-only replica endpoint. HostShift never runs source-side `SAVE`, `BGSAVE`, or Redis config changes. Docker named volumes are blockers until the profile gives an explicit safe strategy.
 
 ## How It Works
 

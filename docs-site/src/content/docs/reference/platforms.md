@@ -50,6 +50,7 @@ HostShift plans target package installation from abstract capabilities:
 | `mariadb-client` | `mariadb-client` | `mariadb-client` |
 | `postgresql-server` | `postgresql` | `postgresql` |
 | `postgresql-client` | `postgresql-client` | `postgresql-client` |
+| `redis-server` | `redis-server` | `redis-server` |
 | `redis-tools` | `redis-tools` | `redis-tools` |
 | `nftables` | `nftables` | `nftables` |
 | `ufw` | `ufw` | `ufw` |

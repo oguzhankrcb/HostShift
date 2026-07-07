@@ -29,7 +29,7 @@ The core invariant is strict:
 - Docker Compose applications
 - Standalone Docker containers
 - Bind mount and file-set transfer
-- MySQL/MariaDB and PostgreSQL stream migrations
+- MySQL/MariaDB, PostgreSQL, and Redis stream migrations
 - Nginx config checks and target reload validation
 - Apache vhost activation and target reload validation
 - systemd application service cutover

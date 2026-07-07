@@ -13,6 +13,7 @@ HostShift uses workload adapters to plan transfer, target preparation, verificat
 - `mysql`
 - `mariadb`
 - `postgresql`
+- `redis`
 
 For every field, generated command, target package capability, and validation rule, see [Workload Reference](/reference/workloads/).
 
@@ -26,6 +27,7 @@ Examples:
 - `docker image save` to `docker image load`
 - `mysqldump` to `mysql`
 - `pg_dump` to `pg_restore`
+- existing Redis RDB or `redis-cli --rdb` stream to target RDB file
 
 ## Checks
 

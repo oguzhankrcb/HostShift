@@ -48,6 +48,7 @@ var aptCapabilities = map[string]string{
 	"mariadb-client":    "mariadb-client",
 	"postgresql-server": "postgresql",
 	"postgresql-client": "postgresql-client",
+	"redis-server":      "redis-server",
 	"redis-tools":       "redis-tools",
 	"nftables":          "nftables",
 	"ufw":               "ufw",

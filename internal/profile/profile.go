@@ -250,6 +250,7 @@ var safeWorkloadType = regexp.MustCompile(`^[a-zA-Z0-9_.-]+$`)
 var safeCheckName = regexp.MustCompile(`^[a-zA-Z0-9_. -]+$`)
 var safeHostHeader = regexp.MustCompile(`^[a-zA-Z0-9.-]+(:[0-9]{1,5})?$`)
 var safeNFTIdentifier = regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)
+var safeRedisHost = regexp.MustCompile(`^[A-Za-z0-9_.:-]+$`)
 
 func validateFirewall(firewall Firewall) error {
 	for _, rule := range firewall.Rules {
@@ -367,6 +368,21 @@ func validateWorkload(workload Workload) error {
 					return fmt.Errorf("%s workload %s has unsafe %s: %w", workload.Type, workload.Name, key, err)
 				}
 			}
+		}
+	case "redis":
+		for _, key := range []string{"snapshotPath", "targetPath"} {
+			if value := dataString(workload.Data, key); value != "" {
+				if _, err := safety.TransferPath(value); err != nil {
+					return fmt.Errorf("redis workload %s has unsafe %s: %w", workload.Name, key, err)
+				}
+			}
+		}
+		if host := dataString(workload.Data, "replicaHost", "ReplicaHost"); host != "" && !safeRedisHost.MatchString(host) {
+			return fmt.Errorf("redis workload %s has unsafe replicaHost", workload.Name)
+		}
+		port := dataInt(workload.Data, "replicaPort", "ReplicaPort")
+		if dataHasKey(workload.Data, "replicaPort", "ReplicaPort") && (port < 1 || port > 65535) {
+			return fmt.Errorf("redis workload %s has invalid replicaPort: %d", workload.Name, port)
 		}
 	}
 	return nil

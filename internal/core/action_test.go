@@ -43,3 +43,15 @@ func TestStreamActionRequiresBothSides(t *testing.T) {
 		t.Fatal("expected stream action without target command to fail")
 	}
 }
+
+func TestStreamActionRejectsUnsafeSourceCommand(t *testing.T) {
+	stream := StreamAction{
+		ID:            "stream.bad",
+		Phase:         PhaseSync,
+		SourceCommand: []string{"systemctl", "restart", "redis-server"},
+		TargetCommand: []string{"cat"},
+	}
+	if err := stream.Validate(); err == nil {
+		t.Fatal("expected mutating source stream command to fail")
+	}
+}
