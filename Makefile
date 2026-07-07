@@ -10,10 +10,10 @@ build:
 	mkdir -p $(GO_MOD_CACHE)
 	$(GO_ENV) go build -o dist/hostshift ./cmd/hostshift
 
-test: test-node test-go
+test: test-go
 
 test-node:
-	npm test
+	@echo "No root Node test suite remains; use make test-go."
 
 test-go:
 	mkdir -p $(GO_CACHE)

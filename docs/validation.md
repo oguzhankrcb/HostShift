@@ -78,7 +78,7 @@ Release artifacts must include:
 
 Tagged releases must not publish until these workflow jobs pass:
 
-- `quick-gates`: Node tests, Go tests, build, Docker dry-run, VM dry-run, and release snapshot
+- `quick-gates`: Go tests, docs build, Docker dry-run, VM dry-run, and release snapshot
 - `docker-matrix`: real Docker matrix with `HOSTSHIFT_RUN_DOCKER_MATRIX=1`
 - `vm-e2e-preflight`: hosted macOS Lima provider preflight
 - `release`: GoReleaser packaging, keyless checksum signing, and artifact provenance attestation

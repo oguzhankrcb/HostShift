@@ -12,9 +12,6 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.26.x"
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
       - run: make build
       - run: HOSTSHIFT_RUN_VM_E2E=1 bash tests/e2e/vm/run-vm-e2e.sh --apply
       - name: Upload Lima logs on failure

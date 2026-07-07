@@ -13,11 +13,11 @@ VM tests cover behavior Docker cannot model reliably:
 The VM layer is now executable:
 
 - `matrix.yaml` defines the first Ubuntu/Debian cross-distro pairs
-- `run-vm-e2e.mjs` validates the matrix and renders per-pair workspaces
+- `hostshift vm-e2e` validates the matrix and renders per-pair workspaces
 - `providers/lima/instance-plan.json.tmpl` emits provider-specific plan manifests
 - generated `source.lima.yaml` and `target.lima.yaml` files base on official Lima distro templates
 - `fixtures/*.sh` define baseline source and target bootstrap intent
-- `run-vm-e2e.sh` adds a shell entrypoint and provider binary checks
+- `run-vm-e2e.sh` adds a shell entrypoint that calls the Go CLI
 
 Run it with:
 
@@ -25,7 +25,7 @@ Run it with:
 make test-e2e-vm
 HOSTSHIFT_RUN_VM_E2E=1 make test-e2e-vm
 make build
-HOSTSHIFT_RUN_VM_E2E=1 bash tests/e2e/vm/run-vm-e2e.sh --pair ubuntu22->debian12 --apply
+HOSTSHIFT_RUN_VM_E2E=1 bash tests/e2e/vm/run-vm-e2e.sh --pair 'ubuntu22->debian12' --apply
 ```
 
 Default mode is dry-run only. It renders artifacts such as:

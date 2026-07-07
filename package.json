@@ -4,9 +4,9 @@
   "description": "Read-only-source Ubuntu and Debian server migration tooling",
   "type": "module",
   "scripts": {
-    "test": "node --test",
-    "check": "node --test",
-    "test:go": "go test ./...",
+    "test": "make test-go",
+    "check": "make test-go",
+    "test:go": "make test-go",
     "docs:dev": "npm --prefix docs-site run dev",
     "docs:build": "npm --prefix docs-site run build",
     "docs:compose:config": "docker compose -f docs-site/compose.yml config",

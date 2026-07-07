@@ -56,7 +56,7 @@ func TestPackageNoLongerExposesNodeRuntimeBins(t *testing.T) {
 	if _, ok := manifest["bin"]; ok {
 		t.Fatalf("package.json must not expose Node runtime bins: %+v", manifest["bin"])
 	}
-	requireEqual(t, manifest["scripts"].(map[string]any)["check"], "node --test")
+	requireEqual(t, manifest["scripts"].(map[string]any)["check"], "make test-go")
 }
 
 func TestReadmeDocumentsHostshiftExecutionCommands(t *testing.T) {
@@ -190,7 +190,7 @@ func TestDocumentationWebsiteCoversProjectSurfaceArea(t *testing.T) {
 	}
 	requireMatch(t, ai, `Claude Desktop`)
 	requireMatch(t, ai, "No MCP tool exposes `--apply`")
-	for _, command := range []string{"doctor", "discover", "plan", "explain", "prepare", "sync", "verify", "cutover", "rollback", "mcp stdio", "profile migrate", "status", "resume", "policy source", "sbom", "matrix docker", "matrix vm"} {
+	for _, command := range []string{"doctor", "discover", "plan", "explain", "prepare", "sync", "verify", "cutover", "rollback", "mcp stdio", "profile migrate", "status", "resume", "policy source", "sbom", "matrix docker", "matrix vm", "vm-e2e"} {
 		requireMatch(t, cli, strings.ReplaceAll(regexp.QuoteMeta(command), " ", `\s+`))
 	}
 	for _, field := range []string{"schemaVersion", "sourcePolicy", "firewall", "sshd", "mysql", "workloads", "checks", "approved"} {

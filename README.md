@@ -195,7 +195,7 @@ Real VM e2e:
 make test-e2e-vm
 HOSTSHIFT_RUN_VM_E2E=1 make test-e2e-vm
 make build
-HOSTSHIFT_RUN_VM_E2E=1 bash tests/e2e/vm/run-vm-e2e.sh --pair ubuntu22->debian12 --apply
+HOSTSHIFT_RUN_VM_E2E=1 bash tests/e2e/vm/run-vm-e2e.sh --pair 'ubuntu22->debian12' --apply
 ```
 
 The Docker matrix runs SSH-driven source/target containers. The VM e2e layer boots real Lima instances, captures source snapshots, runs `discover`, `plan`, `prepare`, `sync`, and `verify` over SSH, validates workload parity, reboots the target, verifies persistence, and checks that the source snapshot did not change.

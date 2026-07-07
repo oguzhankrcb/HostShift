@@ -8,7 +8,6 @@ Contributions should preserve the source-read-only invariant.
 ## Local Checks
 
 ```bash
-npm test
 make test-go
 make build
 make test-integration-docker

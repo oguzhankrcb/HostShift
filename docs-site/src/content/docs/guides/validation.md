@@ -8,7 +8,6 @@ HostShift release candidates must pass more than unit tests.
 ## Fast Gates
 
 ```bash
-npm test
 make test-go
 make build
 make test-integration-docker

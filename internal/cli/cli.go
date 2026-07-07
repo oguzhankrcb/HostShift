@@ -22,10 +22,10 @@ import (
 	"github.com/oguzhankaracabay/hostshift/internal/ssh"
 	"github.com/oguzhankaracabay/hostshift/internal/state"
 	"github.com/oguzhankaracabay/hostshift/internal/version"
+	"github.com/oguzhankaracabay/hostshift/internal/vme2e"
 )
 
 func Run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
-	_ = stderr
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" {
 		fmt.Fprint(stdout, helpText())
 		return nil
@@ -64,6 +64,8 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return sbom(ctx, args[1:], stdout)
 	case "matrix":
 		return matrix(args[1:], stdout)
+	case "vm-e2e":
+		return vme2e.Run(ctx, args[1:], stdout, stderr)
 	default:
 		return fmt.Errorf("unknown command: %s", args[0])
 	}
@@ -889,6 +891,7 @@ Commands:
   sbom            [--output <file>] [--json]
   matrix docker   [--list] [--list-images] [--pair <source->target>] [--json]
   matrix vm       [--list] [--pair <source->target>] [--provider lima] [--json]
+  vm-e2e          [--list] [--pair <source->target>] [--provider lima] [--emit-dir <dir>] [--apply]
   version
 
 Safety:

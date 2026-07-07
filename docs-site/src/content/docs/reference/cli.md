@@ -257,14 +257,14 @@ Lists or explains the Docker integration matrix without running containers.
 ```bash
 hostshift matrix docker --list
 hostshift matrix docker --list-images
-hostshift matrix docker --pair ubuntu22->debian12 --json
+hostshift matrix docker --pair 'ubuntu22->debian12' --json
 ```
 
 Optional flags:
 
 - `--list`: list source and target pairs.
 - `--list-images`: list unique fixture base images.
-- `--pair`: filter to one pair such as `ubuntu22->debian12`.
+- `--pair`: filter to one pair such as `ubuntu22->debian12`; quote it in shells because `>` is a redirection operator.
 - `--json`: machine-readable output.
 
 Real Docker execution still uses `HOSTSHIFT_RUN_DOCKER_MATRIX=1 make test-integration-docker`.
@@ -275,15 +275,33 @@ Lists or explains the real VM e2e matrix without booting VMs.
 
 ```bash
 hostshift matrix vm --list
-hostshift matrix vm --pair ubuntu22->debian12 --json
+hostshift matrix vm --pair 'ubuntu22->debian12' --json
 hostshift matrix vm --provider lima --json
 ```
 
 Optional flags:
 
 - `--list`: list source and target pairs.
-- `--pair`: filter to one pair such as `ubuntu22->debian12`.
+- `--pair`: filter to one pair such as `ubuntu22->debian12`; quote it in shells because `>` is a redirection operator.
 - `--provider`: VM provider. Currently `lima`.
 - `--json`: machine-readable output.
 
 Real VM execution still uses `HOSTSHIFT_RUN_VM_E2E=1 make test-e2e-vm` for provider preflight and `HOSTSHIFT_RUN_VM_E2E=1 bash tests/e2e/vm/run-vm-e2e.sh --apply` for the apply workflow.
+
+## vm-e2e
+
+Runs the Go-backed VM e2e runner used by `tests/e2e/vm/run-vm-e2e.sh`.
+
+```bash
+hostshift vm-e2e --list
+hostshift vm-e2e --pair 'ubuntu22->debian12' --emit-dir /tmp/hostshift-vm
+HOSTSHIFT_RUN_VM_E2E=1 hostshift vm-e2e --pair 'ubuntu22->debian12' --apply
+```
+
+Optional flags:
+
+- `--list`: list source and target pairs.
+- `--pair`: filter to one pair. Quote values containing `>`.
+- `--provider`: VM provider. Currently `lima`.
+- `--emit-dir`: write rendered workspaces under a chosen directory.
+- `--apply`: boot VMs and run the live HostShift workflow when `HOSTSHIFT_RUN_VM_E2E=1` is set.
