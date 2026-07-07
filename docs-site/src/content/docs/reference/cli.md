@@ -268,3 +268,22 @@ Optional flags:
 - `--json`: machine-readable output.
 
 Real Docker execution still uses `HOSTSHIFT_RUN_DOCKER_MATRIX=1 make test-integration-docker`.
+
+## matrix vm
+
+Lists or explains the real VM e2e matrix without booting VMs.
+
+```bash
+hostshift matrix vm --list
+hostshift matrix vm --pair ubuntu22->debian12 --json
+hostshift matrix vm --provider lima --json
+```
+
+Optional flags:
+
+- `--list`: list source and target pairs.
+- `--pair`: filter to one pair such as `ubuntu22->debian12`.
+- `--provider`: VM provider. Currently `lima`.
+- `--json`: machine-readable output.
+
+Real VM execution still uses `HOSTSHIFT_RUN_VM_E2E=1 make test-e2e-vm` for provider preflight and `HOSTSHIFT_RUN_VM_E2E=1 bash tests/e2e/vm/run-vm-e2e.sh --apply` for the apply workflow.

@@ -5,28 +5,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 
-test("vm e2e runner lists required cross-distro pairs", () => {
-  const result = spawnSync(process.execPath, ["tests/e2e/vm/run-vm-e2e.mjs", "--list"], {
-    cwd: process.cwd(),
-    encoding: "utf8"
-  });
-  assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /ubuntu22 -> ubuntu24/);
-  assert.match(result.stdout, /ubuntu22 -> debian12/);
-  assert.match(result.stdout, /debian12 -> ubuntu22/);
-  assert.match(result.stdout, /debian12 -> debian13/);
-});
-
-test("vm e2e dry-run documents provider boot and apply behavior", () => {
-  const result = spawnSync(process.execPath, ["tests/e2e/vm/run-vm-e2e.mjs"], {
-    cwd: process.cwd(),
-    encoding: "utf8"
-  });
-  assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /provider preflight and VM boot/i);
-  assert.match(result.stdout, /Add --apply to execute the real provider workflow/i);
-});
-
 test("vm e2e runner renders Lima templates and source-safe manifests", () => {
   const emitDir = fs.mkdtempSync(path.join(os.tmpdir(), "hostshift-vm-test-"));
   const result = spawnSync(

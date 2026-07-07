@@ -673,6 +673,8 @@ func matrix(args []string, stdout io.Writer) error {
 	switch args[0] {
 	case "docker":
 		return dockerMatrix(args[1:], stdout)
+	case "vm":
+		return vmMatrix(args[1:], stdout)
 	default:
 		return fmt.Errorf("unknown matrix subcommand: %s", args[0])
 	}
@@ -765,6 +767,84 @@ func dockerMatrixUniqueImages(pairs []dockerMatrixPair) []string {
 	return images
 }
 
+type vmMatrixPair struct {
+	Source   string `json:"source"`
+	Target   string `json:"target"`
+	Provider string `json:"provider"`
+}
+
+func vmMatrix(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("matrix vm", flag.ContinueOnError)
+	list := fs.Bool("list", false, "list VM matrix pairs")
+	pairFilter := fs.String("pair", "", "matrix pair filter, for example ubuntu22->debian12")
+	provider := fs.String("provider", "lima", "VM provider")
+	jsonOutput := fs.Bool("json", false, "json output")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if *provider != "lima" {
+		return fmt.Errorf("unknown VM provider: %s", *provider)
+	}
+	pairs := vmMatrixPairs(*provider)
+	if *pairFilter != "" {
+		filtered := []vmMatrixPair{}
+		for _, pair := range pairs {
+			if pair.Source+"->"+pair.Target == *pairFilter {
+				filtered = append(filtered, pair)
+			}
+		}
+		if len(filtered) == 0 {
+			return fmt.Errorf("unknown matrix pair: %s", *pairFilter)
+		}
+		pairs = filtered
+	}
+	if *list {
+		if *jsonOutput {
+			return write(stdout, map[string]any{"provider": *provider, "pairs": pairs}, true)
+		}
+		for _, pair := range pairs {
+			fmt.Fprintf(stdout, "%s -> %s\n", pair.Source, pair.Target)
+		}
+		return nil
+	}
+	return write(stdout, map[string]any{
+		"provider":             *provider,
+		"pairs":                pairs,
+		"pairCount":            len(pairs),
+		"dryRun":               true,
+		"sourceWillBeModified": false,
+		"message":              "Dry-run only. Set HOSTSHIFT_RUN_VM_E2E=1 for provider preflight and VM boot. Add --apply with tests/e2e/vm/run-vm-e2e.sh to execute the real provider workflow.",
+		"checks": []string{
+			"provider preflight and VM boot",
+			"Lima template rendering",
+			"source immutability snapshot checks",
+			"post-reboot target verification",
+		},
+	}, *jsonOutput)
+}
+
+func vmMatrixPairs(provider string) []vmMatrixPair {
+	raw := []struct {
+		source string
+		target string
+	}{
+		{"ubuntu22", "ubuntu22"},
+		{"ubuntu22", "ubuntu24"},
+		{"ubuntu22", "ubuntu25"},
+		{"ubuntu22", "debian12"},
+		{"debian12", "ubuntu22"},
+		{"debian12", "ubuntu24"},
+		{"debian12", "ubuntu25"},
+		{"debian12", "debian12"},
+		{"debian12", "debian13"},
+	}
+	pairs := make([]vmMatrixPair, 0, len(raw))
+	for _, pair := range raw {
+		pairs = append(pairs, vmMatrixPair{Source: pair.source, Target: pair.target, Provider: provider})
+	}
+	return pairs
+}
+
 func confirmationCode(prof profile.Profile) string {
 	return "START-" + strings.ToUpper(prof.Name)
 }
@@ -808,6 +888,7 @@ Commands:
   policy source
   sbom            [--output <file>] [--json]
   matrix docker   [--list] [--list-images] [--pair <source->target>] [--json]
+  matrix vm       [--list] [--pair <source->target>] [--provider lima] [--json]
   version
 
 Safety:

@@ -194,6 +194,40 @@ func TestDockerMatrixCommandListsUniqueFixtureBaseImages(t *testing.T) {
 	}
 }
 
+func TestVMMatrixCommandListsRequiredPairs(t *testing.T) {
+	var stdout bytes.Buffer
+	if err := Run(context.Background(), []string{"matrix", "vm", "--list"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	out := stdout.String()
+	for _, expected := range []string{"ubuntu22 -> ubuntu24", "ubuntu22 -> debian12", "debian12 -> ubuntu22", "debian12 -> debian13"} {
+		if !strings.Contains(out, expected) {
+			t.Fatalf("expected VM matrix list to contain %q: %s", expected, out)
+		}
+	}
+}
+
+func TestVMMatrixCommandDryRunDocumentsProviderBootAndApplyBehavior(t *testing.T) {
+	var stdout bytes.Buffer
+	if err := Run(context.Background(), []string{"matrix", "vm"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	out := stdout.String()
+	if !strings.Contains(out, "provider preflight and VM boot") || !strings.Contains(out, "Add --apply") || !strings.Contains(out, `"sourceWillBeModified": false`) {
+		t.Fatalf("expected VM matrix dry-run guidance: %s", out)
+	}
+}
+
+func TestVMMatrixCommandFiltersSinglePair(t *testing.T) {
+	var stdout bytes.Buffer
+	if err := Run(context.Background(), []string{"matrix", "vm", "--list", "--pair", "ubuntu22->debian12"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(stdout.String()) != "ubuntu22 -> debian12" {
+		t.Fatalf("unexpected VM filtered pair list: %s", stdout.String())
+	}
+}
+
 func TestBuildSBOMDocumentUsesGoPURLs(t *testing.T) {
 	doc := buildSBOMDocument([]goModule{{Name: "github.com/example/mod", Version: "v1.2.3"}, {Name: "github.com/example/root"}}, time.Date(2026, 7, 7, 12, 0, 0, 0, time.UTC))
 	if doc.DocumentNamespace != "https://github.com/oguzhankaracabay/hostshift/sbom/1783425600000" {
