@@ -24,7 +24,7 @@ test-integration-docker:
 	bash tests/integration/docker/run-matrix.sh
 
 docker-pull-fixtures:
-	node tests/integration/docker/run-matrix.mjs --pull-images
+	bash tests/integration/docker/run-matrix.sh --pull-images
 
 test-e2e-vm:
 	bash tests/e2e/vm/run-vm-e2e.sh

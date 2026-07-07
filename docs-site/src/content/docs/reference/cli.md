@@ -269,6 +269,24 @@ Optional flags:
 
 Real Docker execution still uses `HOSTSHIFT_RUN_DOCKER_MATRIX=1 make test-integration-docker`.
 
+## docker-e2e
+
+Runs the Go-backed Docker integration runner used by `tests/integration/docker/run-matrix.sh`.
+
+```bash
+hostshift docker-e2e --list
+hostshift docker-e2e --list-images
+hostshift docker-e2e --pair 'ubuntu22->debian12'
+HOSTSHIFT_RUN_DOCKER_MATRIX=1 hostshift docker-e2e --pair 'ubuntu22->debian12'
+```
+
+Optional flags:
+
+- `--list`: list source and target pairs.
+- `--list-images`: list unique fixture base images.
+- `--pair`: filter to one pair. Quote values containing `>`.
+- `--pull-images`: pre-pull required fixture base images.
+
 ## matrix vm
 
 Lists or explains the real VM e2e matrix without booting VMs.

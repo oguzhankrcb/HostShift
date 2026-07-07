@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/oguzhankaracabay/hostshift/internal/core"
+	"github.com/oguzhankaracabay/hostshift/internal/dockere2e"
 	"github.com/oguzhankaracabay/hostshift/internal/executor"
 	"github.com/oguzhankaracabay/hostshift/internal/planner"
 	"github.com/oguzhankaracabay/hostshift/internal/profile"
@@ -64,6 +65,8 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return sbom(ctx, args[1:], stdout)
 	case "matrix":
 		return matrix(args[1:], stdout)
+	case "docker-e2e":
+		return dockere2e.Run(ctx, args[1:], stdout, stderr)
 	case "vm-e2e":
 		return vme2e.Run(ctx, args[1:], stdout, stderr)
 	default:
@@ -891,6 +894,7 @@ Commands:
   sbom            [--output <file>] [--json]
   matrix docker   [--list] [--list-images] [--pair <source->target>] [--json]
   matrix vm       [--list] [--pair <source->target>] [--provider lima] [--json]
+  docker-e2e      [--list] [--list-images] [--pair <source->target>] [--pull-images]
   vm-e2e          [--list] [--pair <source->target>] [--provider lima] [--emit-dir <dir>] [--apply]
   version
 

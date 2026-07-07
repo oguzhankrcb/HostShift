@@ -44,7 +44,7 @@ HOSTSHIFT_RUN_DOCKER_MATRIX=1 make test-integration-docker
 List or pre-pull required base images:
 
 ```bash
-node tests/integration/docker/run-matrix.mjs --list-images
+bash tests/integration/docker/run-matrix.sh --list-images
 make docker-pull-fixtures
 ```
 
