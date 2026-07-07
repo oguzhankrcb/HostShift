@@ -175,7 +175,7 @@ test("documentation website covers the project surface area", async () => {
   assert.match(install, /hostshift mcp stdio/);
   assert.match(ai, /Claude Desktop/);
   assert.match(ai, /No MCP tool exposes `--apply`/);
-  for (const command of ["doctor", "discover", "plan", "prepare", "sync", "verify", "cutover", "rollback", "mcp stdio", "profile migrate", "status", "resume", "policy source"]) {
+  for (const command of ["doctor", "discover", "plan", "explain", "prepare", "sync", "verify", "cutover", "rollback", "mcp stdio", "profile migrate", "status", "resume", "policy source"]) {
     assert.match(cli, new RegExp(command.replace(" ", "\\s+")));
   }
   for (const field of ["schemaVersion", "sourcePolicy", "firewall", "sshd", "mysql", "workloads", "checks", "approved"]) {

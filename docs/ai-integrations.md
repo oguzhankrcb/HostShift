@@ -15,6 +15,7 @@ The MCP transport is newline-delimited JSON-RPC over stdin/stdout. The server ex
 - `hostshift_doctor`
 - `hostshift_discover`
 - `hostshift_plan`
+- `hostshift_explain`
 - `hostshift_prepare_dry_run`
 - `hostshift_sync_dry_run`
 - `hostshift_verify_dry_run`
@@ -22,6 +23,8 @@ The MCP transport is newline-delimited JSON-RPC over stdin/stdout. The server ex
 - `hostshift_rollback`
 
 No MCP tool exposes `--apply`. Target mutations still require a human-operated CLI command.
+
+Use `hostshift_explain` when an AI client needs a concise migration brief. It summarizes blockers, warnings, workloads, streams, target impacts, source-safety notes, and the next safe operator actions without running any remote mutation.
 
 ## Claude Desktop
 
@@ -46,4 +49,4 @@ AI clients may inspect plans and ask HostShift to run source read-only discovery
 
 > The source server is an immutable observation endpoint.
 
-If an AI client suggests running `prepare --apply`, `sync --apply`, `verify --apply`, or `cutover --apply`, run `hostshift plan` or the relevant dry-run first and review blockers, actions, streams, and rollback metadata manually.
+If an AI client suggests running `prepare --apply`, `sync --apply`, `verify --apply`, or `cutover --apply`, run `hostshift explain`, `hostshift plan`, or the relevant dry-run first and review blockers, actions, streams, and rollback metadata manually.

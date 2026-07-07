@@ -22,6 +22,7 @@ Run a dry plan:
 
 ```bash
 hostshift plan --profile examples/web-stack-v2.yaml --json
+hostshift explain --profile examples/web-stack-v2.yaml --json
 ```
 
 The profile intentionally has `approved: false`, so the plan includes a blocker. This is expected for a public template.

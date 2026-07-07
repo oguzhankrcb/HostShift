@@ -29,6 +29,7 @@ Prefer dry-run commands first:
 hostshift doctor --source old-server --target new-server --json
 hostshift discover --source old-server --name example --profile example.profile.yaml --json
 hostshift plan --profile example.profile.yaml --target new-server --json
+hostshift explain --profile example.profile.yaml --target new-server --json
 hostshift prepare --profile example.profile.yaml --target new-server --json
 hostshift sync --profile example.profile.yaml --target new-server --json
 hostshift verify --profile example.profile.yaml --target new-server --json
@@ -54,6 +55,6 @@ If the `hostshift` binary is missing, stop and install it from the HostShift rel
 - Treat stream actions as source stdout to target stdin. The source side must stay read-only and the target side may mutate only the target.
 - Prefer MySQL single-transaction streaming and PostgreSQL custom-format streaming.
 - Model database passwords as environment variable names such as `sourcePasswordEnv` and `targetPasswordEnv`; never place literal passwords in profiles or commands.
-- Block Redis unless an existing snapshot or replica can be read without modifying the source.
+- For Redis, require an existing RDB snapshot or read-only replica stream; never create source-side snapshots.
 - Preserve SSH, firewall, MySQL bind settings, Nginx/Apache config, and application-level checks.
 - Verify HTTP endpoints with reviewed URLs and Host headers. Verify Laravel database connectivity with the fixed target-side PDO probe.

@@ -37,6 +37,8 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return discover(ctx, args[1:], stdout)
 	case "plan":
 		return plan(args[1:], stdout)
+	case "explain":
+		return explain(args[1:], stdout)
 	case "prepare":
 		return runPhase(ctx, args[1:], stdout, core.PhasePrepare)
 	case "sync":
@@ -255,6 +257,98 @@ func plan(args []string, stdout io.Writer) error {
 	return write(stdout, plan, *jsonOutput)
 }
 
+type planExplanation struct {
+	Profile              string         `json:"profile"`
+	SourcePolicy         string         `json:"sourcePolicy"`
+	SourceWillBeModified bool           `json:"sourceWillBeModified"`
+	ReadyForApply        bool           `json:"readyForApply"`
+	Blockers             []string       `json:"blockers,omitempty"`
+	Warnings             []string       `json:"warnings,omitempty"`
+	Summary              string         `json:"summary"`
+	Workloads            []string       `json:"workloads,omitempty"`
+	ActionCounts         map[string]int `json:"actionCounts"`
+	StreamCount          int            `json:"streamCount"`
+	TargetImpacts        map[string]int `json:"targetImpacts"`
+	NextActions          []string       `json:"nextActions"`
+	SafetyNotes          []string       `json:"safetyNotes"`
+}
+
+func explain(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("explain", flag.ContinueOnError)
+	profilePath := fs.String("profile", "", "profile path")
+	target := fs.String("target", "", "target ssh alias override")
+	jsonOutput := fs.Bool("json", false, "json output")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if *profilePath == "" {
+		return fmt.Errorf("--profile is required")
+	}
+	prof, err := profile.Load(*profilePath)
+	if err != nil {
+		return err
+	}
+	if *target != "" {
+		if err := safety.SSHAlias(*target); err != nil {
+			return err
+		}
+		prof.Target.SSH = *target
+	}
+	plan, err := planner.Build(prof, time.Now().UTC())
+	if err != nil {
+		return err
+	}
+	return write(stdout, explainPlan(prof, plan), *jsonOutput)
+}
+
+func explainPlan(prof profile.Profile, plan planner.Plan) planExplanation {
+	actionCounts := map[string]int{}
+	targetImpacts := map[string]int{}
+	for _, action := range plan.Actions {
+		actionCounts[string(action.Phase)]++
+		if action.HostRole == core.HostRoleTarget {
+			targetImpacts[string(action.Impact)]++
+		}
+	}
+	workloads := make([]string, 0, len(prof.Workloads))
+	for _, workload := range prof.Workloads {
+		workloads = append(workloads, workload.Type+":"+workload.Name)
+	}
+	ready := len(plan.Blockers) == 0 && prof.Approved && prof.Target.SSH != ""
+	summary := fmt.Sprintf("%s has %d workloads, %d actions, and %d streams. Source mutation is disabled.", prof.Name, len(prof.Workloads), len(plan.Actions), len(plan.Streams))
+	nextActions := []string{}
+	if len(plan.Blockers) > 0 {
+		nextActions = append(nextActions, "Resolve blockers before running any apply command.")
+	} else if !prof.Approved {
+		nextActions = append(nextActions, "Review the generated profile and set approved: true only after human review.")
+	} else {
+		nextActions = append(nextActions, "Run prepare, sync, and verify as dry-runs before any apply command.")
+		nextActions = append(nextActions, "Apply target phases only from the CLI after reviewing actions, streams, and rollback metadata.")
+	}
+	if len(plan.Streams) > 0 {
+		nextActions = append(nextActions, "Review every stream source command; source streams must remain read-only.")
+	}
+	return planExplanation{
+		Profile:              prof.Name,
+		SourcePolicy:         prof.SourcePolicy,
+		SourceWillBeModified: plan.SourceWillBeModified,
+		ReadyForApply:        ready,
+		Blockers:             plan.Blockers,
+		Warnings:             plan.Warnings,
+		Summary:              summary,
+		Workloads:            workloads,
+		ActionCounts:         actionCounts,
+		StreamCount:          len(plan.Streams),
+		TargetImpacts:        targetImpacts,
+		NextActions:          nextActions,
+		SafetyNotes: []string{
+			"MCP and AI integrations do not expose apply commands.",
+			"The source host is treated as a read-only observation endpoint.",
+			"Target writes, service restarts, and network changes require reviewed CLI apply commands.",
+		},
+	}
+}
+
 func runPhase(ctx context.Context, args []string, stdout io.Writer, phase core.Phase) error {
 	fs := flag.NewFlagSet(string(phase), flag.ContinueOnError)
 	profilePath := fs.String("profile", "", "profile path")
@@ -405,6 +499,7 @@ Commands:
   doctor          --source <ssh> --target <ssh> [--json]
   discover        --source <ssh> --name <name> [--profile <file>] [--json]
   plan            --profile <file> [--target <ssh>] [--json]
+  explain         --profile <file> [--target <ssh>] [--json]
   prepare         --profile <file> [--target <ssh>] [--apply] [--json]
   sync            --profile <file> [--target <ssh>] [--apply] [--json]
   verify          --profile <file> [--target <ssh>] [--apply] [--json]

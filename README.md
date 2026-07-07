@@ -23,6 +23,7 @@ HostShift move:
 ```bash
 hostshift discover --source old-server --name rehearsal --profile rehearsal.profile.yaml --json
 hostshift plan --profile rehearsal.profile.yaml --target new-server --json
+hostshift explain --profile rehearsal.profile.yaml --target new-server --json
 hostshift prepare --profile rehearsal.profile.yaml --target new-server --json
 hostshift sync --profile rehearsal.profile.yaml --target new-server --json
 hostshift verify --profile rehearsal.profile.yaml --target new-server --json
@@ -65,6 +66,7 @@ go run ./cmd/hostshift version
 go run ./cmd/hostshift doctor --source old-server --target new-server --json
 go run ./cmd/hostshift discover --source old-server --name example --profile example.profile.yaml --json
 go run ./cmd/hostshift plan --profile examples/profile.yaml --target new-server --json
+go run ./cmd/hostshift explain --profile examples/profile.yaml --target new-server --json
 go run ./cmd/hostshift prepare --profile examples/profile.yaml --target new-server --json
 go run ./cmd/hostshift sync --profile examples/profile.yaml --target new-server --json
 go run ./cmd/hostshift verify --profile examples/profile.yaml --target new-server --json
@@ -104,7 +106,7 @@ HostShift exposes AI integrations as operator layers around the Go CLI:
 - MCP stdio server: `hostshift mcp stdio`
 - Claude Desktop example: [integrations/claude/claude_desktop_config.example.json](./integrations/claude/claude_desktop_config.example.json)
 
-MCP tools are intentionally non-apply: they can run discovery, planning, dry-runs, cutover dry-runs, and rollback metadata. Target mutation still requires a reviewed human CLI command.
+MCP tools are intentionally non-apply: they can run discovery, planning, AI-friendly explanation, dry-runs, cutover dry-runs, and rollback metadata. Target mutation still requires a reviewed human CLI command.
 
 ## Supported Platforms
 
@@ -159,11 +161,12 @@ Redis workloads are blocked unless the profile names an existing RDB snapshot or
 2. **Discover** reads source facts through allowlisted, read-only operations.
 3. **Profile** records workloads, target config, checks, and env-var secret references.
 4. **Plan** turns the profile into reviewable actions and streams.
-5. **Prepare** applies target-only package and config changes when approved.
-6. **Sync** streams data from source stdout into target-side writes.
-7. **Verify** runs target-side checks and records audit output.
-8. **Cutover** runs reviewed target-only start actions such as Compose `up` or standalone container `run`.
-9. **Rollback/status/resume** report target rollback metadata and continue interrupted runs from state.
+5. **Explain** summarizes blockers, warnings, streams, target impacts, and safe next actions for AI-assisted review.
+6. **Prepare** applies target-only package and config changes when approved.
+7. **Sync** streams data from source stdout into target-side writes.
+8. **Verify** runs target-side checks and records audit output.
+9. **Cutover** runs reviewed target-only start actions such as Compose `up` or standalone container `run`.
+10. **Rollback/status/resume** report target rollback metadata and continue interrupted runs from state.
 
 Sync plans may include streams such as `tar --create -> tar --extract`, `docker image save -> docker image load`, `mysqldump -> mysql`, and `pg_dump -> pg_restore`. The source side produces stdout; the target side mutates only the target.
 

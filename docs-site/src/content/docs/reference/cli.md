@@ -90,6 +90,25 @@ The plan contains:
 - `warnings`: non-blocking risks, for example cross-distribution compatibility warnings.
 - `sourceWillBeModified: false`.
 
+## explain
+
+Builds the same plan and returns an AI-friendly review summary without applying anything.
+
+```bash
+hostshift explain --profile examples/web-stack-v2.yaml --target new-server --json
+```
+
+Required flags:
+
+- `--profile`: v1 or v2 profile path.
+
+Optional flags:
+
+- `--target`: override the target SSH alias in the profile.
+- `--json`: machine-readable output.
+
+The explanation contains blocker and warning summaries, workload and stream counts, target impact counts, safe next actions for a human operator, and source safety notes for AI clients.
+
 ## prepare
 
 Plans or applies target preparation actions.
@@ -170,7 +189,7 @@ Runs the HostShift MCP server over stdin/stdout for AI clients.
 hostshift mcp stdio
 ```
 
-The MCP server exposes discovery, planning, dry-run, cutover dry-run, and rollback metadata tools. It does not expose apply tools.
+The MCP server exposes discovery, planning, explanation, dry-run, cutover dry-run, and rollback metadata tools. It does not expose apply tools.
 
 ## profile migrate
 

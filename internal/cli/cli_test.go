@@ -33,6 +33,53 @@ approved: false
 	}
 }
 
+func TestExplainSummarizesPlanForAIReview(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "profile.yaml")
+	body := []byte(`schemaVersion: 2
+name: explain-app
+source:
+  ssh: old-server
+target:
+  ssh: new-server
+platforms:
+  source: ubuntu:24.04
+  target: debian:13
+sourcePolicy: strict-read-only
+approved: true
+workloads:
+  - type: redis
+    name: cache
+    data:
+      snapshotPath: /var/lib/redis/dump.rdb
+checks:
+  - type: http
+    name: homepage
+    data:
+      url: http://127.0.0.1/
+`)
+	if err := os.WriteFile(path, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var stdout bytes.Buffer
+	if err := Run(context.Background(), []string{"explain", "--profile", path, "--json"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	out := stdout.String()
+	for _, expected := range []string{
+		`"sourceWillBeModified": false`,
+		`"readyForApply": true`,
+		`"streamCount": 1`,
+		`redis:cache`,
+		`Run prepare, sync, and verify as dry-runs before any apply command.`,
+		`MCP and AI integrations do not expose apply commands.`,
+	} {
+		if !strings.Contains(out, expected) {
+			t.Fatalf("expected explain output to contain %q: %s", expected, out)
+		}
+	}
+}
+
 func TestProfileMigrateWritesV2YAML(t *testing.T) {
 	dir := t.TempDir()
 	input := filepath.Join(dir, "v1.yaml")

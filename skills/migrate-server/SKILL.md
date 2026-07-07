@@ -26,10 +26,11 @@ Run from the plugin root:
 ```bash
 go run ./cmd/hostshift doctor --source old-server --target new-server --json
 go run ./cmd/hostshift plan --profile example.profile.yaml --target new-server --json
+go run ./cmd/hostshift explain --profile example.profile.yaml --target new-server --json
 go run ./cmd/hostshift profile migrate --input old-v1.profile.yaml --output new-v2.profile.json
 ```
 
-Use `--apply` only after displaying the exact target mutations and source read commands to the user. Run application checks before any manual DNS change. Run `drift` after migration.
+Use `--apply` only after displaying the exact target mutations and source read commands to the user. Run application checks before any manual DNS change. Use `verify`, `status`, and audit logs after migration.
 
 ## Platform Guidance
 
@@ -47,6 +48,6 @@ Use `--apply` only after displaying the exact target mutations and source read c
 - Treat stream actions as source stdout to target stdin. The source side must stay read-only and the target side may mutate only the target.
 - Prefer MySQL single-transaction streaming and PostgreSQL custom-format streaming.
 - Model database passwords as environment variable names such as `sourcePasswordEnv` and `targetPasswordEnv`; never place literal passwords in profiles or commands.
-- Block Redis unless an existing snapshot or replica can be read without modifying the source.
+- For Redis, require an existing RDB snapshot or read-only replica stream; never create source-side snapshots.
 - Preserve SSH, firewall, MySQL bind settings, Nginx/Apache config, and application-level checks.
 - Verify HTTP endpoints with reviewed URLs and Host headers. Verify Laravel database connectivity with the fixed target-side PDO probe.

@@ -71,6 +71,7 @@ Start with dry-run commands. `prepare`, `sync`, and `verify` do not execute targ
 hostshift doctor --source old-server --target new-server --json
 hostshift discover --source old-server --name rehearsal --profile rehearsal.profile.yaml --json
 hostshift plan --profile rehearsal.profile.yaml --target new-server --json
+hostshift explain --profile rehearsal.profile.yaml --target new-server --json
 hostshift prepare --profile rehearsal.profile.yaml --target new-server --json
 hostshift sync --profile rehearsal.profile.yaml --target new-server --json
 hostshift verify --profile rehearsal.profile.yaml --target new-server --json

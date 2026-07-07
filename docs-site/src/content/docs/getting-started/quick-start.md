@@ -16,6 +16,7 @@ Run the first discovery and plan:
 hostshift doctor --source old-server --target new-server --json
 hostshift discover --source old-server --name rehearsal --profile rehearsal.profile.yaml --json
 hostshift plan --profile rehearsal.profile.yaml --target new-server --json
+hostshift explain --profile rehearsal.profile.yaml --target new-server --json
 ```
 
 Run dry-run phases:
