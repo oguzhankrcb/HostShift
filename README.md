@@ -106,6 +106,12 @@ HostShift exposes AI integrations as operator layers around the Go CLI:
 - MCP stdio server: `hostshift mcp stdio`
 - Claude Desktop example: [integrations/claude/claude_desktop_config.example.json](./integrations/claude/claude_desktop_config.example.json)
 
+Validate the MCP and Claude integration surface:
+
+```bash
+hostshift mcp doctor --json
+```
+
 MCP tools are intentionally non-apply: they can run discovery, planning, AI-friendly explanation, dry-runs, cutover dry-runs, and rollback metadata. Target mutation still requires a reviewed human CLI command.
 
 ## Supported Platforms

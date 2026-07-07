@@ -13,6 +13,12 @@ Run the stdio MCP server:
 hostshift mcp stdio
 ```
 
+Validate the MCP tool surface and Claude Desktop config example:
+
+```bash
+hostshift mcp doctor --json
+```
+
 The server exposes safe planning tools:
 
 - `hostshift_doctor`
@@ -45,6 +51,12 @@ Start from `integrations/claude/claude_desktop_config.example.json`:
 ```
 
 Adjust `command` to the installed `hostshift` binary path.
+
+Check the example before copying it:
+
+```bash
+hostshift mcp doctor --claude-config integrations/claude/claude_desktop_config.example.json --json
+```
 
 ## Codex
 

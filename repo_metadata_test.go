@@ -185,12 +185,13 @@ func TestDocumentationWebsiteCoversProjectSurfaceArea(t *testing.T) {
 	for _, slug := range []string{"reference/cli", "reference/ai-integrations", "reference/profile-v2", "reference/source-discovery", "reference/workloads", "reference/checks", "reference/platforms", "reference/plans-state", "reference/test-matrix"} {
 		requireMatch(t, config, regexp.QuoteMeta(slug))
 	}
-	for _, pattern := range []string{`codex plugin marketplace add`, `codex plugin add hostshift@hostshift`, `hostshift mcp stdio`} {
+	for _, pattern := range []string{`codex plugin marketplace add`, `codex plugin add hostshift@hostshift`, `hostshift mcp stdio`, `hostshift mcp doctor --json`} {
 		requireMatch(t, install, pattern)
 	}
 	requireMatch(t, ai, `Claude Desktop`)
+	requireMatch(t, ai, `hostshift mcp doctor --json`)
 	requireMatch(t, ai, "No MCP tool exposes `--apply`")
-	for _, command := range []string{"doctor", "discover", "plan", "explain", "prepare", "sync", "verify", "cutover", "rollback", "mcp stdio", "profile migrate", "status", "resume", "policy source", "sbom", "matrix docker", "docker-e2e", "matrix vm", "vm-e2e"} {
+	for _, command := range []string{"doctor", "discover", "plan", "explain", "prepare", "sync", "verify", "cutover", "rollback", "mcp stdio", "mcp doctor", "profile migrate", "status", "resume", "policy source", "sbom", "matrix docker", "docker-e2e", "matrix vm", "vm-e2e"} {
 		requireMatch(t, cli, strings.ReplaceAll(regexp.QuoteMeta(command), " ", `\s+`))
 	}
 	for _, field := range []string{"schemaVersion", "sourcePolicy", "firewall", "sshd", "mysql", "workloads", "checks", "approved"} {

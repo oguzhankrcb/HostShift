@@ -78,3 +78,9 @@ hostshift verify --profile rehearsal.profile.yaml --target new-server --json
 ```
 
 Review all blockers and planned actions before running any `--apply` command. HostShift never writes to the source server; target-side apply commands can still install packages, write files, load container images, restore databases, and adjust target-only configuration.
+
+For AI clients, validate the MCP and Claude Desktop integration surface:
+
+```bash
+hostshift mcp doctor --json
+```

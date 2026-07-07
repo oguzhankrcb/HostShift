@@ -191,6 +191,17 @@ hostshift mcp stdio
 
 The MCP server exposes discovery, planning, explanation, dry-run, cutover dry-run, and rollback metadata tools. It does not expose apply tools.
 
+## mcp doctor
+
+Validates the MCP tool surface and Claude Desktop config example without running remote commands.
+
+```bash
+hostshift mcp doctor --json
+hostshift mcp doctor --claude-config integrations/claude/claude_desktop_config.example.json --json
+```
+
+The report includes protocol version, exposed tool names, whether any apply tool is exposed, and whether the Claude config points to `hostshift mcp stdio`.
+
 ## profile migrate
 
 Reads a v1 profile and writes a v2 profile.

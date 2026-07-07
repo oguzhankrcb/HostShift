@@ -75,3 +75,9 @@ hostshift mcp stdio
 ```
 
 Claude Desktop can use `integrations/claude/claude_desktop_config.example.json` as a starting point. The MCP server exposes planning and dry-run tools only; `--apply` remains a human-operated CLI action.
+
+Validate the MCP and Claude integration surface:
+
+```bash
+hostshift mcp doctor --json
+```

@@ -3,15 +3,23 @@ package cli
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 
 	"github.com/oguzhankaracabay/hostshift/internal/mcp"
 	"github.com/oguzhankaracabay/hostshift/internal/version"
 )
 
 func ServeMCP(ctx context.Context, stdin io.Reader, stdout io.Writer) error {
-	server := mcp.Server{
+	return mcp.Serve(ctx, hostshiftMCPServer(), stdin, stdout)
+}
+
+func hostshiftMCPServer() mcp.Server {
+	return mcp.Server{
 		Name:         "hostshift",
 		Title:        "HostShift",
 		Version:      version.Version,
@@ -47,7 +55,192 @@ func ServeMCP(ctx context.Context, stdin io.Reader, stdout io.Writer) error {
 			}),
 		},
 	}
-	return mcp.Serve(ctx, server, stdin, stdout)
+}
+
+type mcpDoctorReport struct {
+	ServerName           string            `json:"serverName"`
+	ServerTitle          string            `json:"serverTitle"`
+	ServerVersion        string            `json:"serverVersion"`
+	ProtocolVersion      string            `json:"protocolVersion"`
+	ToolCount            int               `json:"toolCount"`
+	Tools                []string          `json:"tools"`
+	RequiredToolsPresent bool              `json:"requiredToolsPresent"`
+	ApplyToolsExposed    bool              `json:"applyToolsExposed"`
+	SourceWillBeModified bool              `json:"sourceWillBeModified"`
+	ClaudeConfig         claudeConfigCheck `json:"claudeConfig"`
+	Status               string            `json:"status"`
+	Warnings             []string          `json:"warnings,omitempty"`
+}
+
+type claudeConfigCheck struct {
+	Path         string   `json:"path"`
+	Exists       bool     `json:"exists"`
+	Server       string   `json:"server,omitempty"`
+	Command      string   `json:"command,omitempty"`
+	Args         []string `json:"args,omitempty"`
+	Valid        bool     `json:"valid"`
+	Error        string   `json:"error,omitempty"`
+	Instructions string   `json:"instructions"`
+}
+
+func mcpCommand(args []string, stdout io.Writer) error {
+	if len(args) == 0 {
+		return fmt.Errorf("mcp subcommand is required")
+	}
+	switch args[0] {
+	case "doctor":
+		return mcpDoctor(args[1:], stdout)
+	case "stdio":
+		return fmt.Errorf("mcp stdio is handled by cmd/hostshift")
+	default:
+		return fmt.Errorf("unknown mcp subcommand: %s", args[0])
+	}
+}
+
+func mcpDoctor(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("mcp doctor", flag.ContinueOnError)
+	claudeConfig := fs.String("claude-config", "integrations/claude/claude_desktop_config.example.json", "Claude Desktop config path")
+	jsonOutput := fs.Bool("json", false, "json output")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	report := buildMCPDoctorReport(*claudeConfig)
+	return write(stdout, report, *jsonOutput)
+}
+
+func buildMCPDoctorReport(claudeConfigPath string) mcpDoctorReport {
+	server := hostshiftMCPServer()
+	tools := make([]string, 0, len(server.Tools))
+	applyToolsExposed := false
+	seen := map[string]bool{}
+	for _, tool := range server.Tools {
+		tools = append(tools, tool.Name)
+		seen[tool.Name] = true
+		if containsApplyName(tool.Name) {
+			applyToolsExposed = true
+		}
+	}
+	requiredToolsPresent := true
+	for _, name := range requiredMCPToolNames() {
+		if !seen[name] {
+			requiredToolsPresent = false
+			break
+		}
+	}
+	report := mcpDoctorReport{
+		ServerName:           server.Name,
+		ServerTitle:          server.Title,
+		ServerVersion:        server.Version,
+		ProtocolVersion:      mcp.ProtocolVersion,
+		ToolCount:            len(tools),
+		Tools:                tools,
+		RequiredToolsPresent: requiredToolsPresent,
+		ApplyToolsExposed:    applyToolsExposed,
+		SourceWillBeModified: false,
+		ClaudeConfig:         checkClaudeConfig(claudeConfigPath),
+		Status:               "ok",
+	}
+	if !requiredToolsPresent {
+		report.Status = "warning"
+		report.Warnings = append(report.Warnings, "one or more required MCP tools are missing")
+	}
+	if applyToolsExposed {
+		report.Status = "warning"
+		report.Warnings = append(report.Warnings, "MCP must not expose apply tools")
+	}
+	if !report.ClaudeConfig.Valid {
+		report.Status = "warning"
+		report.Warnings = append(report.Warnings, "Claude Desktop config example is missing or invalid")
+	}
+	return report
+}
+
+func requiredMCPToolNames() []string {
+	return []string{
+		"hostshift_doctor",
+		"hostshift_discover",
+		"hostshift_plan",
+		"hostshift_explain",
+		"hostshift_prepare_dry_run",
+		"hostshift_sync_dry_run",
+		"hostshift_verify_dry_run",
+		"hostshift_cutover_dry_run",
+		"hostshift_rollback",
+	}
+}
+
+func containsApplyName(name string) bool {
+	return bytes.Contains([]byte(name), []byte("apply"))
+}
+
+func checkClaudeConfig(path string) claudeConfigCheck {
+	check := claudeConfigCheck{
+		Path:         path,
+		Instructions: "Copy this JSON into Claude Desktop's claude_desktop_config.json and adjust command to the installed hostshift binary path.",
+	}
+	resolvedPath := resolveRepoRelativePath(path)
+	check.Path = resolvedPath
+	body, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		check.Error = err.Error()
+		return check
+	}
+	check.Exists = true
+	var root struct {
+		MCPServers map[string]struct {
+			Command string   `json:"command"`
+			Args    []string `json:"args"`
+		} `json:"mcpServers"`
+	}
+	if err := json.Unmarshal(body, &root); err != nil {
+		check.Error = err.Error()
+		return check
+	}
+	server, ok := root.MCPServers["hostshift"]
+	if !ok {
+		check.Error = "missing mcpServers.hostshift"
+		return check
+	}
+	check.Server = "hostshift"
+	check.Command = server.Command
+	check.Args = server.Args
+	if server.Command == "" {
+		check.Error = "missing hostshift command"
+		return check
+	}
+	if len(server.Args) != 2 || server.Args[0] != "mcp" || server.Args[1] != "stdio" {
+		check.Error = "hostshift args must be [\"mcp\", \"stdio\"]"
+		return check
+	}
+	check.Valid = true
+	return check
+}
+
+func resolveRepoRelativePath(path string) string {
+	if filepath.IsAbs(path) {
+		return path
+	}
+	if _, err := os.Stat(path); err == nil {
+		return path
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		return path
+	}
+	for {
+		candidate := filepath.Join(cwd, path)
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+		if _, err := os.Stat(filepath.Join(cwd, "go.mod")); err == nil {
+			return candidate
+		}
+		parent := filepath.Dir(cwd)
+		if parent == cwd {
+			return path
+		}
+		cwd = parent
+	}
 }
 
 func cliTool(name, title, description string, schema map[string]any, buildArgs func(map[string]any) []string) mcp.Tool {

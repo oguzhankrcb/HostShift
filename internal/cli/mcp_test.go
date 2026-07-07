@@ -132,6 +132,41 @@ approved: false
 	}
 }
 
+func TestMCPDoctorReportsClaudeConfigAndSafeToolSurface(t *testing.T) {
+	var stdout strings.Builder
+	if err := Run(context.Background(), []string{"mcp", "doctor", "--json"}, &stdout, &strings.Builder{}); err != nil {
+		t.Fatal(err)
+	}
+	var report map[string]any
+	if err := json.Unmarshal([]byte(stdout.String()), &report); err != nil {
+		t.Fatalf("invalid doctor JSON: %v\n%s", err, stdout.String())
+	}
+	if report["status"] != "ok" {
+		t.Fatalf("expected ok status: %+v", report)
+	}
+	if report["applyToolsExposed"] != false || report["sourceWillBeModified"] != false {
+		t.Fatalf("MCP doctor must keep apply tools hidden and source immutable: %+v", report)
+	}
+	claude := report["claudeConfig"].(map[string]any)
+	if claude["valid"] != true || claude["server"] != "hostshift" {
+		t.Fatalf("expected valid Claude config check: %+v", claude)
+	}
+	args := claude["args"].([]any)
+	if len(args) != 2 || args[0] != "mcp" || args[1] != "stdio" {
+		t.Fatalf("unexpected Claude MCP args: %+v", args)
+	}
+	tools := report["tools"].([]any)
+	for _, raw := range tools {
+		name := raw.(string)
+		if strings.Contains(name, "apply") {
+			t.Fatalf("MCP doctor exposed apply tool: %s", name)
+		}
+	}
+	if report["requiredToolsPresent"] != true {
+		t.Fatalf("expected required tools to be present: %+v", report)
+	}
+}
+
 func decodeMCPResponses(t *testing.T, output string) []map[string]any {
 	t.Helper()
 	scanner := bufio.NewScanner(strings.NewReader(output))
