@@ -62,6 +62,8 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return policy(args[1:], stdout)
 	case "sbom":
 		return sbom(ctx, args[1:], stdout)
+	case "matrix":
+		return matrix(args[1:], stdout)
 	default:
 		return fmt.Errorf("unknown command: %s", args[0])
 	}
@@ -644,6 +646,125 @@ func sanitizeSPDXID(value string) string {
 	return safe
 }
 
+type dockerMatrixPair struct {
+	Source      string `json:"source"`
+	Target      string `json:"target"`
+	SourceImage string `json:"sourceImage"`
+	TargetImage string `json:"targetImage"`
+}
+
+var dockerMatrixTargets = map[string][]string{
+	"ubuntu22": {"ubuntu22", "ubuntu24", "ubuntu25", "debian12"},
+	"debian12": {"ubuntu22", "ubuntu24", "ubuntu25", "debian12", "debian13"},
+}
+
+var dockerMatrixImages = map[string]string{
+	"ubuntu22": "ubuntu:22.04",
+	"ubuntu24": "ubuntu:24.04",
+	"ubuntu25": "ubuntu:25.10",
+	"debian12": "debian:12",
+	"debian13": "debian:13",
+}
+
+func matrix(args []string, stdout io.Writer) error {
+	if len(args) == 0 {
+		return fmt.Errorf("matrix subcommand is required")
+	}
+	switch args[0] {
+	case "docker":
+		return dockerMatrix(args[1:], stdout)
+	default:
+		return fmt.Errorf("unknown matrix subcommand: %s", args[0])
+	}
+}
+
+func dockerMatrix(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("matrix docker", flag.ContinueOnError)
+	list := fs.Bool("list", false, "list matrix pairs")
+	listImages := fs.Bool("list-images", false, "list unique base images")
+	pairFilter := fs.String("pair", "", "matrix pair filter, for example ubuntu22->debian12")
+	jsonOutput := fs.Bool("json", false, "json output")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	pairs := dockerMatrixPairs()
+	if *pairFilter != "" {
+		filtered := []dockerMatrixPair{}
+		for _, pair := range pairs {
+			if pair.Source+"->"+pair.Target == *pairFilter {
+				filtered = append(filtered, pair)
+			}
+		}
+		if len(filtered) == 0 {
+			return fmt.Errorf("unknown matrix pair: %s", *pairFilter)
+		}
+		pairs = filtered
+	}
+	if *listImages {
+		images := dockerMatrixUniqueImages(pairs)
+		if *jsonOutput {
+			return write(stdout, map[string]any{"images": images}, true)
+		}
+		for _, image := range images {
+			fmt.Fprintln(stdout, image)
+		}
+		return nil
+	}
+	if *list {
+		if *jsonOutput {
+			return write(stdout, map[string]any{"pairs": pairs}, true)
+		}
+		for _, pair := range pairs {
+			fmt.Fprintf(stdout, "%s -> %s\n", pair.Source, pair.Target)
+		}
+		return nil
+	}
+	return write(stdout, map[string]any{
+		"pairs":                pairs,
+		"pairCount":            len(pairs),
+		"dryRun":               true,
+		"sourceWillBeModified": false,
+		"message":              "Dry-run only. Set HOSTSHIFT_RUN_DOCKER_MATRIX=1 with tests/integration/docker/run-matrix.sh to execute Docker compose config/build and source immutability checks for each pair.",
+		"checks": []string{
+			"source immutability checks",
+			"Docker compose config/build",
+			"HostShift discover/plan/prepare/sync/verify dry-runs",
+		},
+	}, *jsonOutput)
+}
+
+func dockerMatrixPairs() []dockerMatrixPair {
+	order := []string{"ubuntu22", "debian12"}
+	pairs := []dockerMatrixPair{}
+	for _, source := range order {
+		for _, target := range dockerMatrixTargets[source] {
+			pairs = append(pairs, dockerMatrixPair{
+				Source:      source,
+				Target:      target,
+				SourceImage: dockerMatrixImages[source],
+				TargetImage: dockerMatrixImages[target],
+			})
+		}
+	}
+	return pairs
+}
+
+func dockerMatrixUniqueImages(pairs []dockerMatrixPair) []string {
+	seen := map[string]bool{}
+	for _, pair := range pairs {
+		seen[pair.SourceImage] = true
+		seen[pair.TargetImage] = true
+	}
+	order := []string{"debian:12", "debian:13", "ubuntu:22.04", "ubuntu:24.04", "ubuntu:25.10"}
+	images := []string{}
+	for _, image := range order {
+		if seen[image] {
+			images = append(images, image)
+		}
+	}
+	return images
+}
+
 func confirmationCode(prof profile.Profile) string {
 	return "START-" + strings.ToUpper(prof.Name)
 }
@@ -686,6 +807,7 @@ Commands:
   resume          --run-id <id> [--state-dir <dir>]
   policy source
   sbom            [--output <file>] [--json]
+  matrix docker   [--list] [--list-images] [--pair <source->target>] [--json]
   version
 
 Safety:

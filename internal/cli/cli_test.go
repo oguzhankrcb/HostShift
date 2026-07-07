@@ -148,6 +148,52 @@ func TestSBOMCommandWritesSPDXDocument(t *testing.T) {
 	}
 }
 
+func TestDockerMatrixCommandListsRequiredPairs(t *testing.T) {
+	var stdout bytes.Buffer
+	if err := Run(context.Background(), []string{"matrix", "docker", "--list"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	out := stdout.String()
+	for _, expected := range []string{"ubuntu22 -> ubuntu24", "ubuntu22 -> debian12", "debian12 -> ubuntu22", "debian12 -> debian13"} {
+		if !strings.Contains(out, expected) {
+			t.Fatalf("expected matrix list to contain %q: %s", expected, out)
+		}
+	}
+}
+
+func TestDockerMatrixCommandDryRunDocumentsImmutabilityChecks(t *testing.T) {
+	var stdout bytes.Buffer
+	if err := Run(context.Background(), []string{"matrix", "docker"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	out := stdout.String()
+	if !strings.Contains(out, "source immutability checks") || !strings.Contains(out, `"sourceWillBeModified": false`) {
+		t.Fatalf("expected docker matrix dry-run safety output: %s", out)
+	}
+}
+
+func TestDockerMatrixCommandFiltersSinglePair(t *testing.T) {
+	var stdout bytes.Buffer
+	if err := Run(context.Background(), []string{"matrix", "docker", "--list", "--pair", "ubuntu22->debian12"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(stdout.String()) != "ubuntu22 -> debian12" {
+		t.Fatalf("unexpected filtered pair list: %s", stdout.String())
+	}
+}
+
+func TestDockerMatrixCommandListsUniqueFixtureBaseImages(t *testing.T) {
+	var stdout bytes.Buffer
+	if err := Run(context.Background(), []string{"matrix", "docker", "--list-images"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	got := strings.Split(strings.TrimSpace(stdout.String()), "\n")
+	want := []string{"debian:12", "debian:13", "ubuntu:22.04", "ubuntu:24.04", "ubuntu:25.10"}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("unexpected image list:\nwant: %+v\n got: %+v", want, got)
+	}
+}
+
 func TestBuildSBOMDocumentUsesGoPURLs(t *testing.T) {
 	doc := buildSBOMDocument([]goModule{{Name: "github.com/example/mod", Version: "v1.2.3"}, {Name: "github.com/example/root"}}, time.Date(2026, 7, 7, 12, 0, 0, 0, time.UTC))
 	if doc.DocumentNamespace != "https://github.com/oguzhankaracabay/hostshift/sbom/1783425600000" {

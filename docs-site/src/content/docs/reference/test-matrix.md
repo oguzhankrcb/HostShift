@@ -58,8 +58,8 @@ Covered fixture behavior:
 Useful diagnostics:
 
 ```bash
-node tests/integration/docker/run-matrix.mjs --list
-node tests/integration/docker/run-matrix.mjs --list-images
+hostshift matrix docker --list
+hostshift matrix docker --list-images
 make docker-pull-fixtures
 HOSTSHIFT_DOCKER_PULL_TIMEOUT_MS=60000 HOSTSHIFT_RUN_DOCKER_MATRIX=1 make test-integration-docker
 ```
@@ -124,4 +124,3 @@ self-hosted, macOS, hostshift-vm
 ```
 
 This prevents public repository workflows from landing heavy VM workloads on the developer machine unless a runner is deliberately started.
-

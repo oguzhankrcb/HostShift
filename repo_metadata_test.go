@@ -190,7 +190,7 @@ func TestDocumentationWebsiteCoversProjectSurfaceArea(t *testing.T) {
 	}
 	requireMatch(t, ai, `Claude Desktop`)
 	requireMatch(t, ai, "No MCP tool exposes `--apply`")
-	for _, command := range []string{"doctor", "discover", "plan", "explain", "prepare", "sync", "verify", "cutover", "rollback", "mcp stdio", "profile migrate", "status", "resume", "policy source", "sbom"} {
+	for _, command := range []string{"doctor", "discover", "plan", "explain", "prepare", "sync", "verify", "cutover", "rollback", "mcp stdio", "profile migrate", "status", "resume", "policy source", "sbom", "matrix docker"} {
 		requireMatch(t, cli, strings.ReplaceAll(regexp.QuoteMeta(command), " ", `\s+`))
 	}
 	for _, field := range []string{"schemaVersion", "sourcePolicy", "firewall", "sshd", "mysql", "workloads", "checks", "approved"} {

@@ -249,3 +249,22 @@ Optional flags:
 
 - `--output`: output path. Defaults to `dist/hostshift.sbom.spdx.json`.
 - `--json`: machine-readable summary output.
+
+## matrix docker
+
+Lists or explains the Docker integration matrix without running containers.
+
+```bash
+hostshift matrix docker --list
+hostshift matrix docker --list-images
+hostshift matrix docker --pair ubuntu22->debian12 --json
+```
+
+Optional flags:
+
+- `--list`: list source and target pairs.
+- `--list-images`: list unique fixture base images.
+- `--pair`: filter to one pair such as `ubuntu22->debian12`.
+- `--json`: machine-readable output.
+
+Real Docker execution still uses `HOSTSHIFT_RUN_DOCKER_MATRIX=1 make test-integration-docker`.
