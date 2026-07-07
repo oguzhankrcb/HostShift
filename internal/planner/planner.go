@@ -124,6 +124,8 @@ func requiredCapabilities(prof profile.Profile) []string {
 			}
 		case "apache-vhost":
 			set["apache"] = true
+		case "cron":
+			set["cron"] = true
 		case "mysql":
 			set["mysql-client"] = true
 		case "mariadb":
@@ -633,6 +635,29 @@ func actionsForWorkload(workload profile.Workload) ([]core.Action, core.StreamAc
 			Command:       []string{"sh", "-lc", "systemctl daemon-reload && systemctl enable --now " + shellQuote(service)},
 			Preconditions: []string{"Systemd unit and application files are present on target"},
 			Rollback:      []string{"systemctl disable --now " + shellQuote(service) + " || true"},
+		}}, core.StreamAction{}, false
+	case "cron":
+		service := dataString(workload.Data, "service", "Service")
+		if service == "" {
+			return []core.Action{{
+				ID:            id + ".reload",
+				Phase:         core.PhaseCutover,
+				HostRole:      core.HostRoleTarget,
+				Impact:        core.ImpactService,
+				Command:       []string{"sh", "-lc", "(systemctl reload cron || systemctl restart cron || systemctl reload crond || systemctl restart crond)"},
+				Preconditions: []string{"Cron package is installed and cron files have been synced to target"},
+				Rollback:      []string{"systemctl reload cron || systemctl reload crond || true"},
+			}}, core.StreamAction{}, false
+		}
+		quoted := shellQuote(service)
+		return []core.Action{{
+			ID:            id + ".reload",
+			Phase:         core.PhaseCutover,
+			HostRole:      core.HostRoleTarget,
+			Impact:        core.ImpactService,
+			Command:       []string{"sh", "-lc", "systemctl reload " + quoted + " || systemctl restart " + quoted},
+			Preconditions: []string{"Cron package is installed and cron files have been synced to target"},
+			Rollback:      []string{"systemctl reload " + quoted + " || true"},
 		}}, core.StreamAction{}, false
 	default:
 		return []core.Action{{ID: id, Phase: core.PhasePlan, HostRole: core.HostRoleLocal, Impact: core.ImpactReadOnly, Command: []string{"hostshift", "inspect-workload", workload.Type}}}, core.StreamAction{}, false

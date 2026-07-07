@@ -91,6 +91,7 @@ func TestProfileFromFactsSuggestsSafeWorkloads(t *testing.T) {
 		"apache-vhost:apache2":          true,
 		"file-set:letsencrypt":          true,
 		"file-set:cron-config":          true,
+		"cron:cron":                     true,
 		"file-set:systemd-units":        true,
 		"systemd-service:portfolio":     true,
 		"redis:redis":                   true,

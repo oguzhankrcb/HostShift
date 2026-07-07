@@ -116,6 +116,54 @@ func TestTargetPackagePreparationUsesPlatformCapabilities(t *testing.T) {
 	}
 }
 
+func TestCronWorkloadPlansTargetReloadAndPackage(t *testing.T) {
+	prof := profile.Profile{
+		SchemaVersion: profile.CurrentSchemaVersion,
+		Name:          "example",
+		Source:        profile.Host{SSH: "old"},
+		Target:        profile.Host{SSH: "new"},
+		SourcePolicy:  "strict-read-only",
+		Platforms:     profile.Platforms{Source: "ubuntu:24.04", Target: "debian:13"},
+		Approved:      true,
+		Workloads: []profile.Workload{
+			{Type: "file-set", Name: "cron-config", Data: map[string]any{"paths": []any{"/etc/cron.d/app"}, "targetPath": "/"}},
+			{Type: "cron", Name: "cron"},
+		},
+	}
+	plan, err := Build(prof, time.Date(2026, 6, 11, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var packageCommand []string
+	var reloadCommand []string
+	var rollback []string
+	for _, action := range plan.Actions {
+		switch action.ID {
+		case "target.prepare.packages":
+			packageCommand = action.Command
+		case "target.workload.cron.cron.reload":
+			reloadCommand = action.Command
+			rollback = action.Rollback
+			if action.HostRole != "target" {
+				t.Fatalf("cron reload must be target-only: %+v", action)
+			}
+			if action.Impact != "service" {
+				t.Fatalf("cron reload should be service impact: %+v", action)
+			}
+		}
+	}
+	if !strings.Contains(strings.Join(packageCommand, " "), "cron") {
+		t.Fatalf("expected cron package capability, got %+v", packageCommand)
+	}
+	joinedReload := strings.Join(reloadCommand, " ")
+	if !strings.Contains(joinedReload, "systemctl reload cron") || !strings.Contains(joinedReload, "systemctl restart crond") {
+		t.Fatalf("expected cron/crond reload fallback command, got %+v", reloadCommand)
+	}
+	if len(rollback) == 0 {
+		t.Fatalf("expected cron reload rollback metadata")
+	}
+}
+
 func TestUnknownTargetPlatformBlocksPackagePreparation(t *testing.T) {
 	prof := profile.Profile{
 		SchemaVersion: profile.CurrentSchemaVersion,

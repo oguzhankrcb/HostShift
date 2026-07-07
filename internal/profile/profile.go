@@ -358,6 +358,13 @@ func validateWorkload(workload Workload) error {
 				return fmt.Errorf("systemd-service workload %s unitPath must be under /etc/systemd/system and end with .service", workload.Name)
 			}
 		}
+	case "cron":
+		service := dataString(workload.Data, "service", "Service")
+		if service != "" {
+			if err := safety.ServiceName(service); err != nil {
+				return fmt.Errorf("cron workload %s has unsafe service: %w", workload.Name, err)
+			}
+		}
 	case "mysql", "mariadb", "postgresql":
 		if err := safety.DatabaseName(workload.Name); err != nil {
 			return err

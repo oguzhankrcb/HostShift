@@ -119,6 +119,7 @@ func TestValidateRejectsUnsafeWorkloadMetadata(t *testing.T) {
 		{Type: "apache-vhost", Name: "apache", Data: map[string]any{"sites": []any{"bad site.conf"}}},
 		{Type: "systemd-service", Name: "app", Data: map[string]any{"service": "bad service"}},
 		{Type: "systemd-service", Name: "app", Data: map[string]any{"unitPath": "/etc/systemd"}},
+		{Type: "cron", Name: "cron", Data: map[string]any{"service": "bad service"}},
 		{Type: "redis", Name: "cache", Data: map[string]any{"snapshotPath": "/etc"}},
 		{Type: "redis", Name: "cache", Data: map[string]any{"targetPath": "/var"}},
 		{Type: "redis", Name: "cache", Data: map[string]any{"replicaHost": "bad host"}},
@@ -144,6 +145,7 @@ func TestValidateAcceptsApacheSystemdAndRedisWorkloads(t *testing.T) {
 		Workloads: []Workload{
 			{Type: "apache-vhost", Name: "apache", Data: map[string]any{"modules": []any{"rewrite", "ssl"}, "sites": []any{"example.conf"}}},
 			{Type: "systemd-service", Name: "portfolio", Data: map[string]any{"service": "portfolio.service", "unitPath": "/etc/systemd/system/portfolio.service"}},
+			{Type: "cron", Name: "cron", Data: map[string]any{"service": "cron.service"}},
 			{Type: "redis", Name: "cache-snapshot", Data: map[string]any{"snapshotPath": "/var/lib/redis/dump.rdb", "targetPath": "/var/lib/redis/dump.rdb"}},
 			{Type: "redis", Name: "cache-replica", Data: map[string]any{"replicaHost": "127.0.0.1", "replicaPort": 6380}},
 		},

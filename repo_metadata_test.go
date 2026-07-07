@@ -200,7 +200,7 @@ func TestDocumentationWebsiteCoversProjectSurfaceArea(t *testing.T) {
 	for _, fact := range []string{"osRelease", "packages", "ufwStatus", "nftRuleset", "customSystemdUnits", "dockerComposeProjects", "dockerContainers"} {
 		requireMatch(t, discovery, fact)
 	}
-	for _, workload := range []string{"docker-compose", "docker-standalone", "file-set", "apache-vhost", "systemd-service", "mysql", "mariadb", "postgresql", "redis"} {
+	for _, workload := range []string{"docker-compose", "docker-standalone", "file-set", "cron", "apache-vhost", "systemd-service", "mysql", "mariadb", "postgresql", "redis"} {
 		requireMatch(t, workloads, workload)
 	}
 	for _, check := range []string{"http", "laravelDatabase", "fileExists", "fileContains", "mysqlScalar", "postgresScalar", "serviceActive", "ufwRule", "nftRule", "nginxConfig"} {

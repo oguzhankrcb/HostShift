@@ -77,6 +77,7 @@ Generated workload candidates currently include:
 - an `apache-vhost` activation candidate when Apache config is discovered
 - `/etc/letsencrypt` when certificate files are discovered
 - cron files under `/etc/cron.d`, `/etc/cron.daily`, `/etc/cron.hourly`, `/etc/cron.monthly`, and `/etc/cron.weekly`
+- a `cron` target reload candidate when cron files are discovered
 - custom systemd unit files under `/etc/systemd/system`
 - `systemd-service` cutover candidates for discovered custom units that are enabled
 - `redis` candidates when `redis-server` is found through packages or systemd facts

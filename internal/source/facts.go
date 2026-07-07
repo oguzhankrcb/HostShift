@@ -190,6 +190,11 @@ func workloadsFromFacts(facts map[string]FactResult) []profile.Workload {
 	}
 	if paths := safeTransferPaths(factValue(facts, "cron")); len(paths) > 0 {
 		addFileSet(&workloads, seenFileSets, "cron-config", paths, "/")
+		workloads = append(workloads, profile.Workload{
+			Type: "cron",
+			Name: "cron",
+			Data: map[string]any{},
+		})
 	}
 	if paths := safeSystemdUnitPaths(factValue(facts, "customSystemdUnits")); len(paths) > 0 {
 		addFileSet(&workloads, seenFileSets, "systemd-units", paths, "/")

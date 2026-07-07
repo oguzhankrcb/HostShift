@@ -96,6 +96,33 @@ Target capabilities:
 
 HostShift rejects broad or machine-identity paths through the transfer path safety rules.
 
+## cron
+
+Reloads cron after cron files have been synced to the target.
+
+```yaml
+- type: cron
+  name: cron
+  data:
+    service: cron.service
+```
+
+Fields:
+
+- `service`: optional cron service name. Defaults to distro fallbacks for `cron` and `crond`.
+
+Generated cutover action without `service`:
+
+```text
+systemctl reload cron || systemctl restart cron || systemctl reload crond || systemctl restart crond
+```
+
+Discovery suggests this workload when cron files are discovered under `/etc/cron.d`, `/etc/cron.daily`, `/etc/cron.hourly`, `/etc/cron.monthly`, or `/etc/cron.weekly`. The source remains read-only; only the target service is reloaded or restarted.
+
+Target capability:
+
+- `cron`
+
 ## apache-vhost
 
 Enables Apache modules and sites after Apache config files have been synced, validates the target config, and reloads Apache.
