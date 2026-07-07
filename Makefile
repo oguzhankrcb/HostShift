@@ -32,9 +32,9 @@ test-e2e-vm:
 checksum: build
 	cd dist && shasum -a 256 hostshift > checksums.txt
 
-sbom:
+sbom: build
 	mkdir -p dist
-	node scripts/make-sbom.mjs dist/hostshift.sbom.spdx.json
+	$(GO_ENV) ./dist/hostshift sbom --output dist/hostshift.sbom.spdx.json
 
 release-snapshot:
 	if command -v goreleaser >/dev/null 2>&1; then \

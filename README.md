@@ -269,6 +269,12 @@ make sbom
 
 `make release-snapshot` uses GoReleaser when it is installed. Without GoReleaser it still builds `dist/hostshift`, writes `dist/checksums.txt`, and generates `dist/hostshift.sbom.spdx.json` from the Go module graph. Tagged GitHub releases use [.github/workflows/release.yml](./.github/workflows/release.yml).
 
+SBOM generation is implemented in the Go CLI:
+
+```bash
+hostshift sbom --output dist/hostshift.sbom.spdx.json --json
+```
+
 Before publishing a public tag, complete [docs/release.md](./docs/release.md): hosted CI candidate, self-hosted or local VM apply, clean working tree, and signed checksum verification.
 
 ## Status

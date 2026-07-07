@@ -3,10 +3,12 @@ package cli
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestPlanReadsYAMLProfile(t *testing.T) {
@@ -112,6 +114,56 @@ approved: false
 	}
 	if !strings.Contains(string(migrated), "strict-read-only") {
 		t.Fatalf("expected source policy in migrated profile, got: %s", string(migrated))
+	}
+}
+
+func TestSBOMCommandWritesSPDXDocument(t *testing.T) {
+	dir := t.TempDir()
+	output := filepath.Join(dir, "hostshift.sbom.spdx.json")
+	var stdout bytes.Buffer
+	if err := Run(context.Background(), []string{"sbom", "--output", output, "--json"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stdout.String(), `"format": "SPDX-2.3"`) {
+		t.Fatalf("expected sbom summary JSON, got: %s", stdout.String())
+	}
+	body, err := os.ReadFile(output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document map[string]any
+	if err := json.Unmarshal(body, &document); err != nil {
+		t.Fatal(err)
+	}
+	if document["spdxVersion"] != "SPDX-2.3" || document["SPDXID"] != "SPDXRef-DOCUMENT" {
+		t.Fatalf("unexpected SBOM document header: %+v", document)
+	}
+	packages := document["packages"].([]any)
+	if len(packages) == 0 {
+		t.Fatal("expected SBOM packages")
+	}
+	first := packages[0].(map[string]any)
+	if first["filesAnalyzed"] != false || first["licenseDeclared"] != "NOASSERTION" {
+		t.Fatalf("unexpected SBOM package metadata: %+v", first)
+	}
+}
+
+func TestBuildSBOMDocumentUsesGoPURLs(t *testing.T) {
+	doc := buildSBOMDocument([]goModule{{Name: "github.com/example/mod", Version: "v1.2.3"}, {Name: "github.com/example/root"}}, time.Date(2026, 7, 7, 12, 0, 0, 0, time.UTC))
+	if doc.DocumentNamespace != "https://github.com/oguzhankaracabay/hostshift/sbom/1783425600000" {
+		t.Fatalf("unexpected namespace: %s", doc.DocumentNamespace)
+	}
+	if doc.CreationInfo.Creators[0] != "Tool: hostshift sbom" {
+		t.Fatalf("unexpected creator: %+v", doc.CreationInfo.Creators)
+	}
+	if got := doc.Packages[0].ExternalReference[0].ReferenceLocator; got != "pkg:golang/github.com%2Fexample%2Fmod@v1.2.3" {
+		t.Fatalf("unexpected purl: %s", got)
+	}
+	if doc.Packages[1].VersionInfo != "main" || doc.Packages[1].DownloadLocation != "NOASSERTION" {
+		t.Fatalf("unexpected root module package: %+v", doc.Packages[1])
+	}
+	if len(doc.Relationships) != 1 || doc.Relationships[0].RelationshipType != "DESCRIBES" {
+		t.Fatalf("unexpected relationships: %+v", doc.Relationships)
 	}
 }
 

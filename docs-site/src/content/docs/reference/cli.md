@@ -236,3 +236,16 @@ hostshift policy source
 ```
 
 Forbidden source-side behavior includes `sudo`, package installation, service management, file writes, snapshot creation, maintenance mode, and firewall changes.
+
+## sbom
+
+Writes an SPDX 2.3 JSON SBOM from the Go module graph.
+
+```bash
+hostshift sbom --output dist/hostshift.sbom.spdx.json --json
+```
+
+Optional flags:
+
+- `--output`: output path. Defaults to `dist/hostshift.sbom.spdx.json`.
+- `--json`: machine-readable summary output.

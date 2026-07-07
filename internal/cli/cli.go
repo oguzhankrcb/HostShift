@@ -6,6 +6,10 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/url"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -21,7 +25,6 @@ import (
 )
 
 func Run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
-	_ = ctx
 	_ = stderr
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" {
 		fmt.Fprint(stdout, helpText())
@@ -57,6 +60,8 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return resume(args[1:], stdout)
 	case "policy":
 		return policy(args[1:], stdout)
+	case "sbom":
+		return sbom(ctx, args[1:], stdout)
 	default:
 		return fmt.Errorf("unknown command: %s", args[0])
 	}
@@ -469,6 +474,176 @@ func policy(args []string, stdout io.Writer) error {
 	}, true)
 }
 
+type goModule struct {
+	Name    string
+	Version string
+}
+
+type sbomDocument struct {
+	SPDXVersion       string             `json:"spdxVersion"`
+	DataLicense       string             `json:"dataLicense"`
+	SPDXID            string             `json:"SPDXID"`
+	Name              string             `json:"name"`
+	DocumentNamespace string             `json:"documentNamespace"`
+	CreationInfo      sbomCreationInfo   `json:"creationInfo"`
+	Packages          []sbomPackage      `json:"packages"`
+	Relationships     []sbomRelationship `json:"relationships"`
+}
+
+type sbomCreationInfo struct {
+	Created  string   `json:"created"`
+	Creators []string `json:"creators"`
+}
+
+type sbomPackage struct {
+	Name              string            `json:"name"`
+	SPDXID            string            `json:"SPDXID"`
+	VersionInfo       string            `json:"versionInfo"`
+	DownloadLocation  string            `json:"downloadLocation"`
+	FilesAnalyzed     bool              `json:"filesAnalyzed"`
+	LicenseConcluded  string            `json:"licenseConcluded"`
+	LicenseDeclared   string            `json:"licenseDeclared"`
+	CopyrightText     string            `json:"copyrightText"`
+	ExternalReference []sbomExternalRef `json:"externalRefs"`
+}
+
+type sbomExternalRef struct {
+	ReferenceCategory string `json:"referenceCategory"`
+	ReferenceType     string `json:"referenceType"`
+	ReferenceLocator  string `json:"referenceLocator"`
+}
+
+type sbomRelationship struct {
+	SPDXElementID      string `json:"spdxElementId"`
+	RelationshipType   string `json:"relationshipType"`
+	RelatedSPDXElement string `json:"relatedSpdxElement"`
+}
+
+func sbom(ctx context.Context, args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("sbom", flag.ContinueOnError)
+	output := fs.String("output", "dist/hostshift.sbom.spdx.json", "output SPDX JSON path")
+	jsonOutput := fs.Bool("json", false, "json output")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	modules, err := listGoModules(ctx)
+	if err != nil {
+		return err
+	}
+	document := buildSBOMDocument(modules, time.Now().UTC())
+	if err := os.MkdirAll(filepath.Dir(*output), 0o755); err != nil {
+		return err
+	}
+	body, err := json.MarshalIndent(document, "", "  ")
+	if err != nil {
+		return err
+	}
+	body = append(body, '\n')
+	if err := os.WriteFile(*output, body, 0o644); err != nil {
+		return err
+	}
+	return write(stdout, map[string]any{
+		"output":       *output,
+		"packageCount": len(document.Packages),
+		"format":       "SPDX-2.3",
+	}, *jsonOutput)
+}
+
+func listGoModules(ctx context.Context) ([]goModule, error) {
+	cmd := exec.CommandContext(ctx, "go", "list", "-m", "all")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("go list -m all failed: %w: %s", err, strings.TrimSpace(string(out)))
+	}
+	modules := []goModule{}
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		fields := strings.Fields(line)
+		module := goModule{Name: fields[0]}
+		if len(fields) > 1 {
+			module.Version = fields[1]
+		}
+		modules = append(modules, module)
+	}
+	return modules, nil
+}
+
+func buildSBOMDocument(modules []goModule, now time.Time) sbomDocument {
+	packages := make([]sbomPackage, 0, len(modules))
+	for index, module := range modules {
+		spdxID := fmt.Sprintf("SPDXRef-Package-%s-%d", sanitizeSPDXID(module.Name), index+1)
+		version := module.Version
+		if version == "" {
+			version = "main"
+		}
+		downloadLocation := "NOASSERTION"
+		if module.Version != "" {
+			downloadLocation = "https://" + module.Name
+		}
+		purl := "pkg:golang/" + url.PathEscape(module.Name)
+		if module.Version != "" {
+			purl += "@" + url.PathEscape(module.Version)
+		}
+		packages = append(packages, sbomPackage{
+			Name:             module.Name,
+			SPDXID:           spdxID,
+			VersionInfo:      version,
+			DownloadLocation: downloadLocation,
+			FilesAnalyzed:    false,
+			LicenseConcluded: "NOASSERTION",
+			LicenseDeclared:  "NOASSERTION",
+			CopyrightText:    "NOASSERTION",
+			ExternalReference: []sbomExternalRef{{
+				ReferenceCategory: "PACKAGE-MANAGER",
+				ReferenceType:     "purl",
+				ReferenceLocator:  purl,
+			}},
+		})
+	}
+	relationships := []sbomRelationship{}
+	if len(packages) > 0 {
+		relationships = append(relationships, sbomRelationship{
+			SPDXElementID:      "SPDXRef-DOCUMENT",
+			RelationshipType:   "DESCRIBES",
+			RelatedSPDXElement: packages[0].SPDXID,
+		})
+	}
+	return sbomDocument{
+		SPDXVersion:       "SPDX-2.3",
+		DataLicense:       "CC0-1.0",
+		SPDXID:            "SPDXRef-DOCUMENT",
+		Name:              "HostShift Go module dependency SBOM",
+		DocumentNamespace: fmt.Sprintf("https://github.com/oguzhankaracabay/hostshift/sbom/%d", now.UnixMilli()),
+		CreationInfo: sbomCreationInfo{
+			Created:  now.Format(time.RFC3339),
+			Creators: []string{"Tool: hostshift sbom"},
+		},
+		Packages:      packages,
+		Relationships: relationships,
+	}
+}
+
+func sanitizeSPDXID(value string) string {
+	replacer := strings.NewReplacer("/", "-", "_", "-", ":", "-", "@", "-", " ", "-")
+	value = replacer.Replace(value)
+	out := strings.Builder{}
+	for _, char := range value {
+		if (char >= 'A' && char <= 'Z') || (char >= 'a' && char <= 'z') || (char >= '0' && char <= '9') || char == '.' || char == '-' {
+			out.WriteRune(char)
+		} else {
+			out.WriteByte('-')
+		}
+	}
+	safe := strings.Trim(out.String(), "-")
+	if safe == "" {
+		return "module"
+	}
+	return safe
+}
+
 func confirmationCode(prof profile.Profile) string {
 	return "START-" + strings.ToUpper(prof.Name)
 }
@@ -510,6 +685,7 @@ Commands:
   status          --run-id <id> [--state-dir <dir>] [--json]
   resume          --run-id <id> [--state-dir <dir>]
   policy source
+  sbom            [--output <file>] [--json]
   version
 
 Safety:
