@@ -130,11 +130,14 @@ The review output contains:
 
 - `status`: `blocked`, `needs-review`, or `ready-for-dry-run`
 - `findings`: blocker, warning, and info records with workload-aware recommendations
+- `findings[].suggestedProfilePatch`: optional YAML snippet that an operator can review and adapt
 - `operatorChecklist`: human review steps before any apply command
 - `aiBrief`: constraints AI clients must follow, including no MCP apply operations
 - `sourceWillBeModified: false`
 
 `review` checks for missing evidence such as container workloads without HTTP/application checks, databases without scalar verification, service workloads without `serviceActive`, Nginx config transfer without `nginxConfig`, and database workloads that may need secret environment variable names.
+
+Suggested snippets are advisory. HostShift does not write them into the profile automatically, and AI clients should present them for human review instead of applying them.
 
 ## prepare
 

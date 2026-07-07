@@ -117,6 +117,8 @@ workloads:
 		`"Profile is not approved"`,
 		`"Profile has no verification checks."`,
 		`"Container workload has no HTTP or application database check."`,
+		`"suggestedProfilePatch"`,
+		`url: http://127.0.0.1/health`,
 		`"Cross-distribution migration ubuntu:24.04`,
 		`debian:13 requires workload compatibility checks"`,
 		`"operatorChecklist"`,
@@ -184,9 +186,14 @@ checks:
 		`"status": "ready-for-dry-run"`,
 		`"MySQL/MariaDB workload has no scalar data verification check."`,
 		`"MySQL/MariaDB workload does not declare targetPasswordEnv."`,
+		`type: mysqlScalar`,
+		`targetPasswordEnv: DST_MYSQL_APP_PWD`,
 		`"systemd-service workload has no matching serviceActive check."`,
+		`service: queue.service`,
 		`"Nginx file-set has no nginxConfig validation check."`,
+		`type: nginxConfig`,
 		`"cron workload has no target serviceActive check."`,
+		`service: cron`,
 	} {
 		if !strings.Contains(out, expected) {
 			t.Fatalf("expected review output to contain %q: %s", expected, out)

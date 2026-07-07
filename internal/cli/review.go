@@ -27,11 +27,12 @@ type profileReview struct {
 }
 
 type reviewFinding struct {
-	Severity       string `json:"severity"`
-	Category       string `json:"category"`
-	Message        string `json:"message"`
-	Evidence       string `json:"evidence,omitempty"`
-	Recommendation string `json:"recommendation"`
+	Severity              string `json:"severity"`
+	Category              string `json:"category"`
+	Message               string `json:"message"`
+	Evidence              string `json:"evidence,omitempty"`
+	Recommendation        string `json:"recommendation"`
+	SuggestedProfilePatch string `json:"suggestedProfilePatch,omitempty"`
 }
 
 func review(args []string, stdout io.Writer) error {
@@ -186,43 +187,47 @@ func workloadReviewFindings(prof profile.Profile) []reviewFinding {
 		case "docker-compose", "docker-standalone":
 			if !index.types["http"] && !index.types["laravelDatabase"] {
 				findings = append(findings, reviewFinding{
-					Severity:       "warning",
-					Category:       "workload-verification",
-					Message:        "Container workload has no HTTP or application database check.",
-					Evidence:       evidence,
-					Recommendation: "Add an http check for the public health endpoint or a laravelDatabase check for the migrated application container.",
+					Severity:              "warning",
+					Category:              "workload-verification",
+					Message:               "Container workload has no HTTP or application database check.",
+					Evidence:              evidence,
+					Recommendation:        "Add an http check for the public health endpoint or a laravelDatabase check for the migrated application container.",
+					SuggestedProfilePatch: suggestedHTTPCheckPatch(workload.Name),
 				})
 			}
 		case "mysql", "mariadb":
 			if !index.mysql[workload.Name] {
 				findings = append(findings, reviewFinding{
-					Severity:       "warning",
-					Category:       "workload-verification",
-					Message:        "MySQL/MariaDB workload has no scalar data verification check.",
-					Evidence:       evidence,
-					Recommendation: "Add a mysqlScalar check that proves an important table count or checksum on the target.",
+					Severity:              "warning",
+					Category:              "workload-verification",
+					Message:               "MySQL/MariaDB workload has no scalar data verification check.",
+					Evidence:              evidence,
+					Recommendation:        "Add a mysqlScalar check that proves an important table count or checksum on the target.",
+					SuggestedProfilePatch: suggestedSQLCheckPatch("mysqlScalar", workload.Name),
 				})
 			}
 			findings = append(findings, databaseSecretFindings(workload, "MySQL/MariaDB")...)
 		case "postgresql":
 			if !index.postgres[workload.Name] {
 				findings = append(findings, reviewFinding{
-					Severity:       "warning",
-					Category:       "workload-verification",
-					Message:        "PostgreSQL workload has no scalar data verification check.",
-					Evidence:       evidence,
-					Recommendation: "Add a postgresScalar check that proves an important table count or checksum on the target.",
+					Severity:              "warning",
+					Category:              "workload-verification",
+					Message:               "PostgreSQL workload has no scalar data verification check.",
+					Evidence:              evidence,
+					Recommendation:        "Add a postgresScalar check that proves an important table count or checksum on the target.",
+					SuggestedProfilePatch: suggestedSQLCheckPatch("postgresScalar", workload.Name),
 				})
 			}
 			findings = append(findings, databaseSecretFindings(workload, "PostgreSQL")...)
 		case "redis":
 			if !index.services["redis-server"] && !index.services["redis"] {
 				findings = append(findings, reviewFinding{
-					Severity:       "info",
-					Category:       "workload-verification",
-					Message:        "Redis workload has no target serviceActive check.",
-					Evidence:       evidence,
-					Recommendation: "Add a serviceActive check for redis-server or redis, plus an application-level check that proves cache/session behavior if relevant.",
+					Severity:              "info",
+					Category:              "workload-verification",
+					Message:               "Redis workload has no target serviceActive check.",
+					Evidence:              evidence,
+					Recommendation:        "Add a serviceActive check for redis-server or redis, plus an application-level check that proves cache/session behavior if relevant.",
+					SuggestedProfilePatch: suggestedServiceCheckPatch("redis-server"),
 				})
 			}
 		case "systemd-service":
@@ -232,11 +237,12 @@ func workloadReviewFindings(prof profile.Profile) []reviewFinding {
 			}
 			if !index.services[service] {
 				findings = append(findings, reviewFinding{
-					Severity:       "warning",
-					Category:       "workload-verification",
-					Message:        "systemd-service workload has no matching serviceActive check.",
-					Evidence:       evidence,
-					Recommendation: "Add a serviceActive check for " + service + " so verify proves the target service is running.",
+					Severity:              "warning",
+					Category:              "workload-verification",
+					Message:               "systemd-service workload has no matching serviceActive check.",
+					Evidence:              evidence,
+					Recommendation:        "Add a serviceActive check for " + service + " so verify proves the target service is running.",
+					SuggestedProfilePatch: suggestedServiceCheckPatch(service),
 				})
 			}
 		case "cron":
@@ -244,20 +250,22 @@ func workloadReviewFindings(prof profile.Profile) []reviewFinding {
 			if service == "" {
 				if !index.services["cron"] && !index.services["crond"] && !index.services["cron.service"] && !index.services["crond.service"] {
 					findings = append(findings, reviewFinding{
-						Severity:       "info",
-						Category:       "workload-verification",
-						Message:        "cron workload has no target serviceActive check.",
-						Evidence:       evidence,
-						Recommendation: "Add a serviceActive check for cron or crond when the target platform supports systemd cron verification.",
+						Severity:              "info",
+						Category:              "workload-verification",
+						Message:               "cron workload has no target serviceActive check.",
+						Evidence:              evidence,
+						Recommendation:        "Add a serviceActive check for cron or crond when the target platform supports systemd cron verification.",
+						SuggestedProfilePatch: suggestedServiceCheckPatch("cron"),
 					})
 				}
 			} else if !index.services[service] {
 				findings = append(findings, reviewFinding{
-					Severity:       "info",
-					Category:       "workload-verification",
-					Message:        "cron workload has no matching serviceActive check.",
-					Evidence:       evidence,
-					Recommendation: "Add a serviceActive check for " + service + " when the target platform supports systemd cron verification.",
+					Severity:              "info",
+					Category:              "workload-verification",
+					Message:               "cron workload has no matching serviceActive check.",
+					Evidence:              evidence,
+					Recommendation:        "Add a serviceActive check for " + service + " when the target platform supports systemd cron verification.",
+					SuggestedProfilePatch: suggestedServiceCheckPatch(service),
 				})
 			}
 		case "file-set":
@@ -265,11 +273,12 @@ func workloadReviewFindings(prof profile.Profile) []reviewFinding {
 				if item == "/etc/nginx" || strings.HasPrefix(item, "/etc/nginx/") {
 					if !index.types["nginxConfig"] {
 						findings = append(findings, reviewFinding{
-							Severity:       "warning",
-							Category:       "workload-verification",
-							Message:        "Nginx file-set has no nginxConfig validation check.",
-							Evidence:       evidence,
-							Recommendation: "Add an nginxConfig check so verify tests the target config and reload path.",
+							Severity:              "warning",
+							Category:              "workload-verification",
+							Message:               "Nginx file-set has no nginxConfig validation check.",
+							Evidence:              evidence,
+							Recommendation:        "Add an nginxConfig check so verify tests the target config and reload path.",
+							SuggestedProfilePatch: suggestedNginxCheckPatch(),
 						})
 					}
 					break
@@ -278,11 +287,12 @@ func workloadReviewFindings(prof profile.Profile) []reviewFinding {
 		case "apache-vhost":
 			if !index.services["apache2"] && !index.services["apache2.service"] {
 				findings = append(findings, reviewFinding{
-					Severity:       "info",
-					Category:       "workload-verification",
-					Message:        "Apache vhost workload has no target serviceActive check.",
-					Evidence:       evidence,
-					Recommendation: "Add a serviceActive check for apache2 after vhost activation if the migrated site depends on Apache.",
+					Severity:              "info",
+					Category:              "workload-verification",
+					Message:               "Apache vhost workload has no target serviceActive check.",
+					Evidence:              evidence,
+					Recommendation:        "Add a serviceActive check for apache2 after vhost activation if the migrated site depends on Apache.",
+					SuggestedProfilePatch: suggestedServiceCheckPatch("apache2"),
 				})
 			}
 		}
@@ -295,15 +305,70 @@ func databaseSecretFindings(workload profile.Workload, label string) []reviewFin
 	for _, key := range []string{"sourcePasswordEnv", "targetPasswordEnv"} {
 		if reviewDataString(workload.Data, key) == "" {
 			findings = append(findings, reviewFinding{
-				Severity:       "info",
-				Category:       "secret-review",
-				Message:        label + " workload does not declare " + key + ".",
-				Evidence:       workload.Type + ":" + workload.Name,
-				Recommendation: "If password authentication is required, reference an environment variable name in " + key + "; never store literal credentials in the profile.",
+				Severity:              "info",
+				Category:              "secret-review",
+				Message:               label + " workload does not declare " + key + ".",
+				Evidence:              workload.Type + ":" + workload.Name,
+				Recommendation:        "If password authentication is required, reference an environment variable name in " + key + "; never store literal credentials in the profile.",
+				SuggestedProfilePatch: suggestedSecretPatch(workload, key),
 			})
 		}
 	}
 	return findings
+}
+
+func suggestedHTTPCheckPatch(name string) string {
+	checkName := safeSnippetName(name, "http")
+	return strings.Join([]string{
+		"checks:",
+		"  - type: http",
+		"    name: " + checkName + "-health",
+		"    data:",
+		"      url: http://127.0.0.1/health",
+		"      timeoutSeconds: 10",
+	}, "\n")
+}
+
+func suggestedSQLCheckPatch(checkType, database string) string {
+	checkName := safeSnippetName(database, checkType)
+	return strings.Join([]string{
+		"checks:",
+		"  - type: " + checkType,
+		"    name: " + checkName + "-count",
+		"    data:",
+		"      database: " + database,
+		"      query: SELECT COUNT(*) FROM important_table",
+		"      expected: \"REPLACE_WITH_EXPECTED_COUNT\"",
+	}, "\n")
+}
+
+func suggestedServiceCheckPatch(service string) string {
+	checkName := safeSnippetName(service, "service")
+	return strings.Join([]string{
+		"checks:",
+		"  - type: serviceActive",
+		"    name: " + checkName,
+		"    data:",
+		"      service: " + service,
+	}, "\n")
+}
+
+func suggestedNginxCheckPatch() string {
+	return strings.Join([]string{
+		"checks:",
+		"  - type: nginxConfig",
+		"    name: nginx-config",
+	}, "\n")
+}
+
+func suggestedSecretPatch(workload profile.Workload, key string) string {
+	return strings.Join([]string{
+		"workloads:",
+		"  - type: " + workload.Type,
+		"    name: " + workload.Name,
+		"    data:",
+		"      " + key + ": " + suggestedEnvName(workload, key),
+	}, "\n")
 }
 
 func buildReviewCheckIndex(checks []profile.Check) reviewCheckIndex {
@@ -365,4 +430,38 @@ func reviewDataStringSlice(data any, keys ...string) []string {
 		}
 	}
 	return nil
+}
+
+func safeSnippetName(value, fallback string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	out := strings.Builder{}
+	lastDash := false
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			out.WriteRune(r)
+			lastDash = false
+			continue
+		}
+		if !lastDash {
+			out.WriteByte('-')
+			lastDash = true
+		}
+	}
+	cleaned := strings.Trim(out.String(), "-")
+	if cleaned == "" {
+		return fallback
+	}
+	return cleaned
+}
+
+func suggestedEnvName(workload profile.Workload, key string) string {
+	prefix := "DST"
+	if strings.HasPrefix(strings.ToLower(key), "source") {
+		prefix = "SRC"
+	}
+	engine := strings.ToUpper(safeSnippetName(workload.Type, "DB"))
+	engine = strings.ReplaceAll(engine, "-", "_")
+	name := strings.ToUpper(safeSnippetName(workload.Name, "APP"))
+	name = strings.ReplaceAll(name, "-", "_")
+	return prefix + "_" + engine + "_" + name + "_PWD"
 }
