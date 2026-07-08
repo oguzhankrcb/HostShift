@@ -42,6 +42,7 @@ var aptCapabilities = map[string]string{
 	"nginx":             "nginx",
 	"apache":            "apache2",
 	"cron":              "cron",
+	"php-fpm":           "php-fpm",
 	"openssh-server":    "openssh-server",
 	"mysql-server":      "mysql-server",
 	"mysql-client":      "mysql-client",

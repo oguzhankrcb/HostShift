@@ -34,6 +34,7 @@ The core invariant is strict:
 - Apache vhost activation and target reload validation
 - systemd application service cutover
 - cron file transfer, target cron package planning, and target cron reload
+- PHP-FPM config transfer, target package planning, and target service reload
 - Laravel-style database connectivity checks
 - SSH keepalive, MySQL bind-address, UFW, and nftables target configuration
 - Docker matrix and Lima VM validation gates

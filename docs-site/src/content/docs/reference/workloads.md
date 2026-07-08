@@ -93,6 +93,7 @@ Target capabilities:
 - `nginx` when any path includes `/etc/nginx`
 - `apache` when any path includes `/etc/apache2`
 - `cron` when any path includes `/etc/cron.d`, `/etc/cron.daily`, `/etc/cron.hourly`, `/etc/cron.monthly`, or `/etc/cron.weekly`
+- `php-fpm` when PHP-FPM configuration under `/etc/php` is paired with a `php-fpm` workload
 
 HostShift rejects broad or machine-identity paths through the transfer path safety rules.
 
@@ -122,6 +123,33 @@ Discovery suggests this workload when cron files are discovered under `/etc/cron
 Target capability:
 
 - `cron`
+
+## php-fpm
+
+Reloads or restarts PHP-FPM after PHP configuration files have been synced to the target.
+
+```yaml
+- type: php-fpm
+  name: php8.3-fpm
+  data:
+    service: php8.3-fpm.service
+```
+
+Fields:
+
+- `service`: optional PHP-FPM service name. Defaults to the workload name.
+
+Generated cutover action:
+
+```text
+systemctl reload <service> || systemctl restart <service>
+```
+
+Discovery suggests this workload when PHP-FPM services or packages are discovered. If `/etc/php` files are readable, discovery also suggests a `file-set` for those PHP configuration files. The source remains read-only; only the target service is reloaded or restarted.
+
+Target capability:
+
+- `php-fpm`
 
 ## apache-vhost
 

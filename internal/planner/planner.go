@@ -126,6 +126,8 @@ func requiredCapabilities(prof profile.Profile) []string {
 			set["apache"] = true
 		case "cron":
 			set["cron"] = true
+		case "php-fpm":
+			set["php-fpm"] = true
 		case "mysql":
 			set["mysql-client"] = true
 		case "mariadb":
@@ -152,7 +154,7 @@ func requiredCapabilities(prof profile.Profile) []string {
 		}
 	}
 	out := []string{}
-	for _, capability := range []string{"rsync", "tar", "curl", "ufw", "openssh-server", "nginx", "apache", "cron", "docker-runtime", "docker-compose", "mysql-server", "mysql-client", "mariadb-client", "postgresql-server", "postgresql-client", "redis-server", "redis-tools"} {
+	for _, capability := range []string{"rsync", "tar", "curl", "ufw", "openssh-server", "nginx", "apache", "cron", "php-fpm", "docker-runtime", "docker-compose", "mysql-server", "mysql-client", "mariadb-client", "postgresql-server", "postgresql-client", "redis-server", "redis-tools"} {
 		if set[capability] {
 			out = append(out, capability)
 		}
@@ -657,6 +659,21 @@ func actionsForWorkload(workload profile.Workload) ([]core.Action, core.StreamAc
 			Impact:        core.ImpactService,
 			Command:       []string{"sh", "-lc", "systemctl reload " + quoted + " || systemctl restart " + quoted},
 			Preconditions: []string{"Cron package is installed and cron files have been synced to target"},
+			Rollback:      []string{"systemctl reload " + quoted + " || true"},
+		}}, core.StreamAction{}, false
+	case "php-fpm":
+		service := dataString(workload.Data, "service", "Service")
+		if service == "" {
+			service = workload.Name
+		}
+		quoted := shellQuote(service)
+		return []core.Action{{
+			ID:            id + ".reload",
+			Phase:         core.PhaseCutover,
+			HostRole:      core.HostRoleTarget,
+			Impact:        core.ImpactService,
+			Command:       []string{"sh", "-lc", "systemctl reload " + quoted + " || systemctl restart " + quoted},
+			Preconditions: []string{"PHP-FPM package is installed and PHP configuration files have been synced to target"},
 			Rollback:      []string{"systemctl reload " + quoted + " || true"},
 		}}, core.StreamAction{}, false
 	default:

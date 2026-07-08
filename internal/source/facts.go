@@ -55,6 +55,7 @@ var Facts = []FactSpec{
 	{Name: "postgresDatabases", Command: []string{"psql", "--tuples-only", "--no-align", "--command=SELECT datname FROM pg_database WHERE datistemplate = false"}, Optional: true},
 	{Name: "nginxConfigDump", Command: []string{"nginx", "-T"}, Optional: true},
 	{Name: "apacheConfigDump", Command: []string{"apache2ctl", "-S"}, Optional: true},
+	{Name: "phpConfigPaths", Command: []string{"find", "/etc/php", "-maxdepth", "4", "-type", "f", "-print"}, Optional: true},
 	{Name: "letsEncryptFiles", Command: []string{"find", "/etc/letsencrypt", "-maxdepth", "3", "-type", "f", "-print"}, Optional: true},
 	{Name: "users", Command: []string{"getent", "passwd"}},
 	{Name: "groups", Command: []string{"getent", "group"}},
@@ -183,6 +184,18 @@ func workloadsFromFacts(facts map[string]FactResult) []profile.Workload {
 			Type: "apache-vhost",
 			Name: "apache2",
 			Data: map[string]any{},
+		})
+	}
+	if paths := safeTransferPaths(factValue(facts, "phpConfigPaths")); len(paths) > 0 {
+		addFileSet(&workloads, seenFileSets, "php-config", paths, "/")
+	}
+	for _, service := range phpFPMServices(facts) {
+		workloads = append(workloads, profile.Workload{
+			Type: "php-fpm",
+			Name: safeName(strings.TrimSuffix(service, ".service"), "php-fpm"),
+			Data: map[string]any{
+				"service": service,
+			},
 		})
 	}
 	if factValue(facts, "letsEncryptFiles") != "" {
@@ -353,6 +366,41 @@ func redisDetected(facts map[string]FactResult) bool {
 		}
 	}
 	return false
+}
+
+var phpFPMServicePattern = regexp.MustCompile(`^php([0-9]+(\.[0-9]+)?)?-fpm\.service$`)
+var phpFPMPackagePattern = regexp.MustCompile(`^php([0-9]+(\.[0-9]+)?)?-fpm$`)
+
+func phpFPMServices(facts map[string]FactResult) []string {
+	seen := map[string]bool{}
+	for _, factName := range []string{"enabledServices", "runningServices"} {
+		for _, line := range strings.Split(factValue(facts, factName), "\n") {
+			fields := strings.Fields(line)
+			if len(fields) == 0 {
+				continue
+			}
+			service := fields[0]
+			if phpFPMServicePattern.MatchString(service) {
+				seen[service] = true
+			}
+		}
+	}
+	for _, line := range strings.Split(factValue(facts, "packages"), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 0 {
+			continue
+		}
+		pkg := fields[0]
+		if phpFPMPackagePattern.MatchString(pkg) {
+			seen[pkg+".service"] = true
+		}
+	}
+	out := make([]string, 0, len(seen))
+	for service := range seen {
+		out = append(out, service)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func databaseNames(facts map[string]FactResult, factName string) []string {

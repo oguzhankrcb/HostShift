@@ -365,6 +365,14 @@ func validateWorkload(workload Workload) error {
 				return fmt.Errorf("cron workload %s has unsafe service: %w", workload.Name, err)
 			}
 		}
+	case "php-fpm":
+		service := dataString(workload.Data, "service", "Service")
+		if service == "" {
+			service = workload.Name
+		}
+		if err := safety.ServiceName(service); err != nil {
+			return fmt.Errorf("php-fpm workload %s has unsafe service: %w", workload.Name, err)
+		}
 	case "mysql", "mariadb", "postgresql":
 		if err := safety.DatabaseName(workload.Name); err != nil {
 			return err

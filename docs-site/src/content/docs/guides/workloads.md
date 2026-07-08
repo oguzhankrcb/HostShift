@@ -10,6 +10,10 @@ HostShift uses workload adapters to plan transfer, target preparation, verificat
 - `docker-compose`
 - `docker-standalone`
 - `file-set`
+- `cron`
+- `php-fpm`
+- `apache-vhost`
+- `systemd-service`
 - `mysql`
 - `mariadb`
 - `postgresql`

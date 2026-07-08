@@ -200,7 +200,7 @@ func TestDocumentationWebsiteCoversProjectSurfaceArea(t *testing.T) {
 	for _, fact := range []string{"osRelease", "packages", "ufwStatus", "nftRuleset", "customSystemdUnits", "dockerComposeProjects", "dockerContainers"} {
 		requireMatch(t, discovery, fact)
 	}
-	for _, workload := range []string{"docker-compose", "docker-standalone", "file-set", "cron", "apache-vhost", "systemd-service", "mysql", "mariadb", "postgresql", "redis"} {
+	for _, workload := range []string{"docker-compose", "docker-standalone", "file-set", "cron", "php-fpm", "apache-vhost", "systemd-service", "mysql", "mariadb", "postgresql", "redis"} {
 		requireMatch(t, workloads, workload)
 	}
 	for _, check := range []string{"http", "laravelDatabase", "fileExists", "fileContains", "mysqlScalar", "postgresScalar", "serviceActive", "ufwRule", "nftRule", "nginxConfig"} {
@@ -210,6 +210,7 @@ func TestDocumentationWebsiteCoversProjectSurfaceArea(t *testing.T) {
 	requireMatch(t, platforms, `Debian[\s\S]*12[\s\S]*13`)
 	requireMatch(t, platforms, `docker-compose-plugin`)
 	requireMatch(t, platforms, "`cron`[\\s\\S]*`cron`[\\s\\S]*`cron`")
+	requireMatch(t, platforms, "`php-fpm`[\\s\\S]*`php-fpm`[\\s\\S]*`php-fpm`")
 	requireMatch(t, state, `Action\{id, phase, hostRole, impact, command, preconditions, rollback\}`)
 	requireMatch(t, state, `audit\.jsonl`)
 	requireMatch(t, matrix, `HOSTSHIFT_RUN_DOCKER_MATRIX=1 make test-integration-docker`)

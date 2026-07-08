@@ -155,6 +155,7 @@ Current workload coverage includes:
 - Apache vhost activation and reload validation
 - systemd application service cutover and service checks
 - cron file transfer, target cron package planning, and target cron reload
+- PHP-FPM config transfer, target package planning, and target service reload
 - SSH server settings
 - UFW and nftables firewall rules
 - Laravel-style database connectivity checks

@@ -164,6 +164,45 @@ func TestCronWorkloadPlansTargetReloadAndPackage(t *testing.T) {
 	}
 }
 
+func TestPHPFPMWorkloadPlansTargetReloadAndPackage(t *testing.T) {
+	prof := profile.Profile{
+		SchemaVersion: profile.CurrentSchemaVersion,
+		Name:          "example",
+		Source:        profile.Host{SSH: "old"},
+		Target:        profile.Host{SSH: "new"},
+		SourcePolicy:  "strict-read-only",
+		Platforms:     profile.Platforms{Source: "ubuntu:24.04", Target: "debian:13"},
+		Approved:      true,
+		Workloads: []profile.Workload{
+			{Type: "file-set", Name: "php-config", Data: map[string]any{"paths": []any{"/etc/php/8.3/fpm/php.ini"}, "targetPath": "/"}},
+			{Type: "php-fpm", Name: "php8.3-fpm", Data: map[string]any{"service": "php8.3-fpm.service"}},
+		},
+	}
+	plan, err := Build(prof, time.Date(2026, 6, 11, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var packageCommand []string
+	var reloadCommand []string
+	for _, action := range plan.Actions {
+		switch action.ID {
+		case "target.prepare.packages":
+			packageCommand = action.Command
+		case "target.workload.php-fpm.php8.3-fpm.reload":
+			reloadCommand = action.Command
+			if action.HostRole != "target" || action.Impact != "service" {
+				t.Fatalf("php-fpm reload must be target service action: %+v", action)
+			}
+		}
+	}
+	if !strings.Contains(strings.Join(packageCommand, " "), "php-fpm") {
+		t.Fatalf("expected php-fpm package capability, got %+v", packageCommand)
+	}
+	if !strings.Contains(strings.Join(reloadCommand, " "), "systemctl reload 'php8.3-fpm.service'") {
+		t.Fatalf("expected php-fpm reload command, got %+v", reloadCommand)
+	}
+}
+
 func TestUnknownTargetPlatformBlocksPackagePreparation(t *testing.T) {
 	prof := profile.Profile{
 		SchemaVersion: profile.CurrentSchemaVersion,

@@ -245,6 +245,21 @@ func workloadReviewFindings(prof profile.Profile) []reviewFinding {
 					SuggestedProfilePatch: suggestedServiceCheckPatch(service),
 				})
 			}
+		case "php-fpm":
+			service := reviewDataString(workload.Data, "service", "Service")
+			if service == "" {
+				service = workload.Name
+			}
+			if !index.services[service] {
+				findings = append(findings, reviewFinding{
+					Severity:              "warning",
+					Category:              "workload-verification",
+					Message:               "PHP-FPM workload has no matching serviceActive check.",
+					Evidence:              evidence,
+					Recommendation:        "Add a serviceActive check for " + service + " so verify proves the target PHP-FPM pool is running.",
+					SuggestedProfilePatch: suggestedServiceCheckPatch(service),
+				})
+			}
 		case "cron":
 			service := reviewDataString(workload.Data, "service", "Service")
 			if service == "" {

@@ -44,6 +44,7 @@ HostShift plans target package installation from abstract capabilities:
 | `nginx` | `nginx` | `nginx` |
 | `apache` | `apache2` | `apache2` |
 | `cron` | `cron` | `cron` |
+| `php-fpm` | `php-fpm` | `php-fpm` |
 | `openssh-server` | `openssh-server` | `openssh-server` |
 | `mysql-server` | `mysql-server` | `default-mysql-server` |
 | `mysql-client` | `mysql-client` | `default-mysql-client` |

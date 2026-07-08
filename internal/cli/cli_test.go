@@ -158,6 +158,10 @@ workloads:
     name: queue
     data:
       service: queue.service
+  - type: php-fpm
+    name: php8.3-fpm
+    data:
+      service: php8.3-fpm.service
   - type: file-set
     name: nginx-config
     data:
@@ -190,6 +194,8 @@ checks:
 		`targetPasswordEnv: DST_MYSQL_APP_PWD`,
 		`"systemd-service workload has no matching serviceActive check."`,
 		`service: queue.service`,
+		`"PHP-FPM workload has no matching serviceActive check."`,
+		`service: php8.3-fpm.service`,
 		`"Nginx file-set has no nginxConfig validation check."`,
 		`type: nginxConfig`,
 		`"cron workload has no target serviceActive check."`,
