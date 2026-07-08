@@ -13,6 +13,7 @@ HostShift uses workload adapters to plan transfer, target preparation, verificat
 - `cron`
 - `php-fpm`
 - `supervisor`
+- `fail2ban`
 - `apache-vhost`
 - `systemd-service`
 - `mysql`

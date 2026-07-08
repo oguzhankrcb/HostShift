@@ -57,6 +57,7 @@ var Facts = []FactSpec{
 	{Name: "apacheConfigDump", Command: []string{"apache2ctl", "-S"}, Optional: true},
 	{Name: "phpConfigPaths", Command: []string{"find", "/etc/php", "-maxdepth", "4", "-type", "f", "-print"}, Optional: true},
 	{Name: "supervisorConfigPaths", Command: []string{"find", "/etc/supervisor", "-maxdepth", "3", "-type", "f", "-print"}, Optional: true},
+	{Name: "fail2banConfigPaths", Command: []string{"find", "/etc/fail2ban", "-maxdepth", "3", "-type", "f", "-print"}, Optional: true},
 	{Name: "letsEncryptFiles", Command: []string{"find", "/etc/letsencrypt", "-maxdepth", "3", "-type", "f", "-print"}, Optional: true},
 	{Name: "users", Command: []string{"getent", "passwd"}},
 	{Name: "groups", Command: []string{"getent", "group"}},
@@ -208,6 +209,18 @@ func workloadsFromFacts(facts map[string]FactResult) []profile.Workload {
 			Name: "supervisor",
 			Data: map[string]any{
 				"service": "supervisor.service",
+			},
+		})
+	}
+	if paths := safeTransferPaths(factValue(facts, "fail2banConfigPaths")); len(paths) > 0 {
+		addFileSet(&workloads, seenFileSets, "fail2ban-config", paths, "/")
+	}
+	if fail2banDetected(facts) {
+		workloads = append(workloads, profile.Workload{
+			Type: "fail2ban",
+			Name: "fail2ban",
+			Data: map[string]any{
+				"service": "fail2ban.service",
 			},
 		})
 	}
@@ -429,6 +442,25 @@ func supervisorDetected(facts map[string]FactResult) bool {
 	for _, line := range strings.Split(factValue(facts, "packages"), "\n") {
 		fields := strings.Fields(line)
 		if len(fields) > 0 && fields[0] == "supervisor" {
+			return true
+		}
+	}
+	return false
+}
+
+func fail2banDetected(facts map[string]FactResult) bool {
+	if factValue(facts, "fail2banConfigPaths") != "" {
+		return true
+	}
+	for _, factName := range []string{"enabledServices", "runningServices"} {
+		value := factValue(facts, factName)
+		if strings.Contains(value, "fail2ban.service") {
+			return true
+		}
+	}
+	for _, line := range strings.Split(factValue(facts, "packages"), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) > 0 && fields[0] == "fail2ban" {
 			return true
 		}
 	}

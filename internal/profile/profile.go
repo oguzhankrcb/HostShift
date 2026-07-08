@@ -381,6 +381,14 @@ func validateWorkload(workload Workload) error {
 		if err := safety.ServiceName(service); err != nil {
 			return fmt.Errorf("supervisor workload %s has unsafe service: %w", workload.Name, err)
 		}
+	case "fail2ban":
+		service := dataString(workload.Data, "service", "Service")
+		if service == "" {
+			service = "fail2ban.service"
+		}
+		if err := safety.ServiceName(service); err != nil {
+			return fmt.Errorf("fail2ban workload %s has unsafe service: %w", workload.Name, err)
+		}
 	case "mysql", "mariadb", "postgresql":
 		if err := safety.DatabaseName(workload.Name); err != nil {
 			return err

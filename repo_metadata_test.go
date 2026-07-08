@@ -197,10 +197,10 @@ func TestDocumentationWebsiteCoversProjectSurfaceArea(t *testing.T) {
 	for _, field := range []string{"schemaVersion", "sourcePolicy", "firewall", "sshd", "mysql", "workloads", "checks", "approved"} {
 		requireMatch(t, profile, field)
 	}
-	for _, fact := range []string{"osRelease", "packages", "ufwStatus", "nftRuleset", "supervisorConfigPaths", "customSystemdUnits", "dockerComposeProjects", "dockerContainers"} {
+	for _, fact := range []string{"osRelease", "packages", "ufwStatus", "nftRuleset", "supervisorConfigPaths", "fail2banConfigPaths", "customSystemdUnits", "dockerComposeProjects", "dockerContainers"} {
 		requireMatch(t, discovery, fact)
 	}
-	for _, workload := range []string{"docker-compose", "docker-standalone", "file-set", "cron", "php-fpm", "supervisor", "apache-vhost", "systemd-service", "mysql", "mariadb", "postgresql", "redis"} {
+	for _, workload := range []string{"docker-compose", "docker-standalone", "file-set", "cron", "php-fpm", "supervisor", "fail2ban", "apache-vhost", "systemd-service", "mysql", "mariadb", "postgresql", "redis"} {
 		requireMatch(t, workloads, workload)
 	}
 	for _, check := range []string{"http", "laravelDatabase", "fileExists", "fileContains", "mysqlScalar", "postgresScalar", "serviceActive", "ufwRule", "nftRule", "nginxConfig"} {
@@ -212,6 +212,7 @@ func TestDocumentationWebsiteCoversProjectSurfaceArea(t *testing.T) {
 	requireMatch(t, platforms, "`cron`[\\s\\S]*`cron`[\\s\\S]*`cron`")
 	requireMatch(t, platforms, "`php-fpm`[\\s\\S]*`php-fpm`[\\s\\S]*`php-fpm`")
 	requireMatch(t, platforms, "`supervisor`[\\s\\S]*`supervisor`[\\s\\S]*`supervisor`")
+	requireMatch(t, platforms, "`fail2ban`[\\s\\S]*`fail2ban`[\\s\\S]*`fail2ban`")
 	requireMatch(t, state, `Action\{id, phase, hostRole, impact, command, preconditions, rollback\}`)
 	requireMatch(t, state, `audit\.jsonl`)
 	requireMatch(t, matrix, `HOSTSHIFT_RUN_DOCKER_MATRIX=1 make test-integration-docker`)

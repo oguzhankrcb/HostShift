@@ -47,6 +47,7 @@ Optional facts provide workload hints:
 - `apacheConfigDump`
 - `phpConfigPaths`
 - `supervisorConfigPaths`
+- `fail2banConfigPaths`
 - `letsEncryptFiles`
 - `cron`
 - `customSystemdUnits`
@@ -81,6 +82,8 @@ Generated workload candidates currently include:
 - `php-fpm` reload candidates when `php*-fpm.service` or `php*-fpm` packages are discovered
 - Supervisor configuration files under `/etc/supervisor` when Supervisor config files are discovered
 - `supervisor` update candidates when `/etc/supervisor` files, `supervisor.service`, or the `supervisor` package are discovered
+- Fail2ban configuration files under `/etc/fail2ban` when Fail2ban config files are discovered
+- `fail2ban` reload candidates when `/etc/fail2ban` files, `fail2ban.service`, or the `fail2ban` package are discovered
 - `/etc/letsencrypt` when certificate files are discovered
 - cron files under `/etc/cron.d`, `/etc/cron.daily`, `/etc/cron.hourly`, `/etc/cron.monthly`, and `/etc/cron.weekly`
 - a `cron` target reload candidate when cron files are discovered

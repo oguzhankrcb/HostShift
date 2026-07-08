@@ -166,6 +166,10 @@ workloads:
     name: supervisor
     data:
       service: supervisor.service
+  - type: fail2ban
+    name: fail2ban
+    data:
+      service: fail2ban.service
   - type: file-set
     name: nginx-config
     data:
@@ -202,6 +206,8 @@ checks:
 		`service: php8.3-fpm.service`,
 		`"Supervisor workload has no matching serviceActive check."`,
 		`service: supervisor.service`,
+		`"Fail2ban workload has no matching serviceActive check."`,
+		`service: fail2ban.service`,
 		`"Nginx file-set has no nginxConfig validation check."`,
 		`type: nginxConfig`,
 		`"cron workload has no target serviceActive check."`,

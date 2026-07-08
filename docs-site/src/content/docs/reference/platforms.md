@@ -46,6 +46,7 @@ HostShift plans target package installation from abstract capabilities:
 | `cron` | `cron` | `cron` |
 | `php-fpm` | `php-fpm` | `php-fpm` |
 | `supervisor` | `supervisor` | `supervisor` |
+| `fail2ban` | `fail2ban` | `fail2ban` |
 | `openssh-server` | `openssh-server` | `openssh-server` |
 | `mysql-server` | `mysql-server` | `default-mysql-server` |
 | `mysql-client` | `mysql-client` | `default-mysql-client` |

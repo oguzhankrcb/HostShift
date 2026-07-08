@@ -121,6 +121,9 @@ func requiredCapabilities(prof profile.Profile) []string {
 					item == "/etc/cron.weekly" || strings.HasPrefix(item, "/etc/cron.weekly/") {
 					set["cron"] = true
 				}
+				if item == "/etc/fail2ban" || strings.HasPrefix(item, "/etc/fail2ban/") {
+					set["fail2ban"] = true
+				}
 			}
 		case "apache-vhost":
 			set["apache"] = true
@@ -130,6 +133,8 @@ func requiredCapabilities(prof profile.Profile) []string {
 			set["php-fpm"] = true
 		case "supervisor":
 			set["supervisor"] = true
+		case "fail2ban":
+			set["fail2ban"] = true
 		case "mysql":
 			set["mysql-client"] = true
 		case "mariadb":
@@ -156,7 +161,7 @@ func requiredCapabilities(prof profile.Profile) []string {
 		}
 	}
 	out := []string{}
-	for _, capability := range []string{"rsync", "tar", "curl", "ufw", "openssh-server", "nginx", "apache", "cron", "php-fpm", "supervisor", "docker-runtime", "docker-compose", "mysql-server", "mysql-client", "mariadb-client", "postgresql-server", "postgresql-client", "redis-server", "redis-tools"} {
+	for _, capability := range []string{"rsync", "tar", "curl", "ufw", "openssh-server", "nginx", "apache", "cron", "php-fpm", "supervisor", "fail2ban", "docker-runtime", "docker-compose", "mysql-server", "mysql-client", "mariadb-client", "postgresql-server", "postgresql-client", "redis-server", "redis-tools"} {
 		if set[capability] {
 			out = append(out, capability)
 		}
@@ -691,6 +696,21 @@ func actionsForWorkload(workload profile.Workload) ([]core.Action, core.StreamAc
 			Impact:        core.ImpactService,
 			Command:       []string{"sh", "-lc", "systemctl enable --now " + quoted + " && supervisorctl reread && supervisorctl update"},
 			Preconditions: []string{"Supervisor package is installed and supervisor configuration files have been synced to target"},
+			Rollback:      []string{"systemctl reload " + quoted + " || true"},
+		}}, core.StreamAction{}, false
+	case "fail2ban":
+		service := dataString(workload.Data, "service", "Service")
+		if service == "" {
+			service = "fail2ban.service"
+		}
+		quoted := shellQuote(service)
+		return []core.Action{{
+			ID:            id + ".reload",
+			Phase:         core.PhaseCutover,
+			HostRole:      core.HostRoleTarget,
+			Impact:        core.ImpactService,
+			Command:       []string{"sh", "-lc", "systemctl enable --now " + quoted + " && (fail2ban-client reload || systemctl restart " + quoted + ")"},
+			Preconditions: []string{"Fail2ban package is installed and fail2ban configuration files have been synced to target"},
 			Rollback:      []string{"systemctl reload " + quoted + " || true"},
 		}}, core.StreamAction{}, false
 	default:

@@ -243,6 +243,46 @@ func TestSupervisorWorkloadPlansTargetUpdateAndPackage(t *testing.T) {
 	}
 }
 
+func TestFail2banWorkloadPlansTargetReloadAndPackage(t *testing.T) {
+	prof := profile.Profile{
+		SchemaVersion: profile.CurrentSchemaVersion,
+		Name:          "example",
+		Source:        profile.Host{SSH: "old"},
+		Target:        profile.Host{SSH: "new"},
+		SourcePolicy:  "strict-read-only",
+		Platforms:     profile.Platforms{Source: "ubuntu:24.04", Target: "debian:13"},
+		Approved:      true,
+		Workloads: []profile.Workload{
+			{Type: "file-set", Name: "fail2ban-config", Data: map[string]any{"paths": []any{"/etc/fail2ban/jail.local"}, "targetPath": "/"}},
+			{Type: "fail2ban", Name: "fail2ban", Data: map[string]any{"service": "fail2ban.service"}},
+		},
+	}
+	plan, err := Build(prof, time.Date(2026, 6, 11, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var packageCommand []string
+	var reloadCommand []string
+	for _, action := range plan.Actions {
+		switch action.ID {
+		case "target.prepare.packages":
+			packageCommand = action.Command
+		case "target.workload.fail2ban.fail2ban.reload":
+			reloadCommand = action.Command
+			if action.HostRole != "target" || action.Impact != "service" {
+				t.Fatalf("fail2ban reload must be target service action: %+v", action)
+			}
+		}
+	}
+	if !strings.Contains(strings.Join(packageCommand, " "), "fail2ban") {
+		t.Fatalf("expected fail2ban package capability, got %+v", packageCommand)
+	}
+	joinedReload := strings.Join(reloadCommand, " ")
+	if !strings.Contains(joinedReload, "systemctl enable --now 'fail2ban.service'") || !strings.Contains(joinedReload, "fail2ban-client reload") {
+		t.Fatalf("expected fail2ban reload command, got %+v", reloadCommand)
+	}
+}
+
 func TestUnknownTargetPlatformBlocksPackagePreparation(t *testing.T) {
 	prof := profile.Profile{
 		SchemaVersion: profile.CurrentSchemaVersion,

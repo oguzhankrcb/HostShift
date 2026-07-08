@@ -95,6 +95,7 @@ Target capabilities:
 - `cron` when any path includes `/etc/cron.d`, `/etc/cron.daily`, `/etc/cron.hourly`, `/etc/cron.monthly`, or `/etc/cron.weekly`
 - `php-fpm` when PHP-FPM configuration under `/etc/php` is paired with a `php-fpm` workload
 - `supervisor` when any path includes `/etc/supervisor`
+- `fail2ban` when any path includes `/etc/fail2ban`
 
 HostShift rejects broad or machine-identity paths through the transfer path safety rules.
 
@@ -178,6 +179,33 @@ Discovery suggests this workload when `/etc/supervisor` files, `supervisor.servi
 Target capability:
 
 - `supervisor`
+
+## fail2ban
+
+Reloads Fail2ban after Fail2ban configuration files have been synced to the target.
+
+```yaml
+- type: fail2ban
+  name: fail2ban
+  data:
+    service: fail2ban.service
+```
+
+Fields:
+
+- `service`: optional Fail2ban service name. Defaults to `fail2ban.service`.
+
+Generated cutover action:
+
+```text
+systemctl enable --now <service> && (fail2ban-client reload || systemctl restart <service>)
+```
+
+Discovery suggests this workload when `/etc/fail2ban` files, `fail2ban.service`, or the `fail2ban` package are discovered. If `/etc/fail2ban` files are readable, discovery also suggests a `file-set` for those Fail2ban configuration files. The source remains read-only; only the target intrusion-prevention service is enabled and reloaded or restarted.
+
+Target capability:
+
+- `fail2ban`
 
 ## apache-vhost
 

@@ -275,6 +275,21 @@ func workloadReviewFindings(prof profile.Profile) []reviewFinding {
 					SuggestedProfilePatch: suggestedServiceCheckPatch(service),
 				})
 			}
+		case "fail2ban":
+			service := reviewDataString(workload.Data, "service", "Service")
+			if service == "" {
+				service = "fail2ban.service"
+			}
+			if !index.services[service] && !index.services["fail2ban"] {
+				findings = append(findings, reviewFinding{
+					Severity:              "warning",
+					Category:              "workload-verification",
+					Message:               "Fail2ban workload has no matching serviceActive check.",
+					Evidence:              evidence,
+					Recommendation:        "Add a serviceActive check for " + service + " so verify proves the target intrusion-prevention service is running.",
+					SuggestedProfilePatch: suggestedServiceCheckPatch(service),
+				})
+			}
 		case "cron":
 			service := reviewDataString(workload.Data, "service", "Service")
 			if service == "" {
