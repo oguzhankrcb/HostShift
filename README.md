@@ -113,7 +113,7 @@ hostshift mcp doctor --json
 hostshift capabilities --json
 ```
 
-MCP tools are intentionally non-apply: they can run discovery, planning, AI-friendly explanation, structured review, dry-runs, cutover dry-runs, profile migration, source policy introspection, capability catalog inspection, and rollback metadata. The MCP server also exposes the `hostshift_migration_operator` prompt so Claude or other clients can load the safety workflow directly. Target mutation still requires a reviewed human CLI command.
+MCP tools are intentionally non-apply: they can run discovery, planning, AI-friendly explanation, structured review, dry-runs, cutover dry-runs, profile migration, source policy introspection, capability catalog inspection, and rollback metadata. The MCP server also exposes the `hostshift_migration_operator` prompt and `hostshift://source-safety`, `hostshift://migration-workflow`, and `hostshift://capabilities` resources so Claude or other clients can load the safety workflow directly. Target mutation still requires a reviewed human CLI command.
 
 ## Supported Platforms
 

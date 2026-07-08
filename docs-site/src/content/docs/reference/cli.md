@@ -229,7 +229,7 @@ Runs the HostShift MCP server over stdin/stdout for AI clients.
 hostshift mcp stdio
 ```
 
-The MCP server exposes discovery, planning, explanation, structured review, dry-run, cutover dry-run, local profile migration, source policy introspection, capability catalog inspection, and rollback metadata tools. It also exposes the `hostshift_migration_operator` prompt. It does not expose apply tools.
+The MCP server exposes discovery, planning, explanation, structured review, dry-run, cutover dry-run, local profile migration, source policy introspection, capability catalog inspection, and rollback metadata tools. It also exposes the `hostshift_migration_operator` prompt and local `hostshift://source-safety`, `hostshift://migration-workflow`, and `hostshift://capabilities` resources. It does not expose apply tools.
 
 ## mcp doctor
 
@@ -240,7 +240,7 @@ hostshift mcp doctor --json
 hostshift mcp doctor --claude-config integrations/claude/claude_desktop_config.example.json --json
 ```
 
-The report includes protocol version, exposed tool and prompt names, whether any apply tool is exposed, and whether the Claude config points to `hostshift mcp stdio`.
+The report includes protocol version, exposed tool, prompt, and resource names, whether any apply tool is exposed, and whether the Claude config points to `hostshift mcp stdio`.
 
 ## profile migrate
 

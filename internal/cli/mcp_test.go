@@ -31,6 +31,9 @@ func TestMCPListsSafeHostShiftTools(t *testing.T) {
 	if _, ok := capabilities["prompts"]; !ok {
 		t.Fatalf("initialize response missing prompts capability: %+v", responses[0])
 	}
+	if _, ok := capabilities["resources"]; !ok {
+		t.Fatalf("initialize response missing resources capability: %+v", responses[0])
+	}
 	tools := responses[1]["result"].(map[string]any)["tools"].([]any)
 	names := map[string]bool{}
 	for _, raw := range tools {
@@ -45,6 +48,51 @@ func TestMCPListsSafeHostShiftTools(t *testing.T) {
 	for name := range names {
 		if strings.Contains(name, "apply") {
 			t.Fatalf("MCP must not expose apply tools: %+v", names)
+		}
+	}
+}
+
+func TestMCPListsAndReadsHostShiftResources(t *testing.T) {
+	input := strings.Join([]string{
+		`{"jsonrpc":"2.0","id":1,"method":"resources/list","params":{}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"resources/read","params":{"uri":"hostshift://source-safety"}}`,
+		`{"jsonrpc":"2.0","id":3,"method":"resources/read","params":{"uri":"hostshift://capabilities"}}`,
+	}, "\n") + "\n"
+	var stdout strings.Builder
+	if err := ServeMCP(context.Background(), strings.NewReader(input), &stdout); err != nil {
+		t.Fatal(err)
+	}
+	responses := decodeMCPResponses(t, stdout.String())
+	resources := responses[0]["result"].(map[string]any)["resources"].([]any)
+	found := map[string]bool{}
+	for _, raw := range resources {
+		resource := raw.(map[string]any)
+		found[resource["uri"].(string)] = true
+	}
+	for _, uri := range []string{"hostshift://source-safety", "hostshift://migration-workflow", "hostshift://capabilities"} {
+		if !found[uri] {
+			t.Fatalf("expected resource %s in %+v", uri, resources)
+		}
+	}
+	sourceSafety := responses[1]["result"].(map[string]any)["contents"].([]any)[0].(map[string]any)["text"].(string)
+	for _, expected := range []string{
+		"immutable observation endpoint",
+		"Forbidden source behavior",
+		"service start, stop, restart, reload",
+	} {
+		if !strings.Contains(sourceSafety, expected) {
+			t.Fatalf("expected source safety resource to contain %q: %s", expected, sourceSafety)
+		}
+	}
+	capabilities := responses[2]["result"].(map[string]any)["contents"].([]any)[0].(map[string]any)["text"].(string)
+	for _, expected := range []string{
+		`"sourceWillBeModified": false`,
+		`"applyToolsExposed": false`,
+		`"type": "docker-compose"`,
+		`"memcachedConfigPaths"`,
+	} {
+		if !strings.Contains(capabilities, expected) {
+			t.Fatalf("expected capabilities resource to contain %q: %s", expected, capabilities)
 		}
 	}
 }
@@ -386,6 +434,13 @@ func TestMCPDoctorReportsClaudeConfigAndSafeToolSurface(t *testing.T) {
 	prompts := report["prompts"].([]any)
 	if len(prompts) != 1 || prompts[0] != "hostshift_migration_operator" {
 		t.Fatalf("expected migration operator prompt in doctor report: %+v", report)
+	}
+	if report["requiredResourcesPresent"] != true {
+		t.Fatalf("expected required resources to be present: %+v", report)
+	}
+	resources := report["resources"].([]any)
+	if len(resources) != 3 {
+		t.Fatalf("expected three MCP resources in doctor report: %+v", report)
 	}
 }
 

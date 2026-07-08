@@ -37,6 +37,15 @@ type PromptMessage struct {
 	Text string
 }
 
+type Resource struct {
+	URI         string
+	Name        string
+	Title       string
+	Description string
+	MimeType    string
+	Text        string
+}
+
 type Server struct {
 	Name         string
 	Title        string
@@ -44,6 +53,7 @@ type Server struct {
 	Instructions string
 	Tools        []Tool
 	Prompts      []Prompt
+	Resources    []Resource
 }
 
 type request struct {
@@ -72,6 +82,10 @@ type toolCallParams struct {
 
 type promptGetParams struct {
 	Name string `json:"name"`
+}
+
+type resourceReadParams struct {
+	URI string `json:"uri"`
 }
 
 func Serve(ctx context.Context, server Server, stdin io.Reader, stdout io.Writer) error {
@@ -112,8 +126,9 @@ func handle(ctx context.Context, server Server, req request) response {
 		return resultResponse(req.ID, map[string]any{
 			"protocolVersion": ProtocolVersion,
 			"capabilities": map[string]any{
-				"tools":   map[string]any{"listChanged": false},
-				"prompts": map[string]any{"listChanged": false},
+				"tools":     map[string]any{"listChanged": false},
+				"prompts":   map[string]any{"listChanged": false},
+				"resources": map[string]any{"listChanged": false},
 			},
 			"serverInfo": map[string]any{
 				"name":    server.Name,
@@ -169,8 +184,46 @@ func handle(ctx context.Context, server Server, req request) response {
 			return resultResponse(req.ID, promptGetResult(prompt))
 		}
 		return errorResponse(req.ID, -32602, fmt.Sprintf("unknown prompt: %s", params.Name))
+	case "resources/list":
+		resources := make([]map[string]any, 0, len(server.Resources))
+		for _, resource := range server.Resources {
+			resources = append(resources, resourceListItem(resource))
+		}
+		return resultResponse(req.ID, map[string]any{"resources": resources})
+	case "resources/read":
+		var params resourceReadParams
+		if err := json.Unmarshal(req.Params, &params); err != nil {
+			return errorResponse(req.ID, -32602, "invalid resources/read params")
+		}
+		for _, resource := range server.Resources {
+			if resource.URI != params.URI {
+				continue
+			}
+			return resultResponse(req.ID, resourceReadResult(resource))
+		}
+		return errorResponse(req.ID, -32602, fmt.Sprintf("unknown resource: %s", params.URI))
 	default:
 		return errorResponse(req.ID, -32601, "method not found")
+	}
+}
+
+func resourceListItem(resource Resource) map[string]any {
+	return map[string]any{
+		"uri":         resource.URI,
+		"name":        resource.Name,
+		"title":       resource.Title,
+		"description": resource.Description,
+		"mimeType":    resource.MimeType,
+	}
+}
+
+func resourceReadResult(resource Resource) map[string]any {
+	return map[string]any{
+		"contents": []map[string]string{{
+			"uri":      resource.URI,
+			"mimeType": resource.MimeType,
+			"text":     resource.Text,
+		}},
 	}
 }
 

@@ -24,6 +24,32 @@ func hostshiftMCPServer() mcp.Server {
 		Title:        "HostShift",
 		Version:      version.Version,
 		Instructions: "HostShift exposes read-only-source server migration planning, explanation, review, and dry-run tools. MCP tools do not expose --apply; target mutations require the human-operated CLI.",
+		Resources: []mcp.Resource{
+			{
+				URI:         "hostshift://source-safety",
+				Name:        "source-safety",
+				Title:       "HostShift Source Safety",
+				Description: "The source immutability contract AI clients must preserve.",
+				MimeType:    "text/markdown",
+				Text:        hostshiftSourceSafetyResource(),
+			},
+			{
+				URI:         "hostshift://migration-workflow",
+				Name:        "migration-workflow",
+				Title:       "HostShift Migration Workflow",
+				Description: "The reviewed HostShift dry-run-first migration workflow.",
+				MimeType:    "text/markdown",
+				Text:        hostshiftWorkflowResource(),
+			},
+			{
+				URI:         "hostshift://capabilities",
+				Name:        "capabilities",
+				Title:       "HostShift Capabilities Catalog",
+				Description: "Supported releases, package mappings, workloads, checks, and source facts.",
+				MimeType:    "application/json",
+				Text:        hostshiftCapabilitiesResource(),
+			},
+		},
 		Prompts: []mcp.Prompt{
 			{
 				Name:        "hostshift_migration_operator",
@@ -82,21 +108,24 @@ func hostshiftMCPServer() mcp.Server {
 }
 
 type mcpDoctorReport struct {
-	ServerName             string            `json:"serverName"`
-	ServerTitle            string            `json:"serverTitle"`
-	ServerVersion          string            `json:"serverVersion"`
-	ProtocolVersion        string            `json:"protocolVersion"`
-	ToolCount              int               `json:"toolCount"`
-	Tools                  []string          `json:"tools"`
-	PromptCount            int               `json:"promptCount"`
-	Prompts                []string          `json:"prompts"`
-	RequiredToolsPresent   bool              `json:"requiredToolsPresent"`
-	RequiredPromptsPresent bool              `json:"requiredPromptsPresent"`
-	ApplyToolsExposed      bool              `json:"applyToolsExposed"`
-	SourceWillBeModified   bool              `json:"sourceWillBeModified"`
-	ClaudeConfig           claudeConfigCheck `json:"claudeConfig"`
-	Status                 string            `json:"status"`
-	Warnings               []string          `json:"warnings,omitempty"`
+	ServerName               string            `json:"serverName"`
+	ServerTitle              string            `json:"serverTitle"`
+	ServerVersion            string            `json:"serverVersion"`
+	ProtocolVersion          string            `json:"protocolVersion"`
+	ToolCount                int               `json:"toolCount"`
+	Tools                    []string          `json:"tools"`
+	PromptCount              int               `json:"promptCount"`
+	Prompts                  []string          `json:"prompts"`
+	ResourceCount            int               `json:"resourceCount"`
+	Resources                []string          `json:"resources"`
+	RequiredToolsPresent     bool              `json:"requiredToolsPresent"`
+	RequiredPromptsPresent   bool              `json:"requiredPromptsPresent"`
+	RequiredResourcesPresent bool              `json:"requiredResourcesPresent"`
+	ApplyToolsExposed        bool              `json:"applyToolsExposed"`
+	SourceWillBeModified     bool              `json:"sourceWillBeModified"`
+	ClaudeConfig             claudeConfigCheck `json:"claudeConfig"`
+	Status                   string            `json:"status"`
+	Warnings                 []string          `json:"warnings,omitempty"`
 }
 
 type claudeConfigCheck struct {
@@ -139,6 +168,7 @@ func buildMCPDoctorReport(claudeConfigPath string) mcpDoctorReport {
 	server := hostshiftMCPServer()
 	tools := make([]string, 0, len(server.Tools))
 	prompts := make([]string, 0, len(server.Prompts))
+	resources := make([]string, 0, len(server.Resources))
 	applyToolsExposed := false
 	seen := map[string]bool{}
 	for _, tool := range server.Tools {
@@ -152,6 +182,11 @@ func buildMCPDoctorReport(claudeConfigPath string) mcpDoctorReport {
 	for _, prompt := range server.Prompts {
 		prompts = append(prompts, prompt.Name)
 		seenPrompts[prompt.Name] = true
+	}
+	seenResources := map[string]bool{}
+	for _, resource := range server.Resources {
+		resources = append(resources, resource.URI)
+		seenResources[resource.URI] = true
 	}
 	requiredToolsPresent := true
 	for _, name := range requiredMCPToolNames() {
@@ -167,21 +202,31 @@ func buildMCPDoctorReport(claudeConfigPath string) mcpDoctorReport {
 			break
 		}
 	}
+	requiredResourcesPresent := true
+	for _, uri := range requiredMCPResourceURIs() {
+		if !seenResources[uri] {
+			requiredResourcesPresent = false
+			break
+		}
+	}
 	report := mcpDoctorReport{
-		ServerName:             server.Name,
-		ServerTitle:            server.Title,
-		ServerVersion:          server.Version,
-		ProtocolVersion:        mcp.ProtocolVersion,
-		ToolCount:              len(tools),
-		Tools:                  tools,
-		PromptCount:            len(prompts),
-		Prompts:                prompts,
-		RequiredToolsPresent:   requiredToolsPresent,
-		RequiredPromptsPresent: requiredPromptsPresent,
-		ApplyToolsExposed:      applyToolsExposed,
-		SourceWillBeModified:   false,
-		ClaudeConfig:           checkClaudeConfig(claudeConfigPath),
-		Status:                 "ok",
+		ServerName:               server.Name,
+		ServerTitle:              server.Title,
+		ServerVersion:            server.Version,
+		ProtocolVersion:          mcp.ProtocolVersion,
+		ToolCount:                len(tools),
+		Tools:                    tools,
+		PromptCount:              len(prompts),
+		Prompts:                  prompts,
+		ResourceCount:            len(resources),
+		Resources:                resources,
+		RequiredToolsPresent:     requiredToolsPresent,
+		RequiredPromptsPresent:   requiredPromptsPresent,
+		RequiredResourcesPresent: requiredResourcesPresent,
+		ApplyToolsExposed:        applyToolsExposed,
+		SourceWillBeModified:     false,
+		ClaudeConfig:             checkClaudeConfig(claudeConfigPath),
+		Status:                   "ok",
 	}
 	if !requiredToolsPresent {
 		report.Status = "warning"
@@ -190,6 +235,10 @@ func buildMCPDoctorReport(claudeConfigPath string) mcpDoctorReport {
 	if !requiredPromptsPresent {
 		report.Status = "warning"
 		report.Warnings = append(report.Warnings, "one or more required MCP prompts are missing")
+	}
+	if !requiredResourcesPresent {
+		report.Status = "warning"
+		report.Warnings = append(report.Warnings, "one or more required MCP resources are missing")
 	}
 	if applyToolsExposed {
 		report.Status = "warning"
@@ -222,6 +271,59 @@ Preferred workflow:
 When a workload cannot be safely read online, say so explicitly and require an operator strategy instead of silently skipping it.`
 }
 
+func hostshiftSourceSafetyResource() string {
+	return `# HostShift Source Safety
+
+The source server is an immutable observation endpoint.
+
+Allowed source behavior:
+- read inventory
+- inspect configuration
+- stream typed read-only exports to stdout
+- run allowlisted fact commands
+
+Forbidden source behavior:
+- sudo
+- package installation
+- service start, stop, restart, reload, or signal operations
+- file writes, chmod, chown, mkdir, rm, mv, cp, tee, or shell redirection
+- firewall changes
+- SSH key changes
+- snapshots or maintenance mode
+- source-side database dump files or temporary archives
+
+If a workload cannot be read safely online, HostShift must block or ask for an operator strategy. It must not silently skip the workload or weaken this invariant.`
+}
+
+func hostshiftWorkflowResource() string {
+	return `# HostShift Migration Workflow
+
+Use this dry-run-first sequence:
+
+1. hostshift_capabilities
+2. hostshift_doctor
+3. hostshift_discover
+4. hostshift_plan
+5. hostshift_explain
+6. hostshift_review
+7. hostshift_prepare_dry_run
+8. hostshift_sync_dry_run
+9. hostshift_verify_dry_run
+10. hostshift_cutover_dry_run
+
+MCP does not expose apply tools. Target mutation requires a human-operated CLI command after reviewing blockers, warnings, actions, streams, preconditions, and rollback metadata.
+
+Before suggesting an apply command, ensure the profile is reviewed, approved, has target SSH configured, has no blockers, and has verification checks that prove the migrated behavior.`
+}
+
+func hostshiftCapabilitiesResource() string {
+	body, err := json.MarshalIndent(buildCapabilitiesReport(), "", "  ")
+	if err != nil {
+		return `{"sourceWillBeModified":false,"applyToolsExposed":false,"error":"failed to encode capabilities"}`
+	}
+	return string(body)
+}
+
 func requiredMCPToolNames() []string {
 	return []string{
 		"hostshift_doctor",
@@ -243,6 +345,14 @@ func requiredMCPToolNames() []string {
 func requiredMCPPromptNames() []string {
 	return []string{
 		"hostshift_migration_operator",
+	}
+}
+
+func requiredMCPResourceURIs() []string {
+	return []string{
+		"hostshift://source-safety",
+		"hostshift://migration-workflow",
+		"hostshift://capabilities",
 	}
 }
 
