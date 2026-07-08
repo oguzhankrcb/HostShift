@@ -127,6 +127,9 @@ func requiredCapabilities(prof profile.Profile) []string {
 				if item == "/etc/fail2ban" || strings.HasPrefix(item, "/etc/fail2ban/") {
 					set["fail2ban"] = true
 				}
+				if item == "/etc/memcached.conf" || item == "/etc/memcached" || strings.HasPrefix(item, "/etc/memcached/") {
+					set["memcached"] = true
+				}
 				if item == "/etc/logrotate.conf" || item == "/etc/logrotate.d" || strings.HasPrefix(item, "/etc/logrotate.d/") {
 					set["logrotate"] = true
 				}
@@ -143,6 +146,8 @@ func requiredCapabilities(prof profile.Profile) []string {
 			set["supervisor"] = true
 		case "fail2ban":
 			set["fail2ban"] = true
+		case "memcached":
+			set["memcached"] = true
 		case "logrotate":
 			set["logrotate"] = true
 		case "mysql":
@@ -171,7 +176,7 @@ func requiredCapabilities(prof profile.Profile) []string {
 		}
 	}
 	out := []string{}
-	for _, capability := range []string{"rsync", "tar", "curl", "ufw", "openssh-server", "nginx", "apache", "caddy", "cron", "php-fpm", "supervisor", "fail2ban", "logrotate", "docker-runtime", "docker-compose", "mysql-server", "mysql-client", "mariadb-client", "postgresql-server", "postgresql-client", "redis-server", "redis-tools"} {
+	for _, capability := range []string{"rsync", "tar", "curl", "ufw", "openssh-server", "nginx", "apache", "caddy", "cron", "php-fpm", "supervisor", "fail2ban", "memcached", "logrotate", "docker-runtime", "docker-compose", "mysql-server", "mysql-client", "mariadb-client", "postgresql-server", "postgresql-client", "redis-server", "redis-tools"} {
 		if set[capability] {
 			out = append(out, capability)
 		}
@@ -742,6 +747,26 @@ func actionsForWorkload(workload profile.Workload) ([]core.Action, core.StreamAc
 			Command:       []string{"sh", "-lc", "systemctl enable --now " + quoted + " && (fail2ban-client reload || systemctl restart " + quoted + ")"},
 			Preconditions: []string{"Fail2ban package is installed and fail2ban configuration files have been synced to target"},
 			Rollback:      []string{"systemctl reload " + quoted + " || true"},
+		}}, core.StreamAction{}, false
+	case "memcached":
+		service := dataString(workload.Data, "service", "Service")
+		if service == "" {
+			service = "memcached.service"
+		}
+		config := dataString(workload.Data, "config", "Config")
+		if config == "" {
+			config = "/etc/memcached.conf"
+		}
+		quotedService := shellQuote(service)
+		quotedConfig := shellQuote(config)
+		return []core.Action{{
+			ID:            id + ".restart",
+			Phase:         core.PhaseCutover,
+			HostRole:      core.HostRoleTarget,
+			Impact:        core.ImpactService,
+			Command:       []string{"sh", "-lc", "test -f " + quotedConfig + " && systemctl enable --now " + quotedService + " && systemctl restart " + quotedService},
+			Preconditions: []string{"Memcached package is installed and memcached configuration files have been synced to target"},
+			Rollback:      []string{"systemctl restart " + quotedService + " || true"},
 		}}, core.StreamAction{}, false
 	case "logrotate":
 		config := dataString(workload.Data, "config", "Config")

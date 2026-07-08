@@ -175,6 +175,11 @@ workloads:
     name: fail2ban
     data:
       service: fail2ban.service
+  - type: memcached
+    name: memcached
+    data:
+      service: memcached.service
+      config: /etc/memcached.conf
   - type: logrotate
     name: logrotate
     data:
@@ -221,6 +226,10 @@ checks:
 		`service: supervisor.service`,
 		`"Fail2ban workload has no matching serviceActive check."`,
 		`service: fail2ban.service`,
+		`"Memcached workload has no matching serviceActive check."`,
+		`service: memcached.service`,
+		`"Memcached workload has no fileExists check for its config."`,
+		`path: /etc/memcached.conf`,
 		`"Logrotate workload has no fileExists check for its main config."`,
 		`path: /etc/logrotate.conf`,
 		`"Nginx file-set has no nginxConfig validation check."`,

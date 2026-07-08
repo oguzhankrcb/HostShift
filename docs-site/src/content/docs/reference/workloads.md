@@ -265,6 +265,35 @@ Target capability:
 
 - `caddy`
 
+## memcached
+
+Restarts Memcached on the target after configuration files have been synced.
+
+```yaml
+- type: memcached
+  name: memcached
+  data:
+    service: memcached.service
+    config: /etc/memcached.conf
+```
+
+Fields:
+
+- `service`: optional Memcached service name. Defaults to `memcached.service`.
+- `config`: optional Memcached config path. Defaults to `/etc/memcached.conf`.
+
+Generated cutover action:
+
+```text
+test -f <config> && systemctl enable --now <service> && systemctl restart <service>
+```
+
+Discovery suggests this workload when `/etc/memcached.conf`, `/etc/memcached` files, `memcached.service`, or the `memcached` package are discovered. If Memcached config files are readable, discovery also suggests a `file-set` for those files. The source remains read-only; HostShift does not attempt to preserve volatile in-memory cache contents.
+
+Target capability:
+
+- `memcached`
+
 ## apache-vhost
 
 Enables Apache modules and sites after Apache config files have been synced, validates the target config, and reloads Apache.

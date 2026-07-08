@@ -14,6 +14,7 @@ HostShift uses workload adapters to plan transfer, target preparation, verificat
 - `php-fpm`
 - `supervisor`
 - `fail2ban`
+- `memcached`
 - `logrotate`
 - `caddy`
 - `apache-vhost`

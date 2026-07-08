@@ -319,6 +319,35 @@ func workloadReviewFindings(prof profile.Profile) []reviewFinding {
 					SuggestedProfilePatch: suggestedFileExistsCheckPatch(config),
 				})
 			}
+		case "memcached":
+			service := reviewDataString(workload.Data, "service", "Service")
+			if service == "" {
+				service = "memcached.service"
+			}
+			if !index.services[service] && !index.services["memcached"] {
+				findings = append(findings, reviewFinding{
+					Severity:              "warning",
+					Category:              "workload-verification",
+					Message:               "Memcached workload has no matching serviceActive check.",
+					Evidence:              evidence,
+					Recommendation:        "Add a serviceActive check for " + service + " so verify proves the target cache service is running.",
+					SuggestedProfilePatch: suggestedServiceCheckPatch(service),
+				})
+			}
+			config := reviewDataString(workload.Data, "config", "Config")
+			if config == "" {
+				config = "/etc/memcached.conf"
+			}
+			if !index.filePaths[config] {
+				findings = append(findings, reviewFinding{
+					Severity:              "info",
+					Category:              "workload-verification",
+					Message:               "Memcached workload has no fileExists check for its config.",
+					Evidence:              evidence,
+					Recommendation:        "Add a fileExists check for " + config + " so verify proves the target has the expected Memcached config.",
+					SuggestedProfilePatch: suggestedFileExistsCheckPatch(config),
+				})
+			}
 		case "logrotate":
 			config := reviewDataString(workload.Data, "config", "Config")
 			if config == "" {

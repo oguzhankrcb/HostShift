@@ -59,6 +59,7 @@ var Facts = []FactSpec{
 	{Name: "phpConfigPaths", Command: []string{"find", "/etc/php", "-maxdepth", "4", "-type", "f", "-print"}, Optional: true},
 	{Name: "supervisorConfigPaths", Command: []string{"find", "/etc/supervisor", "-maxdepth", "3", "-type", "f", "-print"}, Optional: true},
 	{Name: "fail2banConfigPaths", Command: []string{"find", "/etc/fail2ban", "-maxdepth", "3", "-type", "f", "-print"}, Optional: true},
+	{Name: "memcachedConfigPaths", Command: []string{"find", "/etc", "-maxdepth", "2", "-type", "f", "(", "-path", "/etc/memcached.conf", "-o", "-path", "/etc/memcached/*", ")", "-print"}, Optional: true},
 	{Name: "logrotateConfigPaths", Command: []string{"find", "/etc/logrotate.conf", "/etc/logrotate.d", "-maxdepth", "1", "-type", "f", "-print"}, Optional: true},
 	{Name: "letsEncryptFiles", Command: []string{"find", "/etc/letsencrypt", "-maxdepth", "3", "-type", "f", "-print"}, Optional: true},
 	{Name: "users", Command: []string{"getent", "passwd"}},
@@ -236,6 +237,19 @@ func workloadsFromFacts(facts map[string]FactResult) []profile.Workload {
 			Name: "fail2ban",
 			Data: map[string]any{
 				"service": "fail2ban.service",
+			},
+		})
+	}
+	if paths := safeTransferPaths(factValue(facts, "memcachedConfigPaths")); len(paths) > 0 {
+		addFileSet(&workloads, seenFileSets, "memcached-config", paths, "/")
+	}
+	if memcachedDetected(facts) {
+		workloads = append(workloads, profile.Workload{
+			Type: "memcached",
+			Name: "memcached",
+			Data: map[string]any{
+				"service": "memcached.service",
+				"config":  "/etc/memcached.conf",
 			},
 		})
 	}
@@ -507,6 +521,25 @@ func fail2banDetected(facts map[string]FactResult) bool {
 	for _, line := range strings.Split(factValue(facts, "packages"), "\n") {
 		fields := strings.Fields(line)
 		if len(fields) > 0 && fields[0] == "fail2ban" {
+			return true
+		}
+	}
+	return false
+}
+
+func memcachedDetected(facts map[string]FactResult) bool {
+	if factValue(facts, "memcachedConfigPaths") != "" {
+		return true
+	}
+	for _, factName := range []string{"enabledServices", "runningServices"} {
+		value := factValue(facts, factName)
+		if strings.Contains(value, "memcached.service") {
+			return true
+		}
+	}
+	for _, line := range strings.Split(factValue(facts, "packages"), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) > 0 && fields[0] == "memcached" {
 			return true
 		}
 	}

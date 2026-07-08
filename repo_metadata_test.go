@@ -197,10 +197,10 @@ func TestDocumentationWebsiteCoversProjectSurfaceArea(t *testing.T) {
 	for _, field := range []string{"schemaVersion", "sourcePolicy", "firewall", "sshd", "mysql", "workloads", "checks", "approved"} {
 		requireMatch(t, profile, field)
 	}
-	for _, fact := range []string{"osRelease", "packages", "ufwStatus", "nftRuleset", "caddyConfigPaths", "supervisorConfigPaths", "fail2banConfigPaths", "logrotateConfigPaths", "customSystemdUnits", "dockerComposeProjects", "dockerContainers"} {
+	for _, fact := range []string{"osRelease", "packages", "ufwStatus", "nftRuleset", "caddyConfigPaths", "supervisorConfigPaths", "fail2banConfigPaths", "memcachedConfigPaths", "logrotateConfigPaths", "customSystemdUnits", "dockerComposeProjects", "dockerContainers"} {
 		requireMatch(t, discovery, fact)
 	}
-	for _, workload := range []string{"docker-compose", "docker-standalone", "file-set", "cron", "php-fpm", "supervisor", "fail2ban", "logrotate", "caddy", "apache-vhost", "systemd-service", "mysql", "mariadb", "postgresql", "redis"} {
+	for _, workload := range []string{"docker-compose", "docker-standalone", "file-set", "cron", "php-fpm", "supervisor", "fail2ban", "memcached", "logrotate", "caddy", "apache-vhost", "systemd-service", "mysql", "mariadb", "postgresql", "redis"} {
 		requireMatch(t, workloads, workload)
 	}
 	for _, check := range []string{"http", "laravelDatabase", "fileExists", "fileContains", "mysqlScalar", "postgresScalar", "serviceActive", "ufwRule", "nftRule", "nginxConfig"} {
@@ -214,6 +214,7 @@ func TestDocumentationWebsiteCoversProjectSurfaceArea(t *testing.T) {
 	requireMatch(t, platforms, "`php-fpm`[\\s\\S]*`php-fpm`[\\s\\S]*`php-fpm`")
 	requireMatch(t, platforms, "`supervisor`[\\s\\S]*`supervisor`[\\s\\S]*`supervisor`")
 	requireMatch(t, platforms, "`fail2ban`[\\s\\S]*`fail2ban`[\\s\\S]*`fail2ban`")
+	requireMatch(t, platforms, "`memcached`[\\s\\S]*`memcached`[\\s\\S]*`memcached`")
 	requireMatch(t, platforms, "`logrotate`[\\s\\S]*`logrotate`[\\s\\S]*`logrotate`")
 	requireMatch(t, state, `Action\{id, phase, hostRole, impact, command, preconditions, rollback\}`)
 	requireMatch(t, state, `audit\.jsonl`)

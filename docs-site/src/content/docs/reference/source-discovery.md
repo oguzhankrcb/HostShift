@@ -49,6 +49,7 @@ Optional facts provide workload hints:
 - `phpConfigPaths`
 - `supervisorConfigPaths`
 - `fail2banConfigPaths`
+- `memcachedConfigPaths`
 - `logrotateConfigPaths`
 - `letsEncryptFiles`
 - `cron`
@@ -88,6 +89,8 @@ Generated workload candidates currently include:
 - `supervisor` update candidates when `/etc/supervisor` files, `supervisor.service`, or the `supervisor` package are discovered
 - Fail2ban configuration files under `/etc/fail2ban` when Fail2ban config files are discovered
 - `fail2ban` reload candidates when `/etc/fail2ban` files, `fail2ban.service`, or the `fail2ban` package are discovered
+- Memcached configuration files under `/etc/memcached.conf` and `/etc/memcached` when Memcached config files are discovered
+- `memcached` restart candidates when `/etc/memcached.conf`, `/etc/memcached` files, `memcached.service`, or the `memcached` package are discovered
 - Logrotate configuration files under `/etc/logrotate.conf` and `/etc/logrotate.d` when Logrotate config files are discovered
 - `logrotate` validation candidates when `/etc/logrotate.conf`, `/etc/logrotate.d` files, or the `logrotate` package are discovered
 - `/etc/letsencrypt` when certificate files are discovered

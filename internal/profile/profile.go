@@ -404,6 +404,21 @@ func validateWorkload(workload Workload) error {
 		if err := safety.ServiceName(service); err != nil {
 			return fmt.Errorf("fail2ban workload %s has unsafe service: %w", workload.Name, err)
 		}
+	case "memcached":
+		service := dataString(workload.Data, "service", "Service")
+		if service == "" {
+			service = "memcached.service"
+		}
+		if err := safety.ServiceName(service); err != nil {
+			return fmt.Errorf("memcached workload %s has unsafe service: %w", workload.Name, err)
+		}
+		config := dataString(workload.Data, "config", "Config")
+		if config == "" {
+			config = "/etc/memcached.conf"
+		}
+		if _, err := safety.TransferPath(config); err != nil {
+			return fmt.Errorf("memcached workload %s has unsafe config: %w", workload.Name, err)
+		}
 	case "logrotate":
 		config := dataString(workload.Data, "config", "Config")
 		if config == "" {

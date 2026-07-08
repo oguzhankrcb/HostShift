@@ -328,6 +328,50 @@ func TestCaddyWorkloadPlansTargetReloadAndPackage(t *testing.T) {
 	}
 }
 
+func TestMemcachedWorkloadPlansTargetRestartAndPackage(t *testing.T) {
+	prof := profile.Profile{
+		SchemaVersion: profile.CurrentSchemaVersion,
+		Name:          "example",
+		Source:        profile.Host{SSH: "old"},
+		Target:        profile.Host{SSH: "new"},
+		SourcePolicy:  "strict-read-only",
+		Platforms:     profile.Platforms{Source: "ubuntu:24.04", Target: "debian:13"},
+		Approved:      true,
+		Workloads: []profile.Workload{
+			{Type: "file-set", Name: "memcached-config", Data: map[string]any{"paths": []any{"/etc/memcached.conf"}, "targetPath": "/"}},
+			{Type: "memcached", Name: "memcached", Data: map[string]any{"service": "memcached.service", "config": "/etc/memcached.conf"}},
+		},
+	}
+	plan, err := Build(prof, time.Date(2026, 6, 11, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var packageCommand []string
+	var restartCommand []string
+	var restartAction core.Action
+	for _, action := range plan.Actions {
+		switch action.ID {
+		case "target.prepare.packages":
+			packageCommand = action.Command
+		case "target.workload.memcached.memcached.restart":
+			restartCommand = action.Command
+			restartAction = action
+		}
+	}
+	if !strings.Contains(strings.Join(packageCommand, " "), "memcached") {
+		t.Fatalf("expected memcached package capability, got %+v", packageCommand)
+	}
+	if restartAction.HostRole != "target" || restartAction.Impact != "service" || restartAction.Phase != "cutover" {
+		t.Fatalf("memcached restart must be target service cutover action: %+v", restartAction)
+	}
+	joinedRestart := strings.Join(restartCommand, " ")
+	for _, expected := range []string{"test -f '/etc/memcached.conf'", "systemctl enable --now 'memcached.service'", "systemctl restart 'memcached.service'"} {
+		if !strings.Contains(joinedRestart, expected) {
+			t.Fatalf("expected %q in memcached restart command, got %+v", expected, restartCommand)
+		}
+	}
+}
+
 func TestLogrotateWorkloadPlansTargetValidationAndPackage(t *testing.T) {
 	prof := profile.Profile{
 		SchemaVersion: profile.CurrentSchemaVersion,
