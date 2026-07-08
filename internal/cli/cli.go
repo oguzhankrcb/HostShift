@@ -419,6 +419,7 @@ func profileCommand(args []string, stdout io.Writer) error {
 		fs := flag.NewFlagSet("profile migrate", flag.ContinueOnError)
 		input := fs.String("input", "", "v1 profile path")
 		output := fs.String("output", "", "v2 profile path")
+		jsonOutput := fs.Bool("json", false, "json output")
 		if err := fs.Parse(args[1:]); err != nil {
 			return err
 		}
@@ -429,7 +430,16 @@ func profileCommand(args []string, stdout io.Writer) error {
 		if err != nil {
 			return err
 		}
-		return profile.Save(*output, prof)
+		if err := profile.Save(*output, prof); err != nil {
+			return err
+		}
+		return write(stdout, map[string]any{
+			"input":                *input,
+			"output":               *output,
+			"schemaVersion":        prof.SchemaVersion,
+			"sourcePolicy":         prof.SourcePolicy,
+			"sourceWillBeModified": false,
+		}, *jsonOutput)
 	default:
 		return fmt.Errorf("unknown profile subcommand: %s", args[0])
 	}

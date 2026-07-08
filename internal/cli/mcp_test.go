@@ -30,7 +30,7 @@ func TestMCPListsSafeHostShiftTools(t *testing.T) {
 		tool := raw.(map[string]any)
 		names[tool["name"].(string)] = true
 	}
-	for _, name := range []string{"hostshift_doctor", "hostshift_discover", "hostshift_plan", "hostshift_explain", "hostshift_review", "hostshift_prepare_dry_run", "hostshift_sync_dry_run", "hostshift_verify_dry_run", "hostshift_cutover_dry_run", "hostshift_rollback"} {
+	for _, name := range []string{"hostshift_doctor", "hostshift_discover", "hostshift_plan", "hostshift_explain", "hostshift_review", "hostshift_prepare_dry_run", "hostshift_sync_dry_run", "hostshift_verify_dry_run", "hostshift_cutover_dry_run", "hostshift_profile_migrate", "hostshift_policy_source", "hostshift_rollback"} {
 		if !names[name] {
 			t.Fatalf("missing MCP tool %s in %+v", name, names)
 		}
@@ -174,6 +174,88 @@ approved: false
 	content := result["content"].([]any)[0].(map[string]any)["text"].(string)
 	if !strings.Contains(content, `"sourceWillBeModified": false`) {
 		t.Fatalf("expected plan JSON in MCP response: %s", content)
+	}
+}
+
+func TestMCPPolicySourceToolCallsGoCLI(t *testing.T) {
+	request := map[string]any{
+		"jsonrpc": "2.0",
+		"id":      1,
+		"method":  "tools/call",
+		"params": map[string]any{
+			"name":      "hostshift_policy_source",
+			"arguments": map[string]any{},
+		},
+	}
+	encoded, err := json.Marshal(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stdout strings.Builder
+	if err := ServeMCP(context.Background(), strings.NewReader(string(encoded)+"\n"), &stdout); err != nil {
+		t.Fatal(err)
+	}
+	responses := decodeMCPResponses(t, stdout.String())
+	result := responses[0]["result"].(map[string]any)
+	if result["isError"] != false {
+		t.Fatalf("expected successful tool result: %+v", result)
+	}
+	content := result["content"].([]any)[0].(map[string]any)["text"].(string)
+	if !strings.Contains(content, `"sourcePolicy": "strict-read-only"`) || !strings.Contains(content, `"sourceWillBeModified": false`) {
+		t.Fatalf("expected source policy JSON in MCP response: %s", content)
+	}
+}
+
+func TestMCPProfileMigrateToolCallsGoCLI(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "profile.v1.json")
+	outputPath := filepath.Join(dir, "profile.v2.yaml")
+	body := []byte(`{
+  "schemaVersion": 1,
+  "name": "mcp-migrate",
+  "source": {"ssh": "old-server", "policy": "strict-read-only"},
+  "target": {"ssh": "new-server"},
+  "fileSets": [{"name": "app-files", "paths": ["/srv/app"], "targetPath": "/"}],
+  "approved": false
+}`)
+	if err := os.WriteFile(inputPath, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	request := map[string]any{
+		"jsonrpc": "2.0",
+		"id":      1,
+		"method":  "tools/call",
+		"params": map[string]any{
+			"name": "hostshift_profile_migrate",
+			"arguments": map[string]any{
+				"input":  inputPath,
+				"output": outputPath,
+			},
+		},
+	}
+	encoded, err := json.Marshal(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stdout strings.Builder
+	if err := ServeMCP(context.Background(), strings.NewReader(string(encoded)+"\n"), &stdout); err != nil {
+		t.Fatal(err)
+	}
+	responses := decodeMCPResponses(t, stdout.String())
+	result := responses[0]["result"].(map[string]any)
+	if result["isError"] != false {
+		t.Fatalf("expected successful tool result: %+v", result)
+	}
+	content := result["content"].([]any)[0].(map[string]any)["text"].(string)
+	if !strings.Contains(content, `"schemaVersion": 2`) || !strings.Contains(content, `"sourceWillBeModified": false`) {
+		t.Fatalf("expected profile migrate JSON in MCP response: %s", content)
+	}
+	migrated, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(migrated), "schemaVersion: 2") || !strings.Contains(string(migrated), "type: file-set") {
+		t.Fatalf("expected migrated v2 profile, got: %s", string(migrated))
 	}
 }
 

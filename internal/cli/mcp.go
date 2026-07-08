@@ -49,6 +49,15 @@ func hostshiftMCPServer() mcp.Server {
 			phaseTool("hostshift_sync_dry_run", "HostShift Sync Dry Run", "Show source-to-target streams without applying them.", "sync"),
 			phaseTool("hostshift_verify_dry_run", "HostShift Verify Dry Run", "Show target verification checks without applying them.", "verify"),
 			phaseTool("hostshift_cutover_dry_run", "HostShift Cutover Dry Run", "Show target-only cutover actions and confirmation code without applying them.", "cutover"),
+			cliTool("hostshift_profile_migrate", "HostShift Profile Migrate", "Convert a legacy HostShift profile to profile v2 YAML. This is a local file conversion and never mutates a source host.", objectSchema(map[string]any{
+				"input":  stringSchema("Input legacy profile path."),
+				"output": stringSchema("Output v2 profile path."),
+			}, "input", "output"), func(args map[string]any) []string {
+				return []string{"profile", "migrate", "--input", requiredString(args, "input"), "--output", requiredString(args, "output")}
+			}),
+			cliTool("hostshift_policy_source", "HostShift Source Policy", "Return the strict read-only source policy contract for AI clients and operators.", objectSchema(map[string]any{}), func(args map[string]any) []string {
+				return []string{"policy", "source"}
+			}),
 			cliTool("hostshift_rollback", "HostShift Rollback Metadata", "Report manual rollback guidance and target rollback metadata. The source is never changed.", objectSchema(map[string]any{
 				"profile": stringSchema("Profile path."),
 			}, "profile"), func(args map[string]any) []string {
@@ -167,6 +176,8 @@ func requiredMCPToolNames() []string {
 		"hostshift_sync_dry_run",
 		"hostshift_verify_dry_run",
 		"hostshift_cutover_dry_run",
+		"hostshift_profile_migrate",
+		"hostshift_policy_source",
 		"hostshift_rollback",
 	}
 }

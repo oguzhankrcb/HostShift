@@ -219,7 +219,7 @@ Runs the HostShift MCP server over stdin/stdout for AI clients.
 hostshift mcp stdio
 ```
 
-The MCP server exposes discovery, planning, explanation, structured review, dry-run, cutover dry-run, and rollback metadata tools. It does not expose apply tools.
+The MCP server exposes discovery, planning, explanation, structured review, dry-run, cutover dry-run, local profile migration, source policy introspection, and rollback metadata tools. It does not expose apply tools.
 
 ## mcp doctor
 
