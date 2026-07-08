@@ -18,12 +18,32 @@ type Tool struct {
 	Handler     func(context.Context, map[string]any) (string, error)
 }
 
+type Prompt struct {
+	Name        string
+	Title       string
+	Description string
+	Arguments   []PromptArgument
+	Messages    []PromptMessage
+}
+
+type PromptArgument struct {
+	Name        string
+	Description string
+	Required    bool
+}
+
+type PromptMessage struct {
+	Role string
+	Text string
+}
+
 type Server struct {
 	Name         string
 	Title        string
 	Version      string
 	Instructions string
 	Tools        []Tool
+	Prompts      []Prompt
 }
 
 type request struct {
@@ -48,6 +68,10 @@ type rpcError struct {
 type toolCallParams struct {
 	Name      string         `json:"name"`
 	Arguments map[string]any `json:"arguments"`
+}
+
+type promptGetParams struct {
+	Name string `json:"name"`
 }
 
 func Serve(ctx context.Context, server Server, stdin io.Reader, stdout io.Writer) error {
@@ -88,7 +112,8 @@ func handle(ctx context.Context, server Server, req request) response {
 		return resultResponse(req.ID, map[string]any{
 			"protocolVersion": ProtocolVersion,
 			"capabilities": map[string]any{
-				"tools": map[string]any{"listChanged": false},
+				"tools":   map[string]any{"listChanged": false},
+				"prompts": map[string]any{"listChanged": false},
 			},
 			"serverInfo": map[string]any{
 				"name":    server.Name,
@@ -126,8 +151,63 @@ func handle(ctx context.Context, server Server, req request) response {
 			return resultResponse(req.ID, toolResult(text, false))
 		}
 		return errorResponse(req.ID, -32602, fmt.Sprintf("unknown tool: %s", params.Name))
+	case "prompts/list":
+		prompts := make([]map[string]any, 0, len(server.Prompts))
+		for _, prompt := range server.Prompts {
+			prompts = append(prompts, promptListItem(prompt))
+		}
+		return resultResponse(req.ID, map[string]any{"prompts": prompts})
+	case "prompts/get":
+		var params promptGetParams
+		if err := json.Unmarshal(req.Params, &params); err != nil {
+			return errorResponse(req.ID, -32602, "invalid prompts/get params")
+		}
+		for _, prompt := range server.Prompts {
+			if prompt.Name != params.Name {
+				continue
+			}
+			return resultResponse(req.ID, promptGetResult(prompt))
+		}
+		return errorResponse(req.ID, -32602, fmt.Sprintf("unknown prompt: %s", params.Name))
 	default:
 		return errorResponse(req.ID, -32601, "method not found")
+	}
+}
+
+func promptListItem(prompt Prompt) map[string]any {
+	item := map[string]any{
+		"name":        prompt.Name,
+		"title":       prompt.Title,
+		"description": prompt.Description,
+	}
+	if len(prompt.Arguments) > 0 {
+		args := make([]map[string]any, 0, len(prompt.Arguments))
+		for _, arg := range prompt.Arguments {
+			args = append(args, map[string]any{
+				"name":        arg.Name,
+				"description": arg.Description,
+				"required":    arg.Required,
+			})
+		}
+		item["arguments"] = args
+	}
+	return item
+}
+
+func promptGetResult(prompt Prompt) map[string]any {
+	messages := make([]map[string]any, 0, len(prompt.Messages))
+	for _, message := range prompt.Messages {
+		messages = append(messages, map[string]any{
+			"role": message.Role,
+			"content": map[string]string{
+				"type": "text",
+				"text": message.Text,
+			},
+		})
+	}
+	return map[string]any{
+		"description": prompt.Description,
+		"messages":    messages,
 	}
 }
 

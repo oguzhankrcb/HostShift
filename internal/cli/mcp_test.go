@@ -24,6 +24,13 @@ func TestMCPListsSafeHostShiftTools(t *testing.T) {
 	if responses[0]["result"].(map[string]any)["protocolVersion"] != "2025-06-18" {
 		t.Fatalf("unexpected initialize response: %+v", responses[0])
 	}
+	capabilities := responses[0]["result"].(map[string]any)["capabilities"].(map[string]any)
+	if _, ok := capabilities["tools"]; !ok {
+		t.Fatalf("initialize response missing tools capability: %+v", responses[0])
+	}
+	if _, ok := capabilities["prompts"]; !ok {
+		t.Fatalf("initialize response missing prompts capability: %+v", responses[0])
+	}
 	tools := responses[1]["result"].(map[string]any)["tools"].([]any)
 	names := map[string]bool{}
 	for _, raw := range tools {
@@ -38,6 +45,48 @@ func TestMCPListsSafeHostShiftTools(t *testing.T) {
 	for name := range names {
 		if strings.Contains(name, "apply") {
 			t.Fatalf("MCP must not expose apply tools: %+v", names)
+		}
+	}
+}
+
+func TestMCPListsAndGetsHostShiftPrompt(t *testing.T) {
+	input := strings.Join([]string{
+		`{"jsonrpc":"2.0","id":1,"method":"prompts/list","params":{}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"prompts/get","params":{"name":"hostshift_migration_operator"}}`,
+	}, "\n") + "\n"
+	var stdout strings.Builder
+	if err := ServeMCP(context.Background(), strings.NewReader(input), &stdout); err != nil {
+		t.Fatal(err)
+	}
+	responses := decodeMCPResponses(t, stdout.String())
+	prompts := responses[0]["result"].(map[string]any)["prompts"].([]any)
+	found := false
+	for _, raw := range prompts {
+		prompt := raw.(map[string]any)
+		if prompt["name"] == "hostshift_migration_operator" {
+			found = true
+			if !strings.Contains(prompt["description"].(string), "read-only source") {
+				t.Fatalf("expected safety-oriented prompt description: %+v", prompt)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("expected hostshift_migration_operator prompt in %+v", prompts)
+	}
+	getResult := responses[1]["result"].(map[string]any)
+	messages := getResult["messages"].([]any)
+	if len(messages) != 1 {
+		t.Fatalf("expected one prompt message: %+v", getResult)
+	}
+	content := messages[0].(map[string]any)["content"].(map[string]any)["text"].(string)
+	for _, expected := range []string{
+		"strictly read-only observation endpoint",
+		"hostshift_capabilities",
+		"Do not run arbitrary source SSH commands.",
+		"A human operator must run CLI --apply",
+	} {
+		if !strings.Contains(content, expected) {
+			t.Fatalf("expected prompt to contain %q: %s", expected, content)
 		}
 	}
 }
@@ -330,6 +379,13 @@ func TestMCPDoctorReportsClaudeConfigAndSafeToolSurface(t *testing.T) {
 	}
 	if report["requiredToolsPresent"] != true {
 		t.Fatalf("expected required tools to be present: %+v", report)
+	}
+	if report["requiredPromptsPresent"] != true {
+		t.Fatalf("expected required prompts to be present: %+v", report)
+	}
+	prompts := report["prompts"].([]any)
+	if len(prompts) != 1 || prompts[0] != "hostshift_migration_operator" {
+		t.Fatalf("expected migration operator prompt in doctor report: %+v", report)
 	}
 }
 

@@ -24,6 +24,17 @@ func hostshiftMCPServer() mcp.Server {
 		Title:        "HostShift",
 		Version:      version.Version,
 		Instructions: "HostShift exposes read-only-source server migration planning, explanation, review, and dry-run tools. MCP tools do not expose --apply; target mutations require the human-operated CLI.",
+		Prompts: []mcp.Prompt{
+			{
+				Name:        "hostshift_migration_operator",
+				Title:       "HostShift Migration Operator",
+				Description: "Guide an AI client through a safe HostShift migration while preserving the read-only source invariant.",
+				Messages: []mcp.PromptMessage{{
+					Role: "user",
+					Text: hostshiftMigrationOperatorPrompt(),
+				}},
+			},
+		},
 		Tools: []mcp.Tool{
 			cliTool("hostshift_doctor", "HostShift Doctor", "Validate source and target SSH aliases and report the source safety contract.", objectSchema(map[string]any{
 				"source": stringSchema("Source SSH alias."),
@@ -71,18 +82,21 @@ func hostshiftMCPServer() mcp.Server {
 }
 
 type mcpDoctorReport struct {
-	ServerName           string            `json:"serverName"`
-	ServerTitle          string            `json:"serverTitle"`
-	ServerVersion        string            `json:"serverVersion"`
-	ProtocolVersion      string            `json:"protocolVersion"`
-	ToolCount            int               `json:"toolCount"`
-	Tools                []string          `json:"tools"`
-	RequiredToolsPresent bool              `json:"requiredToolsPresent"`
-	ApplyToolsExposed    bool              `json:"applyToolsExposed"`
-	SourceWillBeModified bool              `json:"sourceWillBeModified"`
-	ClaudeConfig         claudeConfigCheck `json:"claudeConfig"`
-	Status               string            `json:"status"`
-	Warnings             []string          `json:"warnings,omitempty"`
+	ServerName             string            `json:"serverName"`
+	ServerTitle            string            `json:"serverTitle"`
+	ServerVersion          string            `json:"serverVersion"`
+	ProtocolVersion        string            `json:"protocolVersion"`
+	ToolCount              int               `json:"toolCount"`
+	Tools                  []string          `json:"tools"`
+	PromptCount            int               `json:"promptCount"`
+	Prompts                []string          `json:"prompts"`
+	RequiredToolsPresent   bool              `json:"requiredToolsPresent"`
+	RequiredPromptsPresent bool              `json:"requiredPromptsPresent"`
+	ApplyToolsExposed      bool              `json:"applyToolsExposed"`
+	SourceWillBeModified   bool              `json:"sourceWillBeModified"`
+	ClaudeConfig           claudeConfigCheck `json:"claudeConfig"`
+	Status                 string            `json:"status"`
+	Warnings               []string          `json:"warnings,omitempty"`
 }
 
 type claudeConfigCheck struct {
@@ -124,6 +138,7 @@ func mcpDoctor(args []string, stdout io.Writer) error {
 func buildMCPDoctorReport(claudeConfigPath string) mcpDoctorReport {
 	server := hostshiftMCPServer()
 	tools := make([]string, 0, len(server.Tools))
+	prompts := make([]string, 0, len(server.Prompts))
 	applyToolsExposed := false
 	seen := map[string]bool{}
 	for _, tool := range server.Tools {
@@ -133,6 +148,11 @@ func buildMCPDoctorReport(claudeConfigPath string) mcpDoctorReport {
 			applyToolsExposed = true
 		}
 	}
+	seenPrompts := map[string]bool{}
+	for _, prompt := range server.Prompts {
+		prompts = append(prompts, prompt.Name)
+		seenPrompts[prompt.Name] = true
+	}
 	requiredToolsPresent := true
 	for _, name := range requiredMCPToolNames() {
 		if !seen[name] {
@@ -140,22 +160,36 @@ func buildMCPDoctorReport(claudeConfigPath string) mcpDoctorReport {
 			break
 		}
 	}
+	requiredPromptsPresent := true
+	for _, name := range requiredMCPPromptNames() {
+		if !seenPrompts[name] {
+			requiredPromptsPresent = false
+			break
+		}
+	}
 	report := mcpDoctorReport{
-		ServerName:           server.Name,
-		ServerTitle:          server.Title,
-		ServerVersion:        server.Version,
-		ProtocolVersion:      mcp.ProtocolVersion,
-		ToolCount:            len(tools),
-		Tools:                tools,
-		RequiredToolsPresent: requiredToolsPresent,
-		ApplyToolsExposed:    applyToolsExposed,
-		SourceWillBeModified: false,
-		ClaudeConfig:         checkClaudeConfig(claudeConfigPath),
-		Status:               "ok",
+		ServerName:             server.Name,
+		ServerTitle:            server.Title,
+		ServerVersion:          server.Version,
+		ProtocolVersion:        mcp.ProtocolVersion,
+		ToolCount:              len(tools),
+		Tools:                  tools,
+		PromptCount:            len(prompts),
+		Prompts:                prompts,
+		RequiredToolsPresent:   requiredToolsPresent,
+		RequiredPromptsPresent: requiredPromptsPresent,
+		ApplyToolsExposed:      applyToolsExposed,
+		SourceWillBeModified:   false,
+		ClaudeConfig:           checkClaudeConfig(claudeConfigPath),
+		Status:                 "ok",
 	}
 	if !requiredToolsPresent {
 		report.Status = "warning"
 		report.Warnings = append(report.Warnings, "one or more required MCP tools are missing")
+	}
+	if !requiredPromptsPresent {
+		report.Status = "warning"
+		report.Warnings = append(report.Warnings, "one or more required MCP prompts are missing")
 	}
 	if applyToolsExposed {
 		report.Status = "warning"
@@ -166,6 +200,26 @@ func buildMCPDoctorReport(claudeConfigPath string) mcpDoctorReport {
 		report.Warnings = append(report.Warnings, "Claude Desktop config example is missing or invalid")
 	}
 	return report
+}
+
+func hostshiftMigrationOperatorPrompt() string {
+	return `Use HostShift as the deterministic migration engine for Ubuntu and Debian server moves.
+
+Safety invariants:
+- Treat the source server as a strictly read-only observation endpoint.
+- Do not run arbitrary source SSH commands.
+- Do not use sudo, install packages, write files, manage services, alter firewall rules, create snapshots, add keys, or place apps in maintenance mode on the source.
+- Do not expose or invent apply operations through MCP. Target mutations require a reviewed human CLI command.
+- Do not print secrets, .env contents, Compose files, database dumps, or credentials verbatim.
+
+Preferred workflow:
+1. Run hostshift_capabilities to inspect supported platforms, workloads, checks, source facts, and package mappings.
+2. Run hostshift_doctor for connectivity and source safety.
+3. Run hostshift_discover to write a reviewable profile.
+4. Run hostshift_plan, hostshift_explain, and hostshift_review before suggesting any target mutation.
+5. Use prepare/sync/verify/cutover dry-run MCP tools only. A human operator must run CLI --apply after reviewing blockers, actions, streams, and rollback metadata.
+
+When a workload cannot be safely read online, say so explicitly and require an operator strategy instead of silently skipping it.`
 }
 
 func requiredMCPToolNames() []string {
@@ -183,6 +237,12 @@ func requiredMCPToolNames() []string {
 		"hostshift_policy_source",
 		"hostshift_capabilities",
 		"hostshift_rollback",
+	}
+}
+
+func requiredMCPPromptNames() []string {
+	return []string{
+		"hostshift_migration_operator",
 	}
 }
 
