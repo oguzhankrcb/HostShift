@@ -32,6 +32,7 @@ The core invariant is strict:
 - MySQL/MariaDB, PostgreSQL, and Redis stream migrations
 - Nginx config checks and target reload validation
 - Apache vhost activation and target reload validation
+- Caddy configuration and target reload validation
 - systemd application service cutover
 - cron file transfer, target cron package planning, and target cron reload
 - PHP-FPM config transfer, target package planning, and target service reload

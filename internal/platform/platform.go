@@ -41,6 +41,7 @@ var aptCapabilities = map[string]string{
 	"docker-compose":    "docker-compose-plugin",
 	"nginx":             "nginx",
 	"apache":            "apache2",
+	"caddy":             "caddy",
 	"cron":              "cron",
 	"php-fpm":           "php-fpm",
 	"supervisor":        "supervisor",

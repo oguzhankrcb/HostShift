@@ -92,6 +92,7 @@ Target capabilities:
 - `tar`
 - `nginx` when any path includes `/etc/nginx`
 - `apache` when any path includes `/etc/apache2`
+- `caddy` when any path includes `/etc/caddy`
 - `cron` when any path includes `/etc/cron.d`, `/etc/cron.daily`, `/etc/cron.hourly`, `/etc/cron.monthly`, or `/etc/cron.weekly`
 - `php-fpm` when PHP-FPM configuration under `/etc/php` is paired with a `php-fpm` workload
 - `supervisor` when any path includes `/etc/supervisor`
@@ -234,6 +235,35 @@ Discovery suggests this workload when `/etc/logrotate.conf`, `/etc/logrotate.d` 
 Target capability:
 
 - `logrotate`
+
+## caddy
+
+Validates and reloads Caddy after Caddy configuration files have been synced to the target.
+
+```yaml
+- type: caddy
+  name: caddy
+  data:
+    service: caddy.service
+    config: /etc/caddy/Caddyfile
+```
+
+Fields:
+
+- `service`: optional Caddy service name. Defaults to `caddy.service`.
+- `config`: optional Caddy config path. Defaults to `/etc/caddy/Caddyfile`.
+
+Generated verify action:
+
+```text
+caddy validate --config <config> && (systemctl reload <service> || systemctl restart <service>)
+```
+
+Discovery suggests this workload when `/etc/caddy` files, `caddy.service`, or the `caddy` package are discovered. If `/etc/caddy` files are readable, discovery also suggests a `file-set` for those Caddy configuration files. The source remains read-only; only the target web server config is validated and reloaded or restarted.
+
+Target capability:
+
+- `caddy`
 
 ## apache-vhost
 

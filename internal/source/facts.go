@@ -55,6 +55,7 @@ var Facts = []FactSpec{
 	{Name: "postgresDatabases", Command: []string{"psql", "--tuples-only", "--no-align", "--command=SELECT datname FROM pg_database WHERE datistemplate = false"}, Optional: true},
 	{Name: "nginxConfigDump", Command: []string{"nginx", "-T"}, Optional: true},
 	{Name: "apacheConfigDump", Command: []string{"apache2ctl", "-S"}, Optional: true},
+	{Name: "caddyConfigPaths", Command: []string{"find", "/etc/caddy", "-maxdepth", "3", "-type", "f", "-print"}, Optional: true},
 	{Name: "phpConfigPaths", Command: []string{"find", "/etc/php", "-maxdepth", "4", "-type", "f", "-print"}, Optional: true},
 	{Name: "supervisorConfigPaths", Command: []string{"find", "/etc/supervisor", "-maxdepth", "3", "-type", "f", "-print"}, Optional: true},
 	{Name: "fail2banConfigPaths", Command: []string{"find", "/etc/fail2ban", "-maxdepth", "3", "-type", "f", "-print"}, Optional: true},
@@ -187,6 +188,19 @@ func workloadsFromFacts(facts map[string]FactResult) []profile.Workload {
 			Type: "apache-vhost",
 			Name: "apache2",
 			Data: map[string]any{},
+		})
+	}
+	if paths := safeTransferPaths(factValue(facts, "caddyConfigPaths")); len(paths) > 0 {
+		addFileSet(&workloads, seenFileSets, "caddy-config", paths, "/")
+	}
+	if caddyDetected(facts) {
+		workloads = append(workloads, profile.Workload{
+			Type: "caddy",
+			Name: "caddy",
+			Data: map[string]any{
+				"service": "caddy.service",
+				"config":  "/etc/caddy/Caddyfile",
+			},
 		})
 	}
 	if paths := safeTransferPaths(factValue(facts, "phpConfigPaths")); len(paths) > 0 {
@@ -440,6 +454,25 @@ func phpFPMServices(facts map[string]FactResult) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+func caddyDetected(facts map[string]FactResult) bool {
+	if factValue(facts, "caddyConfigPaths") != "" {
+		return true
+	}
+	for _, factName := range []string{"enabledServices", "runningServices"} {
+		value := factValue(facts, factName)
+		if strings.Contains(value, "caddy.service") {
+			return true
+		}
+	}
+	for _, line := range strings.Split(factValue(facts, "packages"), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) > 0 && fields[0] == "caddy" {
+			return true
+		}
+	}
+	return false
 }
 
 func supervisorDetected(facts map[string]FactResult) bool {

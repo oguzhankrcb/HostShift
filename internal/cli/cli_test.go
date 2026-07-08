@@ -158,6 +158,11 @@ workloads:
     name: queue
     data:
       service: queue.service
+  - type: caddy
+    name: caddy
+    data:
+      service: caddy.service
+      config: /etc/caddy/Caddyfile
   - type: php-fpm
     name: php8.3-fpm
     data:
@@ -206,6 +211,10 @@ checks:
 		`targetPasswordEnv: DST_MYSQL_APP_PWD`,
 		`"systemd-service workload has no matching serviceActive check."`,
 		`service: queue.service`,
+		`"Caddy workload has no matching serviceActive check."`,
+		`service: caddy.service`,
+		`"Caddy workload has no fileExists check for its config."`,
+		`path: /etc/caddy/Caddyfile`,
 		`"PHP-FPM workload has no matching serviceActive check."`,
 		`service: php8.3-fpm.service`,
 		`"Supervisor workload has no matching serviceActive check."`,

@@ -197,10 +197,10 @@ func TestDocumentationWebsiteCoversProjectSurfaceArea(t *testing.T) {
 	for _, field := range []string{"schemaVersion", "sourcePolicy", "firewall", "sshd", "mysql", "workloads", "checks", "approved"} {
 		requireMatch(t, profile, field)
 	}
-	for _, fact := range []string{"osRelease", "packages", "ufwStatus", "nftRuleset", "supervisorConfigPaths", "fail2banConfigPaths", "logrotateConfigPaths", "customSystemdUnits", "dockerComposeProjects", "dockerContainers"} {
+	for _, fact := range []string{"osRelease", "packages", "ufwStatus", "nftRuleset", "caddyConfigPaths", "supervisorConfigPaths", "fail2banConfigPaths", "logrotateConfigPaths", "customSystemdUnits", "dockerComposeProjects", "dockerContainers"} {
 		requireMatch(t, discovery, fact)
 	}
-	for _, workload := range []string{"docker-compose", "docker-standalone", "file-set", "cron", "php-fpm", "supervisor", "fail2ban", "logrotate", "apache-vhost", "systemd-service", "mysql", "mariadb", "postgresql", "redis"} {
+	for _, workload := range []string{"docker-compose", "docker-standalone", "file-set", "cron", "php-fpm", "supervisor", "fail2ban", "logrotate", "caddy", "apache-vhost", "systemd-service", "mysql", "mariadb", "postgresql", "redis"} {
 		requireMatch(t, workloads, workload)
 	}
 	for _, check := range []string{"http", "laravelDatabase", "fileExists", "fileContains", "mysqlScalar", "postgresScalar", "serviceActive", "ufwRule", "nftRule", "nginxConfig"} {
@@ -209,6 +209,7 @@ func TestDocumentationWebsiteCoversProjectSurfaceArea(t *testing.T) {
 	requireMatch(t, platforms, `Ubuntu[\s\S]*22\.04[\s\S]*24\.04[\s\S]*25\.10[\s\S]*26\.04`)
 	requireMatch(t, platforms, `Debian[\s\S]*12[\s\S]*13`)
 	requireMatch(t, platforms, `docker-compose-plugin`)
+	requireMatch(t, platforms, "`caddy`[\\s\\S]*`caddy`[\\s\\S]*`caddy`")
 	requireMatch(t, platforms, "`cron`[\\s\\S]*`cron`[\\s\\S]*`cron`")
 	requireMatch(t, platforms, "`php-fpm`[\\s\\S]*`php-fpm`[\\s\\S]*`php-fpm`")
 	requireMatch(t, platforms, "`supervisor`[\\s\\S]*`supervisor`[\\s\\S]*`supervisor`")

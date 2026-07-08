@@ -114,6 +114,9 @@ func requiredCapabilities(prof profile.Profile) []string {
 				if item == "/etc/apache2" || strings.HasPrefix(item, "/etc/apache2/") {
 					set["apache"] = true
 				}
+				if item == "/etc/caddy" || strings.HasPrefix(item, "/etc/caddy/") {
+					set["caddy"] = true
+				}
 				if item == "/etc/cron.d" || strings.HasPrefix(item, "/etc/cron.d/") ||
 					item == "/etc/cron.daily" || strings.HasPrefix(item, "/etc/cron.daily/") ||
 					item == "/etc/cron.hourly" || strings.HasPrefix(item, "/etc/cron.hourly/") ||
@@ -130,6 +133,8 @@ func requiredCapabilities(prof profile.Profile) []string {
 			}
 		case "apache-vhost":
 			set["apache"] = true
+		case "caddy":
+			set["caddy"] = true
 		case "cron":
 			set["cron"] = true
 		case "php-fpm":
@@ -166,7 +171,7 @@ func requiredCapabilities(prof profile.Profile) []string {
 		}
 	}
 	out := []string{}
-	for _, capability := range []string{"rsync", "tar", "curl", "ufw", "openssh-server", "nginx", "apache", "cron", "php-fpm", "supervisor", "fail2ban", "logrotate", "docker-runtime", "docker-compose", "mysql-server", "mysql-client", "mariadb-client", "postgresql-server", "postgresql-client", "redis-server", "redis-tools"} {
+	for _, capability := range []string{"rsync", "tar", "curl", "ufw", "openssh-server", "nginx", "apache", "caddy", "cron", "php-fpm", "supervisor", "fail2ban", "logrotate", "docker-runtime", "docker-compose", "mysql-server", "mysql-client", "mariadb-client", "postgresql-server", "postgresql-client", "redis-server", "redis-tools"} {
 		if set[capability] {
 			out = append(out, capability)
 		}
@@ -635,6 +640,26 @@ func actionsForWorkload(workload profile.Workload) ([]core.Action, core.StreamAc
 			Command:       []string{"sh", "-lc", apacheActivationScript(workload)},
 			Preconditions: []string{"Apache config files are present on target"},
 			Rollback:      apacheRollback(workload),
+		}}, core.StreamAction{}, false
+	case "caddy":
+		service := dataString(workload.Data, "service", "Service")
+		if service == "" {
+			service = "caddy.service"
+		}
+		config := dataString(workload.Data, "config", "Config")
+		if config == "" {
+			config = "/etc/caddy/Caddyfile"
+		}
+		quotedService := shellQuote(service)
+		quotedConfig := shellQuote(config)
+		return []core.Action{{
+			ID:            id + ".reload",
+			Phase:         core.PhaseVerify,
+			HostRole:      core.HostRoleTarget,
+			Impact:        core.ImpactService,
+			Command:       []string{"sh", "-lc", "caddy validate --config " + quotedConfig + " && (systemctl reload " + quotedService + " || systemctl restart " + quotedService + ")"},
+			Preconditions: []string{"Caddy package is installed and Caddy configuration files are present on target"},
+			Rollback:      []string{"systemctl reload " + quotedService + " || true"},
 		}}, core.StreamAction{}, false
 	case "systemd-service":
 		service := dataString(workload.Data, "service", "Service")

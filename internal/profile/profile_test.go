@@ -117,6 +117,8 @@ func TestValidateRejectsUnsafeWorkloadMetadata(t *testing.T) {
 		{Type: "docker-standalone", Name: "worker", Data: map[string]any{"image": "bad image"}},
 		{Type: "file-set", Name: "files", Data: map[string]any{"paths": []any{"/etc"}}},
 		{Type: "apache-vhost", Name: "apache", Data: map[string]any{"sites": []any{"bad site.conf"}}},
+		{Type: "caddy", Name: "caddy", Data: map[string]any{"service": "bad service"}},
+		{Type: "caddy", Name: "caddy", Data: map[string]any{"config": "/etc"}},
 		{Type: "systemd-service", Name: "app", Data: map[string]any{"service": "bad service"}},
 		{Type: "systemd-service", Name: "app", Data: map[string]any{"unitPath": "/etc/systemd"}},
 		{Type: "cron", Name: "cron", Data: map[string]any{"service": "bad service"}},
@@ -148,6 +150,7 @@ func TestValidateAcceptsApacheSystemdAndRedisWorkloads(t *testing.T) {
 		Approved:      false,
 		Workloads: []Workload{
 			{Type: "apache-vhost", Name: "apache", Data: map[string]any{"modules": []any{"rewrite", "ssl"}, "sites": []any{"example.conf"}}},
+			{Type: "caddy", Name: "caddy", Data: map[string]any{"service": "caddy.service", "config": "/etc/caddy/Caddyfile"}},
 			{Type: "systemd-service", Name: "portfolio", Data: map[string]any{"service": "portfolio.service", "unitPath": "/etc/systemd/system/portfolio.service"}},
 			{Type: "cron", Name: "cron", Data: map[string]any{"service": "cron.service"}},
 			{Type: "php-fpm", Name: "php8.3-fpm", Data: map[string]any{"service": "php8.3-fpm.service"}},

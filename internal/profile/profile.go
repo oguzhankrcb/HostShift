@@ -341,6 +341,21 @@ func validateWorkload(workload Workload) error {
 				return fmt.Errorf("apache-vhost workload %s has unsafe sites value: %w", workload.Name, err)
 			}
 		}
+	case "caddy":
+		service := dataString(workload.Data, "service", "Service")
+		if service == "" {
+			service = "caddy.service"
+		}
+		if err := safety.ServiceName(service); err != nil {
+			return fmt.Errorf("caddy workload %s has unsafe service: %w", workload.Name, err)
+		}
+		config := dataString(workload.Data, "config", "Config")
+		if config == "" {
+			config = "/etc/caddy/Caddyfile"
+		}
+		if _, err := safety.TransferPath(config); err != nil {
+			return fmt.Errorf("caddy workload %s has unsafe config: %w", workload.Name, err)
+		}
 	case "systemd-service":
 		service := dataString(workload.Data, "service", "Service")
 		if service == "" {

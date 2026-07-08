@@ -153,6 +153,7 @@ Current workload coverage includes:
 - Redis through existing RDB snapshots or read-only replica streams
 - Nginx configuration and reload validation
 - Apache vhost activation and reload validation
+- Caddy configuration and reload validation
 - systemd application service cutover and service checks
 - cron file transfer, target cron package planning, and target cron reload
 - PHP-FPM config transfer, target package planning, and target service reload

@@ -43,6 +43,7 @@ HostShift plans target package installation from abstract capabilities:
 | `docker-compose` | `docker-compose-plugin` | `docker-compose-plugin` |
 | `nginx` | `nginx` | `nginx` |
 | `apache` | `apache2` | `apache2` |
+| `caddy` | `caddy` | `caddy` |
 | `cron` | `cron` | `cron` |
 | `php-fpm` | `php-fpm` | `php-fpm` |
 | `supervisor` | `supervisor` | `supervisor` |

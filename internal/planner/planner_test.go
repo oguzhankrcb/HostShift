@@ -284,6 +284,50 @@ func TestFail2banWorkloadPlansTargetReloadAndPackage(t *testing.T) {
 	}
 }
 
+func TestCaddyWorkloadPlansTargetReloadAndPackage(t *testing.T) {
+	prof := profile.Profile{
+		SchemaVersion: profile.CurrentSchemaVersion,
+		Name:          "example",
+		Source:        profile.Host{SSH: "old"},
+		Target:        profile.Host{SSH: "new"},
+		SourcePolicy:  "strict-read-only",
+		Platforms:     profile.Platforms{Source: "ubuntu:24.04", Target: "debian:13"},
+		Approved:      true,
+		Workloads: []profile.Workload{
+			{Type: "file-set", Name: "caddy-config", Data: map[string]any{"paths": []any{"/etc/caddy/Caddyfile"}, "targetPath": "/"}},
+			{Type: "caddy", Name: "caddy", Data: map[string]any{"service": "caddy.service", "config": "/etc/caddy/Caddyfile"}},
+		},
+	}
+	plan, err := Build(prof, time.Date(2026, 6, 11, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var packageCommand []string
+	var reloadCommand []string
+	var reloadAction core.Action
+	for _, action := range plan.Actions {
+		switch action.ID {
+		case "target.prepare.packages":
+			packageCommand = action.Command
+		case "target.workload.caddy.caddy.reload":
+			reloadCommand = action.Command
+			reloadAction = action
+		}
+	}
+	if !strings.Contains(strings.Join(packageCommand, " "), "caddy") {
+		t.Fatalf("expected caddy package capability, got %+v", packageCommand)
+	}
+	if reloadAction.HostRole != "target" || reloadAction.Impact != "service" || reloadAction.Phase != "verify" {
+		t.Fatalf("caddy reload must be target service verify action: %+v", reloadAction)
+	}
+	joinedReload := strings.Join(reloadCommand, " ")
+	for _, expected := range []string{"caddy validate --config '/etc/caddy/Caddyfile'", "systemctl reload 'caddy.service'", "systemctl restart 'caddy.service'"} {
+		if !strings.Contains(joinedReload, expected) {
+			t.Fatalf("expected %q in caddy reload command, got %+v", expected, reloadCommand)
+		}
+	}
+}
+
 func TestLogrotateWorkloadPlansTargetValidationAndPackage(t *testing.T) {
 	prof := profile.Profile{
 		SchemaVersion: profile.CurrentSchemaVersion,

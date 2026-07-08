@@ -45,6 +45,7 @@ Optional facts provide workload hints:
 - `postgresDatabases`
 - `nginxConfigDump`
 - `apacheConfigDump`
+- `caddyConfigPaths`
 - `phpConfigPaths`
 - `supervisorConfigPaths`
 - `fail2banConfigPaths`
@@ -79,6 +80,8 @@ Generated workload candidates currently include:
 - `/etc/nginx` when `nginx -T` succeeds
 - `/etc/apache2` when `apache2ctl -S` succeeds
 - an `apache-vhost` activation candidate when Apache config is discovered
+- Caddy configuration files under `/etc/caddy` when Caddy config files are discovered
+- `caddy` reload candidates when `/etc/caddy` files, `caddy.service`, or the `caddy` package are discovered
 - PHP configuration files under `/etc/php` when PHP-FPM config files are discovered
 - `php-fpm` reload candidates when `php*-fpm.service` or `php*-fpm` packages are discovered
 - Supervisor configuration files under `/etc/supervisor` when Supervisor config files are discovered
