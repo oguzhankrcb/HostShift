@@ -162,6 +162,10 @@ workloads:
     name: php8.3-fpm
     data:
       service: php8.3-fpm.service
+  - type: supervisor
+    name: supervisor
+    data:
+      service: supervisor.service
   - type: file-set
     name: nginx-config
     data:
@@ -196,6 +200,8 @@ checks:
 		`service: queue.service`,
 		`"PHP-FPM workload has no matching serviceActive check."`,
 		`service: php8.3-fpm.service`,
+		`"Supervisor workload has no matching serviceActive check."`,
+		`service: supervisor.service`,
 		`"Nginx file-set has no nginxConfig validation check."`,
 		`type: nginxConfig`,
 		`"cron workload has no target serviceActive check."`,

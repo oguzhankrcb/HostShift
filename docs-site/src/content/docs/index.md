@@ -35,6 +35,7 @@ The core invariant is strict:
 - systemd application service cutover
 - cron file transfer, target cron package planning, and target cron reload
 - PHP-FPM config transfer, target package planning, and target service reload
+- Supervisor config transfer, target package planning, and target reread/update
 - Laravel-style database connectivity checks
 - SSH keepalive, MySQL bind-address, UFW, and nftables target configuration
 - Docker matrix and Lima VM validation gates

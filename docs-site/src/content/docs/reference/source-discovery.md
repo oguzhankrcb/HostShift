@@ -46,6 +46,7 @@ Optional facts provide workload hints:
 - `nginxConfigDump`
 - `apacheConfigDump`
 - `phpConfigPaths`
+- `supervisorConfigPaths`
 - `letsEncryptFiles`
 - `cron`
 - `customSystemdUnits`
@@ -78,6 +79,8 @@ Generated workload candidates currently include:
 - an `apache-vhost` activation candidate when Apache config is discovered
 - PHP configuration files under `/etc/php` when PHP-FPM config files are discovered
 - `php-fpm` reload candidates when `php*-fpm.service` or `php*-fpm` packages are discovered
+- Supervisor configuration files under `/etc/supervisor` when Supervisor config files are discovered
+- `supervisor` update candidates when `/etc/supervisor` files, `supervisor.service`, or the `supervisor` package are discovered
 - `/etc/letsencrypt` when certificate files are discovered
 - cron files under `/etc/cron.d`, `/etc/cron.daily`, `/etc/cron.hourly`, `/etc/cron.monthly`, and `/etc/cron.weekly`
 - a `cron` target reload candidate when cron files are discovered

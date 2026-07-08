@@ -94,6 +94,7 @@ Target capabilities:
 - `apache` when any path includes `/etc/apache2`
 - `cron` when any path includes `/etc/cron.d`, `/etc/cron.daily`, `/etc/cron.hourly`, `/etc/cron.monthly`, or `/etc/cron.weekly`
 - `php-fpm` when PHP-FPM configuration under `/etc/php` is paired with a `php-fpm` workload
+- `supervisor` when any path includes `/etc/supervisor`
 
 HostShift rejects broad or machine-identity paths through the transfer path safety rules.
 
@@ -150,6 +151,33 @@ Discovery suggests this workload when PHP-FPM services or packages are discovere
 Target capability:
 
 - `php-fpm`
+
+## supervisor
+
+Updates Supervisor after Supervisor configuration files have been synced to the target.
+
+```yaml
+- type: supervisor
+  name: supervisor
+  data:
+    service: supervisor.service
+```
+
+Fields:
+
+- `service`: optional Supervisor service name. Defaults to `supervisor.service`.
+
+Generated cutover action:
+
+```text
+systemctl enable --now <service> && supervisorctl reread && supervisorctl update
+```
+
+Discovery suggests this workload when `/etc/supervisor` files, `supervisor.service`, or the `supervisor` package are discovered. If `/etc/supervisor` files are readable, discovery also suggests a `file-set` for those Supervisor configuration files. The source remains read-only; only the target process supervisor is enabled and updated.
+
+Target capability:
+
+- `supervisor`
 
 ## apache-vhost
 

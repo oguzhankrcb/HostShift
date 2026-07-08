@@ -203,6 +203,46 @@ func TestPHPFPMWorkloadPlansTargetReloadAndPackage(t *testing.T) {
 	}
 }
 
+func TestSupervisorWorkloadPlansTargetUpdateAndPackage(t *testing.T) {
+	prof := profile.Profile{
+		SchemaVersion: profile.CurrentSchemaVersion,
+		Name:          "example",
+		Source:        profile.Host{SSH: "old"},
+		Target:        profile.Host{SSH: "new"},
+		SourcePolicy:  "strict-read-only",
+		Platforms:     profile.Platforms{Source: "ubuntu:24.04", Target: "debian:13"},
+		Approved:      true,
+		Workloads: []profile.Workload{
+			{Type: "file-set", Name: "supervisor-config", Data: map[string]any{"paths": []any{"/etc/supervisor/conf.d/worker.conf"}, "targetPath": "/"}},
+			{Type: "supervisor", Name: "supervisor", Data: map[string]any{"service": "supervisor.service"}},
+		},
+	}
+	plan, err := Build(prof, time.Date(2026, 6, 11, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var packageCommand []string
+	var updateCommand []string
+	for _, action := range plan.Actions {
+		switch action.ID {
+		case "target.prepare.packages":
+			packageCommand = action.Command
+		case "target.workload.supervisor.supervisor.update":
+			updateCommand = action.Command
+			if action.HostRole != "target" || action.Impact != "service" {
+				t.Fatalf("supervisor update must be target service action: %+v", action)
+			}
+		}
+	}
+	if !strings.Contains(strings.Join(packageCommand, " "), "supervisor") {
+		t.Fatalf("expected supervisor package capability, got %+v", packageCommand)
+	}
+	joinedUpdate := strings.Join(updateCommand, " ")
+	if !strings.Contains(joinedUpdate, "systemctl enable --now 'supervisor.service'") || !strings.Contains(joinedUpdate, "supervisorctl reread") || !strings.Contains(joinedUpdate, "supervisorctl update") {
+		t.Fatalf("expected supervisor update command, got %+v", updateCommand)
+	}
+}
+
 func TestUnknownTargetPlatformBlocksPackagePreparation(t *testing.T) {
 	prof := profile.Profile{
 		SchemaVersion: profile.CurrentSchemaVersion,

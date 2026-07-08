@@ -156,6 +156,7 @@ Current workload coverage includes:
 - systemd application service cutover and service checks
 - cron file transfer, target cron package planning, and target cron reload
 - PHP-FPM config transfer, target package planning, and target service reload
+- Supervisor config transfer, target package planning, and target reread/update
 - SSH server settings
 - UFW and nftables firewall rules
 - Laravel-style database connectivity checks
