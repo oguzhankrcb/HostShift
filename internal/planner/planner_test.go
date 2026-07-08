@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/oguzhankaracabay/hostshift/internal/core"
 	"github.com/oguzhankaracabay/hostshift/internal/profile"
 )
 
@@ -280,6 +281,47 @@ func TestFail2banWorkloadPlansTargetReloadAndPackage(t *testing.T) {
 	joinedReload := strings.Join(reloadCommand, " ")
 	if !strings.Contains(joinedReload, "systemctl enable --now 'fail2ban.service'") || !strings.Contains(joinedReload, "fail2ban-client reload") {
 		t.Fatalf("expected fail2ban reload command, got %+v", reloadCommand)
+	}
+}
+
+func TestLogrotateWorkloadPlansTargetValidationAndPackage(t *testing.T) {
+	prof := profile.Profile{
+		SchemaVersion: profile.CurrentSchemaVersion,
+		Name:          "example",
+		Source:        profile.Host{SSH: "old"},
+		Target:        profile.Host{SSH: "new"},
+		SourcePolicy:  "strict-read-only",
+		Platforms:     profile.Platforms{Source: "ubuntu:24.04", Target: "debian:13"},
+		Approved:      true,
+		Workloads: []profile.Workload{
+			{Type: "file-set", Name: "logrotate-config", Data: map[string]any{"paths": []any{"/etc/logrotate.conf", "/etc/logrotate.d/nginx"}, "targetPath": "/"}},
+			{Type: "logrotate", Name: "logrotate", Data: map[string]any{"config": "/etc/logrotate.conf"}},
+		},
+	}
+	plan, err := Build(prof, time.Date(2026, 6, 11, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var packageCommand []string
+	var validateCommand []string
+	var validateAction core.Action
+	for _, action := range plan.Actions {
+		switch action.ID {
+		case "target.prepare.packages":
+			packageCommand = action.Command
+		case "target.workload.logrotate.logrotate.validate":
+			validateCommand = action.Command
+			validateAction = action
+		}
+	}
+	if !strings.Contains(strings.Join(packageCommand, " "), "logrotate") {
+		t.Fatalf("expected logrotate package capability, got %+v", packageCommand)
+	}
+	if validateAction.HostRole != "target" || validateAction.Impact != "read-only" || validateAction.Phase != "verify" {
+		t.Fatalf("logrotate validation must be target read-only verify action: %+v", validateAction)
+	}
+	if strings.Join(validateCommand, " ") != "logrotate --debug /etc/logrotate.conf" {
+		t.Fatalf("expected logrotate debug validation command, got %+v", validateCommand)
 	}
 }
 

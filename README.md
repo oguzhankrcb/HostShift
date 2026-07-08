@@ -158,6 +158,7 @@ Current workload coverage includes:
 - PHP-FPM config transfer, target package planning, and target service reload
 - Supervisor config transfer, target package planning, and target reread/update
 - Fail2ban config transfer, target package planning, and target service reload
+- Logrotate config transfer, target package planning, and target config validation
 - SSH server settings
 - UFW and nftables firewall rules
 - Laravel-style database connectivity checks

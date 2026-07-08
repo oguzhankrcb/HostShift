@@ -45,6 +45,7 @@ var aptCapabilities = map[string]string{
 	"php-fpm":           "php-fpm",
 	"supervisor":        "supervisor",
 	"fail2ban":          "fail2ban",
+	"logrotate":         "logrotate",
 	"openssh-server":    "openssh-server",
 	"mysql-server":      "mysql-server",
 	"mysql-client":      "mysql-client",

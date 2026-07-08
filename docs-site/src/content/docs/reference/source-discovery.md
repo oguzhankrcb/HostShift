@@ -48,6 +48,7 @@ Optional facts provide workload hints:
 - `phpConfigPaths`
 - `supervisorConfigPaths`
 - `fail2banConfigPaths`
+- `logrotateConfigPaths`
 - `letsEncryptFiles`
 - `cron`
 - `customSystemdUnits`
@@ -84,6 +85,8 @@ Generated workload candidates currently include:
 - `supervisor` update candidates when `/etc/supervisor` files, `supervisor.service`, or the `supervisor` package are discovered
 - Fail2ban configuration files under `/etc/fail2ban` when Fail2ban config files are discovered
 - `fail2ban` reload candidates when `/etc/fail2ban` files, `fail2ban.service`, or the `fail2ban` package are discovered
+- Logrotate configuration files under `/etc/logrotate.conf` and `/etc/logrotate.d` when Logrotate config files are discovered
+- `logrotate` validation candidates when `/etc/logrotate.conf`, `/etc/logrotate.d` files, or the `logrotate` package are discovered
 - `/etc/letsencrypt` when certificate files are discovered
 - cron files under `/etc/cron.d`, `/etc/cron.daily`, `/etc/cron.hourly`, `/etc/cron.monthly`, and `/etc/cron.weekly`
 - a `cron` target reload candidate when cron files are discovered

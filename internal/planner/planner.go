@@ -124,6 +124,9 @@ func requiredCapabilities(prof profile.Profile) []string {
 				if item == "/etc/fail2ban" || strings.HasPrefix(item, "/etc/fail2ban/") {
 					set["fail2ban"] = true
 				}
+				if item == "/etc/logrotate.conf" || item == "/etc/logrotate.d" || strings.HasPrefix(item, "/etc/logrotate.d/") {
+					set["logrotate"] = true
+				}
 			}
 		case "apache-vhost":
 			set["apache"] = true
@@ -135,6 +138,8 @@ func requiredCapabilities(prof profile.Profile) []string {
 			set["supervisor"] = true
 		case "fail2ban":
 			set["fail2ban"] = true
+		case "logrotate":
+			set["logrotate"] = true
 		case "mysql":
 			set["mysql-client"] = true
 		case "mariadb":
@@ -161,7 +166,7 @@ func requiredCapabilities(prof profile.Profile) []string {
 		}
 	}
 	out := []string{}
-	for _, capability := range []string{"rsync", "tar", "curl", "ufw", "openssh-server", "nginx", "apache", "cron", "php-fpm", "supervisor", "fail2ban", "docker-runtime", "docker-compose", "mysql-server", "mysql-client", "mariadb-client", "postgresql-server", "postgresql-client", "redis-server", "redis-tools"} {
+	for _, capability := range []string{"rsync", "tar", "curl", "ufw", "openssh-server", "nginx", "apache", "cron", "php-fpm", "supervisor", "fail2ban", "logrotate", "docker-runtime", "docker-compose", "mysql-server", "mysql-client", "mariadb-client", "postgresql-server", "postgresql-client", "redis-server", "redis-tools"} {
 		if set[capability] {
 			out = append(out, capability)
 		}
@@ -712,6 +717,19 @@ func actionsForWorkload(workload profile.Workload) ([]core.Action, core.StreamAc
 			Command:       []string{"sh", "-lc", "systemctl enable --now " + quoted + " && (fail2ban-client reload || systemctl restart " + quoted + ")"},
 			Preconditions: []string{"Fail2ban package is installed and fail2ban configuration files have been synced to target"},
 			Rollback:      []string{"systemctl reload " + quoted + " || true"},
+		}}, core.StreamAction{}, false
+	case "logrotate":
+		config := dataString(workload.Data, "config", "Config")
+		if config == "" {
+			config = "/etc/logrotate.conf"
+		}
+		return []core.Action{{
+			ID:            id + ".validate",
+			Phase:         core.PhaseVerify,
+			HostRole:      core.HostRoleTarget,
+			Impact:        core.ImpactReadOnly,
+			Command:       []string{"logrotate", "--debug", config},
+			Preconditions: []string{"Logrotate package is installed and logrotate configuration files have been synced to target"},
 		}}, core.StreamAction{}, false
 	default:
 		return []core.Action{{ID: id, Phase: core.PhasePlan, HostRole: core.HostRoleLocal, Impact: core.ImpactReadOnly, Command: []string{"hostshift", "inspect-workload", workload.Type}}}, core.StreamAction{}, false

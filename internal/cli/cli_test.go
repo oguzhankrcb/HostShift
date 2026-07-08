@@ -170,6 +170,10 @@ workloads:
     name: fail2ban
     data:
       service: fail2ban.service
+  - type: logrotate
+    name: logrotate
+    data:
+      config: /etc/logrotate.conf
   - type: file-set
     name: nginx-config
     data:
@@ -208,6 +212,8 @@ checks:
 		`service: supervisor.service`,
 		`"Fail2ban workload has no matching serviceActive check."`,
 		`service: fail2ban.service`,
+		`"Logrotate workload has no fileExists check for its main config."`,
+		`path: /etc/logrotate.conf`,
 		`"Nginx file-set has no nginxConfig validation check."`,
 		`type: nginxConfig`,
 		`"cron workload has no target serviceActive check."`,

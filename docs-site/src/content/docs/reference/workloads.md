@@ -96,6 +96,7 @@ Target capabilities:
 - `php-fpm` when PHP-FPM configuration under `/etc/php` is paired with a `php-fpm` workload
 - `supervisor` when any path includes `/etc/supervisor`
 - `fail2ban` when any path includes `/etc/fail2ban`
+- `logrotate` when any path includes `/etc/logrotate.conf` or `/etc/logrotate.d`
 
 HostShift rejects broad or machine-identity paths through the transfer path safety rules.
 
@@ -206,6 +207,33 @@ Discovery suggests this workload when `/etc/fail2ban` files, `fail2ban.service`,
 Target capability:
 
 - `fail2ban`
+
+## logrotate
+
+Validates Logrotate configuration after Logrotate files have been synced to the target.
+
+```yaml
+- type: logrotate
+  name: logrotate
+  data:
+    config: /etc/logrotate.conf
+```
+
+Fields:
+
+- `config`: optional Logrotate config path. Defaults to `/etc/logrotate.conf`.
+
+Generated verify action:
+
+```text
+logrotate --debug <config>
+```
+
+Discovery suggests this workload when `/etc/logrotate.conf`, `/etc/logrotate.d` files, or the `logrotate` package are discovered. If Logrotate config files are readable, discovery also suggests a `file-set` for those files. The source remains read-only; the target action validates config parsing without rotating logs.
+
+Target capability:
+
+- `logrotate`
 
 ## apache-vhost
 

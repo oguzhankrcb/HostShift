@@ -389,6 +389,14 @@ func validateWorkload(workload Workload) error {
 		if err := safety.ServiceName(service); err != nil {
 			return fmt.Errorf("fail2ban workload %s has unsafe service: %w", workload.Name, err)
 		}
+	case "logrotate":
+		config := dataString(workload.Data, "config", "Config")
+		if config == "" {
+			config = "/etc/logrotate.conf"
+		}
+		if _, err := safety.TransferPath(config); err != nil {
+			return fmt.Errorf("logrotate workload %s has unsafe config: %w", workload.Name, err)
+		}
 	case "mysql", "mariadb", "postgresql":
 		if err := safety.DatabaseName(workload.Name); err != nil {
 			return err

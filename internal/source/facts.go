@@ -58,6 +58,7 @@ var Facts = []FactSpec{
 	{Name: "phpConfigPaths", Command: []string{"find", "/etc/php", "-maxdepth", "4", "-type", "f", "-print"}, Optional: true},
 	{Name: "supervisorConfigPaths", Command: []string{"find", "/etc/supervisor", "-maxdepth", "3", "-type", "f", "-print"}, Optional: true},
 	{Name: "fail2banConfigPaths", Command: []string{"find", "/etc/fail2ban", "-maxdepth", "3", "-type", "f", "-print"}, Optional: true},
+	{Name: "logrotateConfigPaths", Command: []string{"find", "/etc/logrotate.conf", "/etc/logrotate.d", "-maxdepth", "1", "-type", "f", "-print"}, Optional: true},
 	{Name: "letsEncryptFiles", Command: []string{"find", "/etc/letsencrypt", "-maxdepth", "3", "-type", "f", "-print"}, Optional: true},
 	{Name: "users", Command: []string{"getent", "passwd"}},
 	{Name: "groups", Command: []string{"getent", "group"}},
@@ -221,6 +222,18 @@ func workloadsFromFacts(facts map[string]FactResult) []profile.Workload {
 			Name: "fail2ban",
 			Data: map[string]any{
 				"service": "fail2ban.service",
+			},
+		})
+	}
+	if paths := safeTransferPaths(factValue(facts, "logrotateConfigPaths")); len(paths) > 0 {
+		addFileSet(&workloads, seenFileSets, "logrotate-config", paths, "/")
+	}
+	if logrotateDetected(facts) {
+		workloads = append(workloads, profile.Workload{
+			Type: "logrotate",
+			Name: "logrotate",
+			Data: map[string]any{
+				"config": "/etc/logrotate.conf",
 			},
 		})
 	}
@@ -461,6 +474,19 @@ func fail2banDetected(facts map[string]FactResult) bool {
 	for _, line := range strings.Split(factValue(facts, "packages"), "\n") {
 		fields := strings.Fields(line)
 		if len(fields) > 0 && fields[0] == "fail2ban" {
+			return true
+		}
+	}
+	return false
+}
+
+func logrotateDetected(facts map[string]FactResult) bool {
+	if factValue(facts, "logrotateConfigPaths") != "" {
+		return true
+	}
+	for _, line := range strings.Split(factValue(facts, "packages"), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) > 0 && fields[0] == "logrotate" {
 			return true
 		}
 	}

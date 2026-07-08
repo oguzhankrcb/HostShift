@@ -37,6 +37,7 @@ The core invariant is strict:
 - PHP-FPM config transfer, target package planning, and target service reload
 - Supervisor config transfer, target package planning, and target reread/update
 - Fail2ban config transfer, target package planning, and target service reload
+- Logrotate config transfer, target package planning, and target config validation
 - Laravel-style database connectivity checks
 - SSH keepalive, MySQL bind-address, UFW, and nftables target configuration
 - Docker matrix and Lima VM validation gates

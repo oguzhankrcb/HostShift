@@ -290,6 +290,21 @@ func workloadReviewFindings(prof profile.Profile) []reviewFinding {
 					SuggestedProfilePatch: suggestedServiceCheckPatch(service),
 				})
 			}
+		case "logrotate":
+			config := reviewDataString(workload.Data, "config", "Config")
+			if config == "" {
+				config = "/etc/logrotate.conf"
+			}
+			if !index.filePaths[config] {
+				findings = append(findings, reviewFinding{
+					Severity:              "info",
+					Category:              "workload-verification",
+					Message:               "Logrotate workload has no fileExists check for its main config.",
+					Evidence:              evidence,
+					Recommendation:        "Add a fileExists check for " + config + " so verify proves the target has the expected logrotate entrypoint.",
+					SuggestedProfilePatch: suggestedFileExistsCheckPatch(config),
+				})
+			}
 		case "cron":
 			service := reviewDataString(workload.Data, "service", "Service")
 			if service == "" {
@@ -395,6 +410,17 @@ func suggestedServiceCheckPatch(service string) string {
 		"    name: " + checkName,
 		"    data:",
 		"      service: " + service,
+	}, "\n")
+}
+
+func suggestedFileExistsCheckPatch(filePath string) string {
+	checkName := safeSnippetName(filePath, "file")
+	return strings.Join([]string{
+		"checks:",
+		"  - type: fileExists",
+		"    name: " + checkName,
+		"    data:",
+		"      path: " + filePath,
 	}, "\n")
 }
 
