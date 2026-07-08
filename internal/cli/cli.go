@@ -55,6 +55,8 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return cutover(ctx, args[1:], stdout)
 	case "rollback":
 		return rollback(args[1:], stdout)
+	case "capabilities":
+		return capabilities(args[1:], stdout)
 	case "mcp":
 		return mcpCommand(args[1:], stdout)
 	case "profile":
@@ -901,6 +903,7 @@ Commands:
   verify          --profile <file> [--target <ssh>] [--apply] [--json]
   cutover         --profile <file> [--target <ssh>] [--apply --confirm <code>] [--json]
   rollback        --profile <file> [--json]
+  capabilities    [--json]
   mcp stdio       run the HostShift MCP stdio server for AI clients
   mcp doctor      [--claude-config <file>] [--json]
   profile migrate --input <v1-profile> --output <v2-profile>

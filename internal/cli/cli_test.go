@@ -130,6 +130,31 @@ workloads:
 	}
 }
 
+func TestCapabilitiesReportsAISafeCatalog(t *testing.T) {
+	var stdout bytes.Buffer
+	if err := Run(context.Background(), []string{"capabilities", "--json"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	out := stdout.String()
+	for _, expected := range []string{
+		`"sourceWillBeModified": false`,
+		`"applyToolsExposed": false`,
+		`"id": "ubuntu"`,
+		`"versionId": "24.04"`,
+		`"type": "docker-compose"`,
+		`"type": "memcached"`,
+		`"type": "serviceActive"`,
+		`"memcachedConfigPaths"`,
+		`"name": "mysql-server"`,
+		`"debianPackage": "default-mysql-server"`,
+		`MCP tools do not expose apply operations.`,
+	} {
+		if !strings.Contains(out, expected) {
+			t.Fatalf("expected capabilities output to contain %q: %s", expected, out)
+		}
+	}
+}
+
 func TestReviewReportsWorkloadSpecificMissingEvidence(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "profile.yaml")

@@ -211,6 +211,16 @@ hostshift rollback --profile profile.yaml --json
 
 Rollback output always states `sourceChanged: false` because HostShift never mutates the source. Automatic rollback is intentionally disabled; operators should keep DNS on the source and inspect target-side rollback metadata before stopping target services.
 
+## capabilities
+
+Prints a local catalog for AI clients and operators without connecting to source or target hosts.
+
+```bash
+hostshift capabilities --json
+```
+
+The report includes supported releases, target package capability mappings, workload types, check types, source fact names, and AI safety guidance. It always reports `sourceWillBeModified: false` and `applyToolsExposed: false`.
+
 ## mcp stdio
 
 Runs the HostShift MCP server over stdin/stdout for AI clients.
@@ -219,7 +229,7 @@ Runs the HostShift MCP server over stdin/stdout for AI clients.
 hostshift mcp stdio
 ```
 
-The MCP server exposes discovery, planning, explanation, structured review, dry-run, cutover dry-run, local profile migration, source policy introspection, and rollback metadata tools. It does not expose apply tools.
+The MCP server exposes discovery, planning, explanation, structured review, dry-run, cutover dry-run, local profile migration, source policy introspection, capability catalog inspection, and rollback metadata tools. It does not expose apply tools.
 
 ## mcp doctor
 

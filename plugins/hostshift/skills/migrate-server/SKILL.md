@@ -27,6 +27,7 @@ Prefer dry-run commands first:
 
 ```bash
 hostshift doctor --source old-server --target new-server --json
+hostshift capabilities --json
 hostshift discover --source old-server --name example --profile example.profile.yaml --json
 hostshift plan --profile example.profile.yaml --target new-server --json
 hostshift explain --profile example.profile.yaml --target new-server --json

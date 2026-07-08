@@ -110,9 +110,10 @@ Validate the MCP and Claude integration surface:
 
 ```bash
 hostshift mcp doctor --json
+hostshift capabilities --json
 ```
 
-MCP tools are intentionally non-apply: they can run discovery, planning, AI-friendly explanation, structured review, dry-runs, cutover dry-runs, profile migration, source policy introspection, and rollback metadata. Target mutation still requires a reviewed human CLI command.
+MCP tools are intentionally non-apply: they can run discovery, planning, AI-friendly explanation, structured review, dry-runs, cutover dry-runs, profile migration, source policy introspection, capability catalog inspection, and rollback metadata. Target mutation still requires a reviewed human CLI command.
 
 ## Supported Platforms
 

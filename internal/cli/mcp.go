@@ -58,6 +58,9 @@ func hostshiftMCPServer() mcp.Server {
 			cliTool("hostshift_policy_source", "HostShift Source Policy", "Return the strict read-only source policy contract for AI clients and operators.", objectSchema(map[string]any{}), func(args map[string]any) []string {
 				return []string{"policy", "source"}
 			}),
+			cliTool("hostshift_capabilities", "HostShift Capabilities", "Return supported platforms, package mappings, workload types, check types, source facts, and AI safety guidance without running remote commands.", objectSchema(map[string]any{}), func(args map[string]any) []string {
+				return []string{"capabilities"}
+			}),
 			cliTool("hostshift_rollback", "HostShift Rollback Metadata", "Report manual rollback guidance and target rollback metadata. The source is never changed.", objectSchema(map[string]any{
 				"profile": stringSchema("Profile path."),
 			}, "profile"), func(args map[string]any) []string {
@@ -178,6 +181,7 @@ func requiredMCPToolNames() []string {
 		"hostshift_cutover_dry_run",
 		"hostshift_profile_migrate",
 		"hostshift_policy_source",
+		"hostshift_capabilities",
 		"hostshift_rollback",
 	}
 }

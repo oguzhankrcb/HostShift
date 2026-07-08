@@ -30,7 +30,7 @@ func TestMCPListsSafeHostShiftTools(t *testing.T) {
 		tool := raw.(map[string]any)
 		names[tool["name"].(string)] = true
 	}
-	for _, name := range []string{"hostshift_doctor", "hostshift_discover", "hostshift_plan", "hostshift_explain", "hostshift_review", "hostshift_prepare_dry_run", "hostshift_sync_dry_run", "hostshift_verify_dry_run", "hostshift_cutover_dry_run", "hostshift_profile_migrate", "hostshift_policy_source", "hostshift_rollback"} {
+	for _, name := range []string{"hostshift_doctor", "hostshift_discover", "hostshift_plan", "hostshift_explain", "hostshift_review", "hostshift_prepare_dry_run", "hostshift_sync_dry_run", "hostshift_verify_dry_run", "hostshift_cutover_dry_run", "hostshift_profile_migrate", "hostshift_policy_source", "hostshift_capabilities", "hostshift_rollback"} {
 		if !names[name] {
 			t.Fatalf("missing MCP tool %s in %+v", name, names)
 		}
@@ -203,6 +203,45 @@ func TestMCPPolicySourceToolCallsGoCLI(t *testing.T) {
 	content := result["content"].([]any)[0].(map[string]any)["text"].(string)
 	if !strings.Contains(content, `"sourcePolicy": "strict-read-only"`) || !strings.Contains(content, `"sourceWillBeModified": false`) {
 		t.Fatalf("expected source policy JSON in MCP response: %s", content)
+	}
+}
+
+func TestMCPCapabilitiesToolCallsGoCLI(t *testing.T) {
+	request := map[string]any{
+		"jsonrpc": "2.0",
+		"id":      1,
+		"method":  "tools/call",
+		"params": map[string]any{
+			"name":      "hostshift_capabilities",
+			"arguments": map[string]any{},
+		},
+	}
+	encoded, err := json.Marshal(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stdout strings.Builder
+	if err := ServeMCP(context.Background(), strings.NewReader(string(encoded)+"\n"), &stdout); err != nil {
+		t.Fatal(err)
+	}
+	responses := decodeMCPResponses(t, stdout.String())
+	result := responses[0]["result"].(map[string]any)
+	if result["isError"] != false {
+		t.Fatalf("expected successful tool result: %+v", result)
+	}
+	content := result["content"].([]any)[0].(map[string]any)["text"].(string)
+	for _, expected := range []string{
+		`"sourceWillBeModified": false`,
+		`"applyToolsExposed": false`,
+		`"type": "memcached"`,
+		`"type": "docker-compose"`,
+		`"type": "serviceActive"`,
+		`"memcachedConfigPaths"`,
+		`"name": "memcached"`,
+	} {
+		if !strings.Contains(content, expected) {
+			t.Fatalf("expected capabilities JSON to contain %q: %s", expected, content)
+		}
 	}
 }
 

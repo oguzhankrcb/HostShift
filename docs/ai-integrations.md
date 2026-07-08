@@ -27,11 +27,14 @@ The MCP transport is newline-delimited JSON-RPC over stdin/stdout. The server ex
 - `hostshift_sync_dry_run`
 - `hostshift_verify_dry_run`
 - `hostshift_cutover_dry_run`
+- `hostshift_profile_migrate`
+- `hostshift_policy_source`
+- `hostshift_capabilities`
 - `hostshift_rollback`
 
 No MCP tool exposes `--apply`. Target mutations still require a human-operated CLI command.
 
-Use `hostshift_explain` when an AI client needs a concise migration brief. Use `hostshift_review` when it needs structured findings, workload-aware recommendations, suggested YAML snippets, an operator checklist, and an AI safety brief. Both commands run without remote mutation.
+Use `hostshift_explain` when an AI client needs a concise migration brief. Use `hostshift_review` when it needs structured findings, workload-aware recommendations, suggested YAML snippets, an operator checklist, and an AI safety brief. Use `hostshift_capabilities` when it needs the supported platform, workload, check, source fact, and package capability catalog before proposing a migration plan. These commands run without remote mutation.
 
 ## Claude Desktop
 
