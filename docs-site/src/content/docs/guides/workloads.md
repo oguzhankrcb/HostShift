@@ -15,6 +15,7 @@ HostShift uses workload adapters to plan transfer, target preparation, verificat
 - `supervisor`
 - `fail2ban`
 - `memcached`
+- `rabbitmq`
 - `logrotate`
 - `caddy`
 - `apache-vhost`

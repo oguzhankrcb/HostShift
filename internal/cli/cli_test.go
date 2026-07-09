@@ -205,6 +205,11 @@ workloads:
     data:
       service: memcached.service
       config: /etc/memcached.conf
+  - type: rabbitmq
+    name: rabbitmq
+    data:
+      service: rabbitmq-server.service
+      configDir: /etc/rabbitmq
   - type: logrotate
     name: logrotate
     data:
@@ -255,6 +260,11 @@ checks:
 		`service: memcached.service`,
 		`"Memcached workload has no fileExists check for its config."`,
 		`path: /etc/memcached.conf`,
+		`"RabbitMQ workload has no matching serviceActive check."`,
+		`service: rabbitmq-server.service`,
+		`"RabbitMQ workload has no fileExists check for its config directory."`,
+		`path: /etc/rabbitmq`,
+		`"RabbitMQ workload preserves configuration only; live queues and messages are not migrated."`,
 		`"Logrotate workload has no fileExists check for its main config."`,
 		`path: /etc/logrotate.conf`,
 		`"Nginx file-set has no nginxConfig validation check."`,

@@ -34,6 +34,7 @@ The core invariant is strict:
 - Apache vhost activation and target reload validation
 - Caddy configuration and target reload validation
 - Memcached configuration and target service restart
+- RabbitMQ configuration and target diagnostics; live queues/messages are not migrated
 - systemd application service cutover
 - cron file transfer, target cron package planning, and target cron reload
 - PHP-FPM config transfer, target package planning, and target service reload

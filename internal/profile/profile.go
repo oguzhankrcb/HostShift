@@ -419,6 +419,24 @@ func validateWorkload(workload Workload) error {
 		if _, err := safety.TransferPath(config); err != nil {
 			return fmt.Errorf("memcached workload %s has unsafe config: %w", workload.Name, err)
 		}
+	case "rabbitmq":
+		service := dataString(workload.Data, "service", "Service")
+		if service == "" {
+			service = "rabbitmq-server.service"
+		}
+		if err := safety.ServiceName(service); err != nil {
+			return fmt.Errorf("rabbitmq workload %s has unsafe service: %w", workload.Name, err)
+		}
+		configDir := dataString(workload.Data, "configDir", "ConfigDir")
+		if configDir == "" {
+			configDir = "/etc/rabbitmq"
+		}
+		if _, err := safety.TransferPath(configDir); err != nil {
+			return fmt.Errorf("rabbitmq workload %s has unsafe configDir: %w", workload.Name, err)
+		}
+		if configDir != "/etc/rabbitmq" && !strings.HasPrefix(configDir, "/etc/rabbitmq/") {
+			return fmt.Errorf("rabbitmq workload %s configDir must be under /etc/rabbitmq", workload.Name)
+		}
 	case "logrotate":
 		config := dataString(workload.Data, "config", "Config")
 		if config == "" {

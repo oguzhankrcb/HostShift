@@ -60,6 +60,7 @@ func buildCapabilitiesReport() capabilitiesReport {
 			{Type: "supervisor", Description: "Preserve Supervisor config and run target reread/update."},
 			{Type: "fail2ban", Description: "Preserve Fail2ban config and reload or restart target Fail2ban."},
 			{Type: "memcached", Description: "Preserve Memcached config and restart target Memcached; volatile cache contents are not migrated."},
+			{Type: "rabbitmq", Description: "Preserve RabbitMQ config and restart target RabbitMQ; live queues and messages are not migrated."},
 			{Type: "logrotate", Description: "Preserve Logrotate config and validate target parsing without rotating logs."},
 			{Type: "systemd-service", Description: "Enable and start reviewed application systemd units on the target."},
 		},
@@ -88,6 +89,7 @@ func buildCapabilitiesReport() capabilitiesReport {
 			"Nginx configuration is modeled as file-set workloads plus nginxConfig checks, not as a standalone nginx workload type.",
 			"Unknown platforms and missing package mappings become blockers instead of guessed installs.",
 			"Docker named volumes and Redis without an existing snapshot or read-only replica require explicit operator strategy.",
+			"RabbitMQ support preserves configuration only; live queue and message migration requires a reviewed operator strategy.",
 			"Live filesystem streams are not point-in-time snapshots.",
 		},
 	}

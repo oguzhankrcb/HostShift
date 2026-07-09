@@ -130,6 +130,9 @@ func requiredCapabilities(prof profile.Profile) []string {
 				if item == "/etc/memcached.conf" || item == "/etc/memcached" || strings.HasPrefix(item, "/etc/memcached/") {
 					set["memcached"] = true
 				}
+				if item == "/etc/rabbitmq" || strings.HasPrefix(item, "/etc/rabbitmq/") {
+					set["rabbitmq-server"] = true
+				}
 				if item == "/etc/logrotate.conf" || item == "/etc/logrotate.d" || strings.HasPrefix(item, "/etc/logrotate.d/") {
 					set["logrotate"] = true
 				}
@@ -148,6 +151,8 @@ func requiredCapabilities(prof profile.Profile) []string {
 			set["fail2ban"] = true
 		case "memcached":
 			set["memcached"] = true
+		case "rabbitmq":
+			set["rabbitmq-server"] = true
 		case "logrotate":
 			set["logrotate"] = true
 		case "mysql":
@@ -176,7 +181,7 @@ func requiredCapabilities(prof profile.Profile) []string {
 		}
 	}
 	out := []string{}
-	for _, capability := range []string{"rsync", "tar", "curl", "ufw", "openssh-server", "nginx", "apache", "caddy", "cron", "php-fpm", "supervisor", "fail2ban", "memcached", "logrotate", "docker-runtime", "docker-compose", "mysql-server", "mysql-client", "mariadb-client", "postgresql-server", "postgresql-client", "redis-server", "redis-tools"} {
+	for _, capability := range []string{"rsync", "tar", "curl", "ufw", "openssh-server", "nginx", "apache", "caddy", "cron", "php-fpm", "supervisor", "fail2ban", "memcached", "rabbitmq-server", "logrotate", "docker-runtime", "docker-compose", "mysql-server", "mysql-client", "mariadb-client", "postgresql-server", "postgresql-client", "redis-server", "redis-tools"} {
 		if set[capability] {
 			out = append(out, capability)
 		}
@@ -766,6 +771,31 @@ func actionsForWorkload(workload profile.Workload) ([]core.Action, core.StreamAc
 			Impact:        core.ImpactService,
 			Command:       []string{"sh", "-lc", "test -f " + quotedConfig + " && systemctl enable --now " + quotedService + " && systemctl restart " + quotedService},
 			Preconditions: []string{"Memcached package is installed and memcached configuration files have been synced to target"},
+			Rollback:      []string{"systemctl restart " + quotedService + " || true"},
+		}}, core.StreamAction{}, false
+	case "rabbitmq":
+		service := dataString(workload.Data, "service", "Service")
+		if service == "" {
+			service = "rabbitmq-server.service"
+		}
+		configDir := dataString(workload.Data, "configDir", "ConfigDir")
+		if configDir == "" {
+			configDir = "/etc/rabbitmq"
+		}
+		quotedService := shellQuote(service)
+		quotedConfigDir := shellQuote(configDir)
+		return []core.Action{{
+			ID:       id + ".restart",
+			Phase:    core.PhaseCutover,
+			HostRole: core.HostRoleTarget,
+			Impact:   core.ImpactService,
+			Command: []string{"sh", "-lc",
+				"test -d " + quotedConfigDir +
+					" && systemctl enable --now " + quotedService +
+					" && systemctl restart " + quotedService +
+					" && rabbitmq-diagnostics check_running && rabbitmq-diagnostics check_local_alarms",
+			},
+			Preconditions: []string{"RabbitMQ package is installed and RabbitMQ configuration files have been synced to target; live queue contents are not migrated by this workload"},
 			Rollback:      []string{"systemctl restart " + quotedService + " || true"},
 		}}, core.StreamAction{}, false
 	case "logrotate":

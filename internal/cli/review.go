@@ -348,6 +348,42 @@ func workloadReviewFindings(prof profile.Profile) []reviewFinding {
 					SuggestedProfilePatch: suggestedFileExistsCheckPatch(config),
 				})
 			}
+		case "rabbitmq":
+			service := reviewDataString(workload.Data, "service", "Service")
+			if service == "" {
+				service = "rabbitmq-server.service"
+			}
+			if !index.services[service] && !index.services["rabbitmq-server"] {
+				findings = append(findings, reviewFinding{
+					Severity:              "warning",
+					Category:              "workload-verification",
+					Message:               "RabbitMQ workload has no matching serviceActive check.",
+					Evidence:              evidence,
+					Recommendation:        "Add a serviceActive check for " + service + " so verify proves the target message broker is running.",
+					SuggestedProfilePatch: suggestedServiceCheckPatch(service),
+				})
+			}
+			configDir := reviewDataString(workload.Data, "configDir", "ConfigDir")
+			if configDir == "" {
+				configDir = "/etc/rabbitmq"
+			}
+			if !index.filePaths[configDir] {
+				findings = append(findings, reviewFinding{
+					Severity:              "info",
+					Category:              "workload-verification",
+					Message:               "RabbitMQ workload has no fileExists check for its config directory.",
+					Evidence:              evidence,
+					Recommendation:        "Add a fileExists check for " + configDir + " so verify proves the target has the expected RabbitMQ config.",
+					SuggestedProfilePatch: suggestedFileExistsCheckPatch(configDir),
+				})
+			}
+			findings = append(findings, reviewFinding{
+				Severity:       "warning",
+				Category:       "workload-scope",
+				Message:        "RabbitMQ workload preserves configuration only; live queues and messages are not migrated.",
+				Evidence:       evidence,
+				Recommendation: "Confirm RabbitMQ queue/message migration is intentionally out of scope or provide a reviewed operator strategy outside the source mutation policy.",
+			})
 		case "logrotate":
 			config := reviewDataString(workload.Data, "config", "Config")
 			if config == "" {

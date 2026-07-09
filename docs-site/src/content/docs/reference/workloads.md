@@ -294,6 +294,35 @@ Target capability:
 
 - `memcached`
 
+## rabbitmq
+
+Restarts RabbitMQ on the target after configuration files have been synced.
+
+```yaml
+- type: rabbitmq
+  name: rabbitmq
+  data:
+    service: rabbitmq-server.service
+    configDir: /etc/rabbitmq
+```
+
+Fields:
+
+- `service`: optional RabbitMQ service name. Defaults to `rabbitmq-server.service`.
+- `configDir`: optional RabbitMQ config directory. Defaults to `/etc/rabbitmq`.
+
+Generated cutover action:
+
+```text
+test -d <configDir> && systemctl enable --now <service> && systemctl restart <service> && rabbitmq-diagnostics check_running && rabbitmq-diagnostics check_local_alarms
+```
+
+Discovery suggests this workload when `/etc/rabbitmq` files, `rabbitmq-server.service`, or the `rabbitmq-server` package are discovered. If RabbitMQ config files are readable, discovery also suggests a `file-set` for those files. The source remains read-only. HostShift does not migrate live queues, messages, or RabbitMQ node state with this workload.
+
+Target capability:
+
+- `rabbitmq-server`
+
 ## apache-vhost
 
 Enables Apache modules and sites after Apache config files have been synced, validates the target config, and reloads Apache.
