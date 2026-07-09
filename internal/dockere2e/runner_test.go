@@ -85,7 +85,7 @@ func TestBuildMatrixProfileCoversExtendedConfigWorkloads(t *testing.T) {
 			fileSetPaths = data["paths"].([]string)
 		}
 	}
-	for _, expected := range []string{"docker-compose", "docker-standalone", "caddy", "php-fpm", "supervisor", "fail2ban", "memcached", "rabbitmq", "certbot", "logrotate", "mysql", "postgresql"} {
+	for _, expected := range []string{"docker-compose", "docker-standalone", "caddy", "php-fpm", "supervisor", "fail2ban", "memcached", "rabbitmq", "certbot", "logrotate", "mysql", "postgresql", "redis"} {
 		if !types[expected] {
 			t.Fatalf("expected matrix profile workload %s in %+v", expected, workloads)
 		}
@@ -100,8 +100,10 @@ func TestBuildMatrixProfileCoversExtendedConfigWorkloads(t *testing.T) {
 func TestBuildApplySmokeProfileTransfersExtendedConfigFiles(t *testing.T) {
 	profile := buildApplySmokeProfile(matrixPair{Source: "ubuntu22", Target: "debian12"}, map[string]string{"source": "source", "target": "target"})
 	workloads := profile["workloads"].([]map[string]any)
+	types := map[string]bool{}
 	var fileSetPaths []string
 	for _, workload := range workloads {
+		types[workload["type"].(string)] = true
 		if workload["type"] == "file-set" {
 			data := workload["data"].(map[string]any)
 			fileSetPaths = data["paths"].([]string)
@@ -114,6 +116,9 @@ func TestBuildApplySmokeProfileTransfersExtendedConfigFiles(t *testing.T) {
 	}
 	if len(fixtureConfigFiles) < 10 {
 		t.Fatalf("expected extended fixture config file coverage, got %+v", fixtureConfigFiles)
+	}
+	if !types["redis"] {
+		t.Fatalf("expected Redis snapshot workload in apply smoke profile: %+v", workloads)
 	}
 }
 

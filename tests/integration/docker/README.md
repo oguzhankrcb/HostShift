@@ -58,12 +58,12 @@ Real mode currently does the following for each matrix pair:
 - generates temporary SSH credentials and aliases for the containers
 - runs `hostshift discover` against the source fixture over SSH
 - runs `hostshift plan`, `prepare`, `sync`, and `verify` in dry-run mode against a generated profile
-- runs a real `hostshift sync --apply` smoke profile for each matrix pair, including MySQL and PostgreSQL restore
+- runs a real `hostshift sync --apply` smoke profile for each matrix pair, including MySQL/PostgreSQL restore and Redis snapshot streaming
 - runs a real `hostshift verify --apply` smoke profile for each matrix pair, including HTTP and Laravel-style DB checks
 - verifies copied target fixture artifacts and source-vs-target checksums for selected files
-- verifies target HTTP health response, Laravel-style DB connectivity, and MySQL/PostgreSQL row-count/checksum parity
+- verifies target HTTP health response, Laravel-style DB connectivity, MySQL/PostgreSQL row-count/checksum parity, and Redis snapshot checksum parity
 - re-checks source immutability markers after apply
 
 Docker Engine or Docker Desktop must be running for real mode. The runner now fails early if the Docker daemon is unavailable or if required base images cannot be pulled through the daemon.
 
-The Docker runner currently validates real SSH discovery, dry-run orchestration across web service config workloads, a file-set plus MySQL and PostgreSQL `sync --apply` smoke path, and `verify --apply` checks for HTTP plus Laravel-style DB connectivity. The source fixture also carries Caddy, PHP-FPM, Supervisor, Fail2ban, Memcached, RabbitMQ, Certbot, and Logrotate config files so config transfer and discovery candidates are checked in the matrix. Redis apply coverage remains future work.
+The Docker runner currently validates real SSH discovery, dry-run orchestration across web service config workloads, a file-set plus MySQL, PostgreSQL, and Redis snapshot `sync --apply` smoke path, and `verify --apply` checks for HTTP plus Laravel-style DB connectivity. The source fixture also carries Caddy, PHP-FPM, Supervisor, Fail2ban, Memcached, RabbitMQ, Certbot, and Logrotate config files so config transfer and discovery candidates are checked in the matrix.

@@ -607,9 +607,11 @@ func (r runner) verifyApplyArtifacts(ctx context.Context, config sshConfig, time
 		{target, "/srv/app/docker-compose.yml"},
 		{target, "/srv/app/fixtures/mysql/fixturedb.sql"},
 		{target, "/srv/app/fixtures/postgresql/fixturedb.sql"},
+		{target, "/srv/app/fixtures/redis/dump.rdb"},
 		{target, "/srv/app/config/standalone.json"},
 		{target, "/srv/app/public/index.html"},
 		{target, "/etc/nginx/sites-available/example.conf"},
+		{target, "/var/lib/redis/dump.rdb"},
 	}
 	for _, path := range fixtureConfigFiles {
 		items = append(items, struct {
@@ -622,14 +624,25 @@ func (r runner) verifyApplyArtifacts(ctx context.Context, config sshConfig, time
 			return err
 		}
 	}
-	comparePaths := []string{"/srv/app/.env", "/srv/app/artisan", "/srv/app/docker-compose.yml", "/srv/app/fixtures/mysql/fixturedb.sql", "/etc/nginx/sites-available/example.conf"}
+	comparePaths := []string{"/srv/app/.env", "/srv/app/artisan", "/srv/app/docker-compose.yml", "/srv/app/fixtures/mysql/fixturedb.sql", "/srv/app/fixtures/redis/dump.rdb", "/etc/nginx/sites-available/example.conf"}
 	comparePaths = append(comparePaths, fixtureConfigFiles...)
 	for _, remotePath := range comparePaths {
 		if err := r.compareRemoteSHA(ctx, config, source, target, remotePath, env, timeoutMs); err != nil {
 			return err
 		}
 	}
-	_, err := r.runCommand(ctx, "ssh", []string{"-F", config.ConfigPath, source, "sha256sum", "-c", "/fixture/hostshift/source.sha256"}, runOptions{Env: env, TimeoutMs: timeoutMs})
+	sourceRedis, err := r.remoteSHA(ctx, config, source, "/srv/app/fixtures/redis/dump.rdb", env, timeoutMs)
+	if err != nil {
+		return err
+	}
+	targetRedis, err := r.remoteSHA(ctx, config, target, "/var/lib/redis/dump.rdb", env, timeoutMs)
+	if err != nil {
+		return err
+	}
+	if sourceRedis != targetRedis {
+		return fmt.Errorf("redis snapshot checksum mismatch: %s != %s", sourceRedis, targetRedis)
+	}
+	_, err = r.runCommand(ctx, "ssh", []string{"-F", config.ConfigPath, source, "sha256sum", "-c", "/fixture/hostshift/source.sha256"}, runOptions{Env: env, TimeoutMs: timeoutMs})
 	return err
 }
 
@@ -786,6 +799,7 @@ func buildMatrixProfile(pair matrixPair, aliases map[string]string) map[string]a
 			{"type": "logrotate", "name": "logrotate", "data": map[string]any{"config": "/etc/logrotate.conf"}},
 			{"type": "mysql", "name": "fixturedb"},
 			{"type": "postgresql", "name": "fixturepg"},
+			{"type": "redis", "name": "fixture-cache", "data": map[string]any{"snapshotPath": "/srv/app/fixtures/redis/dump.rdb", "targetPath": "/var/lib/redis/dump.rdb"}},
 		},
 		"checks": []map[string]any{
 			{"type": "http", "name": "fixture-health", "data": map[string]any{"url": "http://127.0.0.1/health", "timeoutSeconds": 5}},
@@ -808,6 +822,7 @@ func buildApplySmokeProfile(pair matrixPair, aliases map[string]string) map[stri
 			{"type": "file-set", "name": "fixture-files", "data": map[string]any{"paths": fixturePaths, "targetPath": "/"}},
 			{"type": "mysql", "name": "fixturedb"},
 			{"type": "postgresql", "name": "fixturepg"},
+			{"type": "redis", "name": "fixture-cache", "data": map[string]any{"snapshotPath": "/srv/app/fixtures/redis/dump.rdb", "targetPath": "/var/lib/redis/dump.rdb"}},
 		},
 		"approved": true,
 	}
