@@ -416,6 +416,50 @@ func TestRabbitMQWorkloadPlansTargetRestartAndPackage(t *testing.T) {
 	}
 }
 
+func TestCertbotWorkloadPlansTargetActivationAndPackage(t *testing.T) {
+	prof := profile.Profile{
+		SchemaVersion: profile.CurrentSchemaVersion,
+		Name:          "example",
+		Source:        profile.Host{SSH: "old"},
+		Target:        profile.Host{SSH: "new"},
+		SourcePolicy:  "strict-read-only",
+		Platforms:     profile.Platforms{Source: "ubuntu:24.04", Target: "debian:13"},
+		Approved:      true,
+		Workloads: []profile.Workload{
+			{Type: "file-set", Name: "letsencrypt", Data: map[string]any{"paths": []any{"/etc/letsencrypt"}, "targetPath": "/"}},
+			{Type: "certbot", Name: "certbot", Data: map[string]any{"configDir": "/etc/letsencrypt"}},
+		},
+	}
+	plan, err := Build(prof, time.Date(2026, 6, 11, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var packageCommand []string
+	var activateCommand []string
+	var activateAction core.Action
+	for _, action := range plan.Actions {
+		switch action.ID {
+		case "target.prepare.packages":
+			packageCommand = action.Command
+		case "target.workload.certbot.certbot.activate":
+			activateCommand = action.Command
+			activateAction = action
+		}
+	}
+	if !strings.Contains(strings.Join(packageCommand, " "), "certbot") {
+		t.Fatalf("expected certbot package capability, got %+v", packageCommand)
+	}
+	if activateAction.HostRole != "target" || activateAction.Impact != "service" || activateAction.Phase != "cutover" {
+		t.Fatalf("certbot activation must be target service cutover action: %+v", activateAction)
+	}
+	joinedActivate := strings.Join(activateCommand, " ")
+	for _, expected := range []string{"test -d '/etc/letsencrypt'", "certbot certificates >/dev/null", "systemctl enable --now certbot.timer"} {
+		if !strings.Contains(joinedActivate, expected) {
+			t.Fatalf("expected %q in certbot activation command, got %+v", expected, activateCommand)
+		}
+	}
+}
+
 func TestLogrotateWorkloadPlansTargetValidationAndPackage(t *testing.T) {
 	prof := profile.Profile{
 		SchemaVersion: profile.CurrentSchemaVersion,

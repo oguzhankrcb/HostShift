@@ -437,6 +437,17 @@ func validateWorkload(workload Workload) error {
 		if configDir != "/etc/rabbitmq" && !strings.HasPrefix(configDir, "/etc/rabbitmq/") {
 			return fmt.Errorf("rabbitmq workload %s configDir must be under /etc/rabbitmq", workload.Name)
 		}
+	case "certbot":
+		configDir := dataString(workload.Data, "configDir", "ConfigDir")
+		if configDir == "" {
+			configDir = "/etc/letsencrypt"
+		}
+		if _, err := safety.TransferPath(configDir); err != nil {
+			return fmt.Errorf("certbot workload %s has unsafe configDir: %w", workload.Name, err)
+		}
+		if configDir != "/etc/letsencrypt" && !strings.HasPrefix(configDir, "/etc/letsencrypt/") {
+			return fmt.Errorf("certbot workload %s configDir must be under /etc/letsencrypt", workload.Name)
+		}
 	case "logrotate":
 		config := dataString(workload.Data, "config", "Config")
 		if config == "" {

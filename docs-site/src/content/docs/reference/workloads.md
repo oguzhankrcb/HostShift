@@ -97,6 +97,9 @@ Target capabilities:
 - `php-fpm` when PHP-FPM configuration under `/etc/php` is paired with a `php-fpm` workload
 - `supervisor` when any path includes `/etc/supervisor`
 - `fail2ban` when any path includes `/etc/fail2ban`
+- `memcached` when any path includes `/etc/memcached.conf` or `/etc/memcached`
+- `rabbitmq-server` when any path includes `/etc/rabbitmq`
+- `certbot` when any path includes `/etc/letsencrypt`
 - `logrotate` when any path includes `/etc/logrotate.conf` or `/etc/logrotate.d`
 
 HostShift rejects broad or machine-identity paths through the transfer path safety rules.
@@ -322,6 +325,33 @@ Discovery suggests this workload when `/etc/rabbitmq` files, `rabbitmq-server.se
 Target capability:
 
 - `rabbitmq-server`
+
+## certbot
+
+Validates migrated Let's Encrypt state on the target and enables the Certbot renewal timer when the target package provides one.
+
+```yaml
+- type: certbot
+  name: certbot
+  data:
+    configDir: /etc/letsencrypt
+```
+
+Fields:
+
+- `configDir`: optional Certbot/Let's Encrypt config directory. Defaults to `/etc/letsencrypt`.
+
+Generated cutover action:
+
+```text
+test -d <configDir> && certbot certificates >/dev/null && (systemctl list-unit-files certbot.timer >/dev/null 2>&1 && systemctl enable --now certbot.timer || true)
+```
+
+Discovery suggests this workload when `/etc/letsencrypt` files or the `certbot` package are discovered. If Let's Encrypt files are readable, discovery also suggests a `file-set` for `/etc/letsencrypt`. The source remains read-only. HostShift preserves existing certificate state only; DNS routing, ACME challenge behavior, and future renewal behavior require operator review.
+
+Target capability:
+
+- `certbot`
 
 ## apache-vhost
 

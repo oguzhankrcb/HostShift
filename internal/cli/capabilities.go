@@ -61,6 +61,7 @@ func buildCapabilitiesReport() capabilitiesReport {
 			{Type: "fail2ban", Description: "Preserve Fail2ban config and reload or restart target Fail2ban."},
 			{Type: "memcached", Description: "Preserve Memcached config and restart target Memcached; volatile cache contents are not migrated."},
 			{Type: "rabbitmq", Description: "Preserve RabbitMQ config and restart target RabbitMQ; live queues and messages are not migrated."},
+			{Type: "certbot", Description: "Preserve existing Let's Encrypt state, validate target certbot, and enable the target renewal timer when available."},
 			{Type: "logrotate", Description: "Preserve Logrotate config and validate target parsing without rotating logs."},
 			{Type: "systemd-service", Description: "Enable and start reviewed application systemd units on the target."},
 		},
@@ -90,6 +91,7 @@ func buildCapabilitiesReport() capabilitiesReport {
 			"Unknown platforms and missing package mappings become blockers instead of guessed installs.",
 			"Docker named volumes and Redis without an existing snapshot or read-only replica require explicit operator strategy.",
 			"RabbitMQ support preserves configuration only; live queue and message migration requires a reviewed operator strategy.",
+			"Certbot support preserves existing Let's Encrypt files only; DNS, ACME challenge, and renewal behavior require operator review.",
 			"Live filesystem streams are not point-in-time snapshots.",
 		},
 	}

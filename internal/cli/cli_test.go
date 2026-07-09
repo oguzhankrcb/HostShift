@@ -143,6 +143,7 @@ func TestCapabilitiesReportsAISafeCatalog(t *testing.T) {
 		`"versionId": "24.04"`,
 		`"type": "docker-compose"`,
 		`"type": "memcached"`,
+		`"type": "certbot"`,
 		`"type": "serviceActive"`,
 		`"memcachedConfigPaths"`,
 		`"name": "mysql-server"`,
@@ -210,6 +211,10 @@ workloads:
     data:
       service: rabbitmq-server.service
       configDir: /etc/rabbitmq
+  - type: certbot
+    name: certbot
+    data:
+      configDir: /etc/letsencrypt
   - type: logrotate
     name: logrotate
     data:
@@ -265,6 +270,9 @@ checks:
 		`"RabbitMQ workload has no fileExists check for its config directory."`,
 		`path: /etc/rabbitmq`,
 		`"RabbitMQ workload preserves configuration only; live queues and messages are not migrated."`,
+		`"Certbot workload has no fileExists check for its config directory."`,
+		`path: /etc/letsencrypt`,
+		`"Certbot workload preserves existing Let's Encrypt files only; DNS, ACME challenges, and future renewal behavior must be reviewed separately."`,
 		`"Logrotate workload has no fileExists check for its main config."`,
 		`path: /etc/logrotate.conf`,
 		`"Nginx file-set has no nginxConfig validation check."`,

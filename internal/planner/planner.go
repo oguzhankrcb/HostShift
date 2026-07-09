@@ -133,6 +133,9 @@ func requiredCapabilities(prof profile.Profile) []string {
 				if item == "/etc/rabbitmq" || strings.HasPrefix(item, "/etc/rabbitmq/") {
 					set["rabbitmq-server"] = true
 				}
+				if item == "/etc/letsencrypt" || strings.HasPrefix(item, "/etc/letsencrypt/") {
+					set["certbot"] = true
+				}
 				if item == "/etc/logrotate.conf" || item == "/etc/logrotate.d" || strings.HasPrefix(item, "/etc/logrotate.d/") {
 					set["logrotate"] = true
 				}
@@ -153,6 +156,8 @@ func requiredCapabilities(prof profile.Profile) []string {
 			set["memcached"] = true
 		case "rabbitmq":
 			set["rabbitmq-server"] = true
+		case "certbot":
+			set["certbot"] = true
 		case "logrotate":
 			set["logrotate"] = true
 		case "mysql":
@@ -181,7 +186,7 @@ func requiredCapabilities(prof profile.Profile) []string {
 		}
 	}
 	out := []string{}
-	for _, capability := range []string{"rsync", "tar", "curl", "ufw", "openssh-server", "nginx", "apache", "caddy", "cron", "php-fpm", "supervisor", "fail2ban", "memcached", "rabbitmq-server", "logrotate", "docker-runtime", "docker-compose", "mysql-server", "mysql-client", "mariadb-client", "postgresql-server", "postgresql-client", "redis-server", "redis-tools"} {
+	for _, capability := range []string{"rsync", "tar", "curl", "ufw", "openssh-server", "nginx", "apache", "caddy", "cron", "php-fpm", "supervisor", "fail2ban", "memcached", "rabbitmq-server", "certbot", "logrotate", "docker-runtime", "docker-compose", "mysql-server", "mysql-client", "mariadb-client", "postgresql-server", "postgresql-client", "redis-server", "redis-tools"} {
 		if set[capability] {
 			out = append(out, capability)
 		}
@@ -797,6 +802,24 @@ func actionsForWorkload(workload profile.Workload) ([]core.Action, core.StreamAc
 			},
 			Preconditions: []string{"RabbitMQ package is installed and RabbitMQ configuration files have been synced to target; live queue contents are not migrated by this workload"},
 			Rollback:      []string{"systemctl restart " + quotedService + " || true"},
+		}}, core.StreamAction{}, false
+	case "certbot":
+		configDir := dataString(workload.Data, "configDir", "ConfigDir")
+		if configDir == "" {
+			configDir = "/etc/letsencrypt"
+		}
+		quotedConfigDir := shellQuote(configDir)
+		return []core.Action{{
+			ID:       id + ".activate",
+			Phase:    core.PhaseCutover,
+			HostRole: core.HostRoleTarget,
+			Impact:   core.ImpactService,
+			Command: []string{"sh", "-lc",
+				"test -d " + quotedConfigDir +
+					" && certbot certificates >/dev/null" +
+					" && (systemctl list-unit-files certbot.timer >/dev/null 2>&1 && systemctl enable --now certbot.timer || true)",
+			},
+			Preconditions: []string{"Certbot package is installed and /etc/letsencrypt has been synced to target; DNS and certificate renewal strategy have been reviewed"},
 		}}, core.StreamAction{}, false
 	case "logrotate":
 		config := dataString(workload.Data, "config", "Config")

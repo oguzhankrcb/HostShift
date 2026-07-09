@@ -202,7 +202,7 @@ func TestDocumentationWebsiteCoversProjectSurfaceArea(t *testing.T) {
 	for _, fact := range []string{"osRelease", "packages", "ufwStatus", "nftRuleset", "caddyConfigPaths", "supervisorConfigPaths", "fail2banConfigPaths", "memcachedConfigPaths", "rabbitmqConfigPaths", "logrotateConfigPaths", "customSystemdUnits", "dockerComposeProjects", "dockerContainers"} {
 		requireMatch(t, discovery, fact)
 	}
-	for _, workload := range []string{"docker-compose", "docker-standalone", "file-set", "cron", "php-fpm", "supervisor", "fail2ban", "memcached", "rabbitmq", "logrotate", "caddy", "apache-vhost", "systemd-service", "mysql", "mariadb", "postgresql", "redis"} {
+	for _, workload := range []string{"docker-compose", "docker-standalone", "file-set", "cron", "php-fpm", "supervisor", "fail2ban", "memcached", "rabbitmq", "certbot", "logrotate", "caddy", "apache-vhost", "systemd-service", "mysql", "mariadb", "postgresql", "redis"} {
 		requireMatch(t, workloads, workload)
 	}
 	for _, check := range []string{"http", "laravelDatabase", "fileExists", "fileContains", "mysqlScalar", "postgresScalar", "serviceActive", "ufwRule", "nftRule", "nginxConfig"} {
@@ -218,6 +218,7 @@ func TestDocumentationWebsiteCoversProjectSurfaceArea(t *testing.T) {
 	requireMatch(t, platforms, "`fail2ban`[\\s\\S]*`fail2ban`[\\s\\S]*`fail2ban`")
 	requireMatch(t, platforms, "`memcached`[\\s\\S]*`memcached`[\\s\\S]*`memcached`")
 	requireMatch(t, platforms, "`rabbitmq-server`[\\s\\S]*`rabbitmq-server`[\\s\\S]*`rabbitmq-server`")
+	requireMatch(t, platforms, "`certbot`[\\s\\S]*`certbot`[\\s\\S]*`certbot`")
 	requireMatch(t, platforms, "`logrotate`[\\s\\S]*`logrotate`[\\s\\S]*`logrotate`")
 	requireMatch(t, state, `Action\{id, phase, hostRole, impact, command, preconditions, rollback\}`)
 	requireMatch(t, state, `audit\.jsonl`)

@@ -48,6 +48,7 @@ var aptCapabilities = map[string]string{
 	"fail2ban":          "fail2ban",
 	"memcached":         "memcached",
 	"rabbitmq-server":   "rabbitmq-server",
+	"certbot":           "certbot",
 	"logrotate":         "logrotate",
 	"openssh-server":    "openssh-server",
 	"mysql-server":      "mysql-server",

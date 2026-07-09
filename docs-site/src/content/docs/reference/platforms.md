@@ -50,6 +50,7 @@ HostShift plans target package installation from abstract capabilities:
 | `fail2ban` | `fail2ban` | `fail2ban` |
 | `memcached` | `memcached` | `memcached` |
 | `rabbitmq-server` | `rabbitmq-server` | `rabbitmq-server` |
+| `certbot` | `certbot` | `certbot` |
 | `logrotate` | `logrotate` | `logrotate` |
 | `openssh-server` | `openssh-server` | `openssh-server` |
 | `mysql-server` | `mysql-server` | `default-mysql-server` |

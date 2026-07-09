@@ -282,6 +282,15 @@ func workloadsFromFacts(facts map[string]FactResult) []profile.Workload {
 	if factValue(facts, "letsEncryptFiles") != "" {
 		addFileSet(&workloads, seenFileSets, "letsencrypt", []string{"/etc/letsencrypt"}, "/")
 	}
+	if certbotDetected(facts) {
+		workloads = append(workloads, profile.Workload{
+			Type: "certbot",
+			Name: "certbot",
+			Data: map[string]any{
+				"configDir": "/etc/letsencrypt",
+			},
+		})
+	}
 	if paths := safeTransferPaths(factValue(facts, "cron")); len(paths) > 0 {
 		addFileSet(&workloads, seenFileSets, "cron-config", paths, "/")
 		workloads = append(workloads, profile.Workload{
@@ -573,6 +582,19 @@ func rabbitMQDetected(facts map[string]FactResult) bool {
 	for _, line := range strings.Split(factValue(facts, "packages"), "\n") {
 		fields := strings.Fields(line)
 		if len(fields) > 0 && fields[0] == "rabbitmq-server" {
+			return true
+		}
+	}
+	return false
+}
+
+func certbotDetected(facts map[string]FactResult) bool {
+	if factValue(facts, "letsEncryptFiles") != "" {
+		return true
+	}
+	for _, line := range strings.Split(factValue(facts, "packages"), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) > 0 && fields[0] == "certbot" {
 			return true
 		}
 	}

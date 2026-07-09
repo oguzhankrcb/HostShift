@@ -1,6 +1,6 @@
 ---
 name: migrate-server
-description: Safely discover, plan, prepare, stream, verify, and audit Ubuntu or Debian web server migrations with HostShift while enforcing a strictly read-only source policy. Use when Codex is asked to migrate, clone, reproduce, inventory, compare, or check drift for Linux servers running web applications, Docker Compose, standalone Docker containers, systemd services, Nginx, Apache, Caddy, PHP-FPM, Supervisor, Fail2ban, Memcached, RabbitMQ, Logrotate, MySQL/MariaDB, PostgreSQL, Redis, firewall rules, SSH settings, or TLS certificates.
+description: Safely discover, plan, prepare, stream, verify, and audit Ubuntu or Debian web server migrations with HostShift while enforcing a strictly read-only source policy. Use when Codex is asked to migrate, clone, reproduce, inventory, compare, or check drift for Linux servers running web applications, Docker Compose, standalone Docker containers, systemd services, Nginx, Apache, Caddy, PHP-FPM, Supervisor, Fail2ban, Memcached, RabbitMQ, Certbot/Let's Encrypt, Logrotate, MySQL/MariaDB, PostgreSQL, Redis, firewall rules, SSH settings, or TLS certificates.
 ---
 
 # Migrate Server
@@ -58,5 +58,5 @@ If the `hostshift` binary is missing, stop and install it from the HostShift rel
 - Prefer MySQL single-transaction streaming and PostgreSQL custom-format streaming.
 - Model database passwords as environment variable names such as `sourcePasswordEnv` and `targetPasswordEnv`; never place literal passwords in profiles or commands.
 - For Redis, require an existing RDB snapshot or read-only replica stream; never create source-side snapshots.
-- Preserve SSH, firewall, Fail2ban, Memcached, RabbitMQ, Logrotate, MySQL bind settings, Nginx/Apache/Caddy/PHP-FPM/Supervisor config, and application-level checks.
+- Preserve SSH, firewall, Fail2ban, Memcached, RabbitMQ, Certbot/Let's Encrypt, Logrotate, MySQL bind settings, Nginx/Apache/Caddy/PHP-FPM/Supervisor config, and application-level checks.
 - Verify HTTP endpoints with reviewed URLs and Host headers. Verify Laravel database connectivity with the fixed target-side PDO probe.

@@ -384,6 +384,28 @@ func workloadReviewFindings(prof profile.Profile) []reviewFinding {
 				Evidence:       evidence,
 				Recommendation: "Confirm RabbitMQ queue/message migration is intentionally out of scope or provide a reviewed operator strategy outside the source mutation policy.",
 			})
+		case "certbot":
+			configDir := reviewDataString(workload.Data, "configDir", "ConfigDir")
+			if configDir == "" {
+				configDir = "/etc/letsencrypt"
+			}
+			if !index.filePaths[configDir] {
+				findings = append(findings, reviewFinding{
+					Severity:              "info",
+					Category:              "workload-verification",
+					Message:               "Certbot workload has no fileExists check for its config directory.",
+					Evidence:              evidence,
+					Recommendation:        "Add a fileExists check for " + configDir + " so verify proves the target has the expected Let's Encrypt state.",
+					SuggestedProfilePatch: suggestedFileExistsCheckPatch(configDir),
+				})
+			}
+			findings = append(findings, reviewFinding{
+				Severity:       "warning",
+				Category:       "workload-scope",
+				Message:        "Certbot workload preserves existing Let's Encrypt files only; DNS, ACME challenges, and future renewal behavior must be reviewed separately.",
+				Evidence:       evidence,
+				Recommendation: "Confirm the target domain routing and renewal method before enabling traffic or relying on automatic certificate renewal.",
+			})
 		case "logrotate":
 			config := reviewDataString(workload.Data, "config", "Config")
 			if config == "" {

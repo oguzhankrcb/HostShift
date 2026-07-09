@@ -94,6 +94,8 @@ Generated workload candidates currently include:
 - `memcached` restart candidates when `/etc/memcached.conf`, `/etc/memcached` files, `memcached.service`, or the `memcached` package are discovered
 - RabbitMQ configuration files under `/etc/rabbitmq` when RabbitMQ config files are discovered
 - `rabbitmq` restart candidates when `/etc/rabbitmq` files, `rabbitmq-server.service`, or the `rabbitmq-server` package are discovered
+- Let's Encrypt state under `/etc/letsencrypt` when Certbot files are discovered
+- `certbot` validation candidates when `/etc/letsencrypt` files or the `certbot` package are discovered
 - Logrotate configuration files under `/etc/logrotate.conf` and `/etc/logrotate.d` when Logrotate config files are discovered
 - `logrotate` validation candidates when `/etc/logrotate.conf`, `/etc/logrotate.d` files, or the `logrotate` package are discovered
 - `/etc/letsencrypt` when certificate files are discovered
@@ -110,6 +112,8 @@ HostShift does not generate `systemd-service` workloads from distribution servic
 Redis candidates intentionally do not include a default export strategy. Operators must add either `snapshotPath` for an existing RDB file or `replicaHost` for a read-only replica stream before approval.
 
 RabbitMQ candidates preserve configuration only. Live queues and messages are not migrated by discovery-generated workloads.
+
+Certbot candidates preserve existing Let's Encrypt files only. DNS routing, ACME challenge behavior, and future renewal behavior must be reviewed separately.
 
 Operators must still review the generated profile, fill in the target, add checks, remove unwanted candidates, add missing workload metadata such as password environment variable names, and set `approved: true` only after review.
 

@@ -162,6 +162,7 @@ Current workload coverage includes:
 - Fail2ban config transfer, target package planning, and target service reload
 - Memcached config transfer, target package planning, and target service restart
 - RabbitMQ config transfer, target package planning, and target diagnostics; live queues/messages are not migrated
+- Certbot/Let's Encrypt state transfer, target package planning, certificate listing, and renewal timer activation when available
 - Logrotate config transfer, target package planning, and target config validation
 - SSH server settings
 - UFW and nftables firewall rules
