@@ -81,6 +81,36 @@ var platforms = map[string]string{
 	"debian13": "debian:13",
 }
 
+var fixtureConfigFiles = []string{
+	"/etc/caddy/Caddyfile",
+	"/etc/php/8.3/fpm/php.ini",
+	"/etc/php/8.3/fpm/pool.d/fixture.conf",
+	"/etc/supervisor/conf.d/fixture-worker.conf",
+	"/etc/fail2ban/jail.local",
+	"/etc/fail2ban/filter.d/fixture.conf",
+	"/etc/memcached.conf",
+	"/etc/memcached/conf.d/fixture.conf",
+	"/etc/rabbitmq/rabbitmq.conf",
+	"/etc/rabbitmq/enabled_plugins",
+	"/etc/letsencrypt/live/example.test/fullchain.pem",
+	"/etc/letsencrypt/live/example.test/privkey.pem",
+	"/etc/logrotate.conf",
+	"/etc/logrotate.d/fixture",
+}
+
+var fixtureConfigTransferPaths = []string{
+	"/etc/caddy",
+	"/etc/php/8.3/fpm",
+	"/etc/supervisor/conf.d/fixture-worker.conf",
+	"/etc/fail2ban",
+	"/etc/memcached.conf",
+	"/etc/memcached",
+	"/etc/rabbitmq",
+	"/etc/letsencrypt",
+	"/etc/logrotate.conf",
+	"/etc/logrotate.d/fixture",
+}
+
 func Run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	repoRoot, err := findRepoRoot()
 	if err != nil {
@@ -430,6 +460,26 @@ func (r runner) runHostShiftDiscover(ctx context.Context, pair matrixPair, confi
 	if !strings.Contains(string(discovered), platforms[pair.Source]) {
 		return fmt.Errorf("discover did not capture expected source platform %s", platforms[pair.Source])
 	}
+	for _, expected := range []string{
+		"type: caddy",
+		"type: supervisor",
+		"type: fail2ban",
+		"type: memcached",
+		"type: rabbitmq",
+		"type: certbot",
+		"type: logrotate",
+		"name: caddy-config",
+		"name: supervisor-config",
+		"name: fail2ban-config",
+		"name: memcached-config",
+		"name: rabbitmq-config",
+		"name: letsencrypt",
+		"name: logrotate-config",
+	} {
+		if !strings.Contains(string(discovered), expected) {
+			return fmt.Errorf("discover profile for %s missing %q", pair.Source, expected)
+		}
+	}
 	return nil
 }
 
@@ -547,7 +597,7 @@ func (r runner) verifyApplyArtifacts(ctx context.Context, config sshConfig, time
 	env := sshEnv(config)
 	source := config.Aliases["source"]
 	target := config.Aliases["target"]
-	for _, item := range []struct {
+	items := []struct {
 		alias string
 		path  string
 	}{
@@ -560,12 +610,21 @@ func (r runner) verifyApplyArtifacts(ctx context.Context, config sshConfig, time
 		{target, "/srv/app/config/standalone.json"},
 		{target, "/srv/app/public/index.html"},
 		{target, "/etc/nginx/sites-available/example.conf"},
-	} {
+	}
+	for _, path := range fixtureConfigFiles {
+		items = append(items, struct {
+			alias string
+			path  string
+		}{target, path})
+	}
+	for _, item := range items {
 		if err := r.verifyRemoteFile(ctx, config, item.alias, item.path, env, timeoutMs); err != nil {
 			return err
 		}
 	}
-	for _, remotePath := range []string{"/srv/app/.env", "/srv/app/artisan", "/srv/app/docker-compose.yml", "/srv/app/fixtures/mysql/fixturedb.sql", "/etc/nginx/sites-available/example.conf"} {
+	comparePaths := []string{"/srv/app/.env", "/srv/app/artisan", "/srv/app/docker-compose.yml", "/srv/app/fixtures/mysql/fixturedb.sql", "/etc/nginx/sites-available/example.conf"}
+	comparePaths = append(comparePaths, fixtureConfigFiles...)
+	for _, remotePath := range comparePaths {
 		if err := r.compareRemoteSHA(ctx, config, source, target, remotePath, env, timeoutMs); err != nil {
 			return err
 		}
@@ -702,6 +761,7 @@ func (r runner) remotePostgresScalar(ctx context.Context, config sshConfig, alia
 }
 
 func buildMatrixProfile(pair matrixPair, aliases map[string]string) map[string]any {
+	fixturePaths := append([]string{"/srv/app", "/etc/nginx/sites-available"}, fixtureConfigTransferPaths...)
 	return map[string]any{
 		"schemaVersion": 2,
 		"name":          "matrix-" + pair.Source + "-to-" + pair.Target,
@@ -714,8 +774,16 @@ func buildMatrixProfile(pair matrixPair, aliases map[string]string) map[string]a
 		"mysql":         map[string]any{"settings": map[string]any{"bindAddress": "0.0.0.0", "mysqlxBindAddress": "127.0.0.1"}},
 		"workloads": []map[string]any{
 			{"type": "docker-compose", "name": "fixture-compose", "data": map[string]any{"workingDir": "/srv/app", "configFile": "/srv/app/docker-compose.yml"}},
-			{"type": "file-set", "name": "fixture-files", "data": map[string]any{"paths": []string{"/srv/app", "/etc/nginx/sites-available"}, "targetPath": "/"}},
+			{"type": "file-set", "name": "fixture-files", "data": map[string]any{"paths": fixturePaths, "targetPath": "/"}},
 			{"type": "docker-standalone", "name": "fixture-standalone", "data": map[string]any{"image": "fixture/standalone:latest"}},
+			{"type": "caddy", "name": "caddy", "data": map[string]any{"service": "caddy.service", "config": "/etc/caddy/Caddyfile"}},
+			{"type": "php-fpm", "name": "php8.3-fpm", "data": map[string]any{"service": "php8.3-fpm.service"}},
+			{"type": "supervisor", "name": "supervisor", "data": map[string]any{"service": "supervisor.service"}},
+			{"type": "fail2ban", "name": "fail2ban", "data": map[string]any{"service": "fail2ban.service"}},
+			{"type": "memcached", "name": "memcached", "data": map[string]any{"service": "memcached.service", "config": "/etc/memcached.conf"}},
+			{"type": "rabbitmq", "name": "rabbitmq", "data": map[string]any{"service": "rabbitmq-server.service", "configDir": "/etc/rabbitmq"}},
+			{"type": "certbot", "name": "certbot", "data": map[string]any{"configDir": "/etc/letsencrypt"}},
+			{"type": "logrotate", "name": "logrotate", "data": map[string]any{"config": "/etc/logrotate.conf"}},
 			{"type": "mysql", "name": "fixturedb"},
 			{"type": "postgresql", "name": "fixturepg"},
 		},
@@ -728,6 +796,7 @@ func buildMatrixProfile(pair matrixPair, aliases map[string]string) map[string]a
 }
 
 func buildApplySmokeProfile(pair matrixPair, aliases map[string]string) map[string]any {
+	fixturePaths := append([]string{"/srv/app", "/etc/nginx/sites-available"}, fixtureConfigTransferPaths...)
 	return map[string]any{
 		"schemaVersion": 2,
 		"name":          "matrix-apply-" + pair.Source + "-to-" + pair.Target,
@@ -736,7 +805,7 @@ func buildApplySmokeProfile(pair matrixPair, aliases map[string]string) map[stri
 		"sourcePolicy":  "strict-read-only",
 		"platforms":     map[string]any{"source": platforms[pair.Source], "target": platforms[pair.Target]},
 		"workloads": []map[string]any{
-			{"type": "file-set", "name": "fixture-files", "data": map[string]any{"paths": []string{"/srv/app", "/etc/nginx/sites-available"}, "targetPath": "/"}},
+			{"type": "file-set", "name": "fixture-files", "data": map[string]any{"paths": fixturePaths, "targetPath": "/"}},
 			{"type": "mysql", "name": "fixturedb"},
 			{"type": "postgresql", "name": "fixturepg"},
 		},

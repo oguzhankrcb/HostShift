@@ -66,4 +66,4 @@ Real mode currently does the following for each matrix pair:
 
 Docker Engine or Docker Desktop must be running for real mode. The runner now fails early if the Docker daemon is unavailable or if required base images cannot be pulled through the daemon.
 
-The Docker runner currently validates real SSH discovery, dry-run orchestration, a file-set plus MySQL and PostgreSQL `sync --apply` smoke path, and `verify --apply` checks for HTTP plus Laravel-style DB connectivity. Redis apply coverage and broader workload combinations remain future work.
+The Docker runner currently validates real SSH discovery, dry-run orchestration across web service config workloads, a file-set plus MySQL and PostgreSQL `sync --apply` smoke path, and `verify --apply` checks for HTTP plus Laravel-style DB connectivity. The source fixture also carries Caddy, PHP-FPM, Supervisor, Fail2ban, Memcached, RabbitMQ, Certbot, and Logrotate config files so config transfer and discovery candidates are checked in the matrix. Redis apply coverage remains future work.
