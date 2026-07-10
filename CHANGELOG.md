@@ -7,6 +7,7 @@
 - Expanded real VM migration coverage with Apache vhosts, a standalone systemd application, confirmed target-only cutover, reboot persistence, and broader source checksums.
 - Added typed validation for read-only source tar streams so safe filenames such as `/etc/logrotate.d/apt` do not trigger package-manager false positives while option injection and traversal remain blocked.
 - Added direct source service PID/start-time immutability comparisons to Docker and VM migration gates.
+- Enforced a successful self-hosted real VM apply run for the exact commit before the Release workflow can publish artifacts.
 
 ## v0.3.0 - Pending
 

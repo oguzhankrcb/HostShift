@@ -7,6 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: write
   id-token: write
   attestations: write
@@ -54,11 +55,35 @@ jobs:
       - run: make build
       - run: HOSTSHIFT_RUN_VM_E2E=1 make test-e2e-vm
 
+  vm-e2e-apply-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require successful real VM apply for this commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          run_url="$(gh run list \
+            --repo "$GITHUB_REPOSITORY" \
+            --workflow vm-e2e-apply.yml \
+            --commit "$GITHUB_SHA" \
+            --event workflow_dispatch \
+            --status success \
+            --limit 20 \
+            --json url \
+            --jq '.[0].url // empty')"
+          if [ -z "$run_url" ]; then
+            echo "No successful VM E2E Apply workflow run exists for commit $GITHUB_SHA." >&2
+            echo "Start the offline-by-default self-hosted hostshift-vm runner and dispatch vm-e2e-apply.yml for this exact commit before releasing." >&2
+            exit 1
+          fi
+          echo "Verified real VM apply gate: $run_url"
+
   release:
     needs:
       - quick-gates
       - docker-matrix
       - vm-e2e-preflight
+      - vm-e2e-apply-gate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

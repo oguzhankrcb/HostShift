@@ -8,7 +8,7 @@ HostShift releases are allowed only after the source-read-only invariant has bee
 ## Pre-Tag Checklist
 
 - hosted CI manual candidate passed on `main`
-- self-hosted `VM E2E Apply` passed on the `hostshift-vm` runner or an equivalent local VM apply run passed
+- self-hosted `VM E2E Apply` passed for the exact commit on the `hostshift-vm` runner
 - `make release-snapshot` passed locally
 - `dist/checksums.txt` and `dist/hostshift.sbom.spdx.json` were produced
 - `git status --short` is clean
@@ -21,7 +21,7 @@ git tag -a v0.3.0 -m "HostShift v0.3.0"
 git push origin v0.3.0
 ```
 
-The tag-triggered Release workflow publishes GoReleaser artifacts only after quick gates, Docker matrix, and hosted Lima preflight pass. The real VM apply gate is run separately on local or self-hosted macOS hardware.
+The tag-triggered Release workflow publishes GoReleaser artifacts only after quick gates, Docker matrix, hosted Lima preflight, and a successful `VM E2E Apply` workflow run for the exact release commit pass. A local VM run is useful during development but cannot satisfy this API-verified publication gate.
 
 ## Verify Checksums
 

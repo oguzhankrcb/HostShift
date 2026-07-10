@@ -21,20 +21,20 @@ The final `git status --short` must be empty except for intentionally ignored ge
 
 Use the CI workflow manually before tagging. The hosted run executes quick gates, the real Docker matrix, and hosted macOS Lima preflight.
 
-GitHub hosted macOS does not reliably support booting nested Lima VMs. Run the real VM apply gate locally or through the `VM E2E Apply` workflow on a self-hosted macOS runner labeled `hostshift-vm`. Keep that runner offline by default; see `docs/self-hosted-runner.md`.
+GitHub hosted macOS does not reliably support booting nested Lima VMs. Run the real VM apply gate through the `VM E2E Apply` workflow on a self-hosted macOS runner labeled `hostshift-vm`. Keep that runner offline by default; see `docs/self-hosted-runner.md`.
 
 ```bash
 HOSTSHIFT_RUN_VM_E2E=1 bash tests/e2e/vm/run-vm-e2e.sh --apply
 ```
 
-Only tag a release after both the hosted CI candidate and the real VM apply gate pass.
+Only tag a release after both the hosted CI candidate and the self-hosted `VM E2E Apply` workflow pass for the exact commit being tagged. A local VM run remains useful evidence, but the Release workflow cannot verify it and therefore does not satisfy the automated publication gate.
 
 ## Public Release
 
 Pre-tag checklist:
 
 - hosted CI manual candidate passed on `main`
-- self-hosted `VM E2E Apply` passed on the `hostshift-vm` runner or an equivalent local VM apply run passed
+- self-hosted `VM E2E Apply` passed for the exact commit on the `hostshift-vm` runner
 - `make release-snapshot` passed locally
 - `dist/checksums.txt` and `dist/hostshift.sbom.spdx.json` were produced
 - `git status --short` is clean
@@ -52,7 +52,7 @@ The tag-triggered Release workflow publishes GoReleaser artifacts only after:
 - quick unit and build gates pass
 - the real Docker migration matrix passes
 - hosted Lima preflight passes
-- a separate local or self-hosted Lima VM apply matrix has passed
+- the GitHub Actions API confirms a successful `VM E2E Apply` run for the exact release commit
 - release artifacts are checksummed, keyless-signed, and attested
 
 Do not publish a release if any source immutability check, checksum check, database parity check, firewall check, systemd check, or post-reboot verification fails.
