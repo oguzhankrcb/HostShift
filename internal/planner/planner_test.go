@@ -790,6 +790,116 @@ func TestRedisWorkloadWithoutSafeReadStrategyBlocks(t *testing.T) {
 	}
 }
 
+func TestDockerVolumeSnapshotWorkloadProducesReadOnlyStream(t *testing.T) {
+	prof := profile.Profile{
+		SchemaVersion: profile.CurrentSchemaVersion,
+		Name:          "example",
+		Source:        profile.Host{SSH: "old"},
+		Target:        profile.Host{SSH: "new"},
+		SourcePolicy:  "strict-read-only",
+		Platforms:     profile.Platforms{Source: "ubuntu:24.04", Target: "debian:13"},
+		Approved:      true,
+		Workloads: []profile.Workload{{
+			Type: "docker-volume",
+			Name: "uploads",
+			Data: map[string]any{
+				"strategy":     "snapshot",
+				"snapshotPath": "/srv/hostshift-snapshots/uploads.tar",
+				"targetPath":   "/srv/hostshift/volumes/uploads",
+			},
+		}},
+	}
+	plan, err := Build(prof, time.Date(2026, 6, 11, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan.SourceWillBeModified {
+		t.Fatal("Docker volume snapshot stream must keep source immutable")
+	}
+	if len(plan.Blockers) != 0 || len(plan.Streams) != 1 {
+		t.Fatalf("expected one unblocked Docker volume stream, got blockers=%+v streams=%+v", plan.Blockers, plan.Streams)
+	}
+	stream := plan.Streams[0]
+	if strings.Join(stream.SourceCommand, " ") != "cat /srv/hostshift-snapshots/uploads.tar" {
+		t.Fatalf("unexpected Docker volume source command: %+v", stream.SourceCommand)
+	}
+	if stream.TargetCommand[0] != "sh" || !strings.Contains(stream.TargetCommand[2], "tar --extract --file=- --no-same-owner -C '/srv/hostshift/volumes/uploads'") {
+		t.Fatalf("unexpected Docker volume target command: %+v", stream.TargetCommand)
+	}
+	if !strings.Contains(stream.TargetCommand[2], "test ! -e '/srv/hostshift/volumes/uploads'") {
+		t.Fatalf("Docker volume restore must not overwrite an existing target path: %+v", stream.TargetCommand)
+	}
+	var packageCommand []string
+	for _, action := range plan.Actions {
+		if action.ID == "target.prepare.packages" {
+			packageCommand = action.Command
+		}
+	}
+	if !strings.Contains(strings.Join(packageCommand, " "), "tar") {
+		t.Fatalf("expected tar target capability, got %+v", packageCommand)
+	}
+}
+
+func TestDockerVolumeWithoutStrategyBlocks(t *testing.T) {
+	prof := profile.Profile{
+		SchemaVersion: profile.CurrentSchemaVersion,
+		Name:          "example",
+		Source:        profile.Host{SSH: "old"},
+		Target:        profile.Host{SSH: "new"},
+		SourcePolicy:  "strict-read-only",
+		Platforms:     profile.Platforms{Source: "ubuntu:24.04", Target: "ubuntu:24.04"},
+		Approved:      true,
+		Workloads:     []profile.Workload{{Type: "docker-volume", Name: "uploads"}},
+	}
+	plan, err := Build(prof, time.Date(2026, 6, 11, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plan.Blockers) == 0 || !strings.Contains(strings.Join(plan.Blockers, "\n"), "requires strategy") {
+		t.Fatalf("expected Docker volume strategy blocker, got %+v", plan.Blockers)
+	}
+	if len(plan.Streams) != 0 {
+		t.Fatalf("blocked Docker volume must not emit stream, got %+v", plan.Streams)
+	}
+}
+
+func TestDockerVolumeNonCopyStrategiesAreExplicitAndDoNotStream(t *testing.T) {
+	prof := profile.Profile{
+		SchemaVersion: profile.CurrentSchemaVersion,
+		Name:          "example",
+		Source:        profile.Host{SSH: "old"},
+		Target:        profile.Host{SSH: "new"},
+		SourcePolicy:  "strict-read-only",
+		Platforms:     profile.Platforms{Source: "ubuntu:24.04", Target: "ubuntu:24.04"},
+		Approved:      true,
+		Workloads: []profile.Workload{
+			{Type: "docker-volume", Name: "cache", Data: map[string]any{"strategy": "disposable"}},
+			{Type: "docker-volume", Name: "database", Data: map[string]any{"strategy": "database-backed"}},
+			{Type: "docker-volume", Name: "shared-media", Data: map[string]any{"strategy": "external"}},
+		},
+	}
+	plan, err := Build(prof, time.Date(2026, 6, 11, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plan.Blockers) != 0 || len(plan.Streams) != 0 {
+		t.Fatalf("expected reviewed non-copy strategies without streams, got blockers=%+v streams=%+v", plan.Blockers, plan.Streams)
+	}
+	ids := map[string]bool{}
+	for _, action := range plan.Actions {
+		ids[action.ID] = true
+	}
+	for _, id := range []string{
+		"target.workload.docker-volume.cache.disposable",
+		"target.workload.docker-volume.database.database-backed",
+		"target.workload.docker-volume.shared-media.external",
+	} {
+		if !ids[id] {
+			t.Fatalf("expected explicit strategy action %s, got %+v", id, plan.Actions)
+		}
+	}
+}
+
 func TestFileSetWorkloadProducesTarStream(t *testing.T) {
 	prof := profile.Profile{
 		SchemaVersion: profile.CurrentSchemaVersion,

@@ -147,6 +147,7 @@ Current workload coverage includes:
 
 - Docker Compose projects
 - standalone Docker containers
+- Docker named volumes through explicit snapshot, disposable, database-backed, or external strategies
 - bind-mounted file sets
 - streamed Docker images
 - MySQL and MariaDB
@@ -168,7 +169,7 @@ Current workload coverage includes:
 - UFW and nftables firewall rules
 - Laravel-style database connectivity checks
 
-Redis workloads are blocked unless the profile names an existing RDB snapshot or a read-only replica endpoint. HostShift never runs source-side `SAVE`, `BGSAVE`, or Redis config changes. Docker named volumes are blockers until the profile gives an explicit safe strategy.
+Redis workloads are blocked unless the profile names an existing RDB snapshot or a read-only replica endpoint. HostShift never runs source-side `SAVE`, `BGSAVE`, or Redis config changes. Discovered Docker named volumes are blockers until the profile explicitly selects `snapshot`, `disposable`, `database-backed`, or `external`. The `snapshot` strategy reads a tar file that already exists on the source and extracts it into a reviewed target path; HostShift never creates a source-side volume snapshot.
 
 ## How It Works
 
@@ -184,7 +185,7 @@ Redis workloads are blocked unless the profile names an existing RDB snapshot or
 10. **Cutover** runs reviewed target-only start actions such as Compose `up` or standalone container `run`.
 11. **Rollback/status/resume** report target rollback metadata and continue interrupted runs from state.
 
-Sync plans may include streams such as `tar --create -> tar --extract`, `docker image save -> docker image load`, `mysqldump -> mysql`, and `pg_dump -> pg_restore`. The source side produces stdout; the target side mutates only the target.
+Sync plans may include streams such as `tar --create -> tar --extract`, existing Docker volume snapshot tar `cat -> tar --extract`, `docker image save -> docker image load`, `mysqldump -> mysql`, and `pg_dump -> pg_restore`. The source side produces stdout; the target side mutates only the target.
 
 ## Validation
 

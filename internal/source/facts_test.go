@@ -4,6 +4,8 @@ import (
 	"context"
 	"slices"
 	"testing"
+
+	"github.com/oguzhankaracabay/hostshift/internal/safety"
 )
 
 type fakeRunner struct {
@@ -21,13 +23,21 @@ func (f *fakeRunner) Run(_ context.Context, _ string, command []string) ([]byte,
 
 func TestFactNamesExposeAllowlist(t *testing.T) {
 	names := FactNames()
-	for _, expected := range []string{"osRelease", "dockerComposeProjects", "nftRuleset", "customSystemdUnits"} {
+	for _, expected := range []string{"osRelease", "dockerComposeProjects", "dockerVolumes", "nftRuleset", "customSystemdUnits"} {
 		if !slices.Contains(names, expected) {
 			t.Fatalf("expected %s in fact allowlist", expected)
 		}
 	}
 	if _, ok := FactByName("touchTmp"); ok {
 		t.Fatal("unexpected mutating fact in allowlist")
+	}
+}
+
+func TestFactCommandsAreSourceSafe(t *testing.T) {
+	for _, fact := range Facts {
+		if err := safety.SourceCommand(fact.Command); err != nil {
+			t.Fatalf("fact %s is not source-safe: %v", fact.Name, err)
+		}
 	}
 }
 
@@ -64,6 +74,11 @@ func TestProfileFromFactsSuggestsSafeWorkloads(t *testing.T) {
 			Value: `{"Names":"redis-cache","Image":"redis:7","Labels":""}` + "\n" +
 				`{"Names":"web-app-1","Image":"example/web:latest","Labels":"com.docker.compose.project=web"}`,
 		},
+		"dockerVolumes": {
+			OK: true,
+			Value: `{"Name":"web_uploads","Driver":"local"}` + "\n" +
+				`{"Name":"shared-media","Driver":"nfs"}`,
+		},
 		"mysqlDatabases":        {OK: true, Value: "information_schema\napp\nmysql\n"},
 		"postgresDatabases":     {OK: true, Value: "postgres\nanalytics\ntemplate1\n"},
 		"nginxConfigDump":       {OK: true, Value: "nginx: configuration file /etc/nginx/nginx.conf test is successful"},
@@ -93,6 +108,8 @@ func TestProfileFromFactsSuggestsSafeWorkloads(t *testing.T) {
 		"docker-compose:web":            true,
 		"file-set:srv-web":              true,
 		"docker-standalone:redis-cache": true,
+		"docker-volume:web_uploads":     true,
+		"docker-volume:shared-media":    true,
 		"file-set:nginx-config":         true,
 		"file-set:apache-config":        true,
 		"apache-vhost:apache2":          true,

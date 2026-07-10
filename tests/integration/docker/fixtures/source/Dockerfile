@@ -34,6 +34,7 @@ RUN apt-get update \
     /srv/app/fixtures/mysql \
     /srv/app/fixtures/postgresql \
     /srv/app/fixtures/redis \
+    /srv/app/fixtures/volume/uploads \
     /etc/nginx/sites-available \
     /etc/caddy \
     /etc/php/8.3/fpm/pool.d \
@@ -55,6 +56,8 @@ RUN apt-get update \
   && printf 'CREATE DATABASE fixturedb;\nUSE fixturedb;\nCREATE TABLE pages (id INT PRIMARY KEY, slug VARCHAR(64));\nINSERT INTO pages VALUES (1, "home"), (2, "health");\n' > /srv/app/fixtures/mysql/fixturedb.sql \
   && printf 'CREATE TABLE metrics (id integer primary key, name text);\nINSERT INTO metrics VALUES (1, '\''uptime'\''), (2, '\''traffic'\'');\n' > /srv/app/fixtures/postgresql/fixturedb.sql \
   && printf 'HOSTSHIFT-REDIS-RDB-FIXTURE\nkey=fixture-cache\nvalue=ok\n' > /srv/app/fixtures/redis/dump.rdb \
+  && printf 'hostshift-volume-fixture\n' > /srv/app/fixtures/volume/uploads/data.txt \
+  && tar --create --file=/srv/app/fixtures/volume/uploads.tar -C /srv/app/fixtures/volume/uploads data.txt \
   && printf 'server { listen 80; server_name example.test; }\n' > /etc/nginx/sites-available/example.conf \
   && printf ':80 {\n  respond /health "ok"\n}\n' > /etc/caddy/Caddyfile \
   && printf '[global]\ndaemonize = no\n' > /etc/php/8.3/fpm/php.ini \
@@ -87,6 +90,8 @@ RUN apt-get update \
     /srv/app/fixtures/mysql/fixturedb.sql \
     /srv/app/fixtures/postgresql/fixturedb.sql \
     /srv/app/fixtures/redis/dump.rdb \
+    /srv/app/fixtures/volume/uploads/data.txt \
+    /srv/app/fixtures/volume/uploads.tar \
     /etc/nginx/sites-available/example.conf \
     /etc/caddy/Caddyfile \
     /etc/php/8.3/fpm/php.ini \

@@ -9,7 +9,15 @@ if [[ "${HOSTSHIFT_RUN_VM_E2E:-0}" == "1" ]]; then
   fi
 fi
 
-if [[ -x "./dist/hostshift" ]] && ./dist/hostshift help | grep -q "vm-e2e"; then
+hostshift_binary_is_current() {
+  [[ -x "./dist/hostshift" ]] || return 1
+  ./dist/hostshift help | grep -q "vm-e2e" || return 1
+  [[ ! go.mod -nt "./dist/hostshift" ]] || return 1
+  [[ ! go.sum -nt "./dist/hostshift" ]] || return 1
+  ! find cmd internal -type f -newer "./dist/hostshift" -print -quit | grep -q .
+}
+
+if hostshift_binary_is_current; then
   exec ./dist/hostshift vm-e2e "$@"
 fi
 

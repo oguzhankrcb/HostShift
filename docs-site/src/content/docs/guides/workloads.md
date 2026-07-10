@@ -9,6 +9,7 @@ HostShift uses workload adapters to plan transfer, target preparation, verificat
 
 - `docker-compose`
 - `docker-standalone`
+- `docker-volume`
 - `file-set`
 - `cron`
 - `php-fpm`
@@ -39,6 +40,7 @@ Examples:
 - `mysqldump` to `mysql`
 - `pg_dump` to `pg_restore`
 - existing Redis RDB or `redis-cli --rdb` stream to target RDB file
+- existing Docker volume snapshot tar to a reviewed target data path
 
 ## Checks
 

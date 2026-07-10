@@ -61,6 +61,61 @@ Target capability:
 
 - `docker-runtime`
 
+## docker-volume
+
+Models every discovered Docker named volume as an explicit operator decision. Discovery emits the workload without a strategy, which blocks apply until it is reviewed.
+
+Existing snapshot strategy:
+
+```yaml
+- type: docker-volume
+  name: uploads
+  data:
+    volumeName: uploads
+    strategy: snapshot
+    snapshotPath: /srv/hostshift-snapshots/uploads.tar
+    targetPath: /srv/hostshift/volumes/uploads
+```
+
+Non-copy strategies:
+
+```yaml
+- type: docker-volume
+  name: cache
+  data:
+    strategy: disposable
+
+- type: docker-volume
+  name: database-data
+  data:
+    strategy: database-backed
+
+- type: docker-volume
+  name: shared-media
+  data:
+    strategy: external
+```
+
+Fields:
+
+- `volumeName`: source volume name recorded by discovery.
+- `strategy`: required before apply. Accepted values are `snapshot`, `disposable`, `database-backed`, and `external`.
+- `snapshotPath`: required for `snapshot`; an existing source tar file produced outside HostShift.
+- `targetPath`: optional extraction directory. Defaults to `/srv/hostshift/volumes/<workload-name>`.
+
+Generated snapshot stream:
+
+```text
+source: cat <snapshotPath>
+target: test ! -e <targetPath> && install -d <targetPath> && tar --extract --file=- --no-same-owner -C <targetPath>
+```
+
+HostShift never runs a source-side volume container, archive command, or snapshot operation. Snapshot restore refuses to merge into an existing target path, which keeps its manual rollback metadata scoped to a directory HostShift created. The target path is a staging or bind-mount data directory; the operator must wire it into the target Compose or container definition. `disposable`, `database-backed`, and `external` produce no data stream and remain visible in review output so skipped data cannot be mistaken for migrated data.
+
+Target capability for `snapshot`:
+
+- `tar`
+
 ## file-set
 
 Streams files or directories with tar.

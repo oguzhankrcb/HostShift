@@ -45,7 +45,7 @@ Use `--apply` only after displaying the exact target mutations and source read c
 
 - Detect Docker Compose projects, standalone containers, bind mounts, and named volumes.
 - Model file transfers as `tar --create --file=-` on source into `tar --extract --file=-` on target. Do not create source-side archives.
-- Treat named volumes as blockers until an explicit strategy marks them disposable, database-backed, or safely exportable.
+- Treat named volumes as blockers until an explicit `snapshot`, `disposable`, `database-backed`, or `external` strategy is reviewed. Snapshot mode may only read an existing source tar; HostShift must never create it.
 - Use source `docker exec` only through typed read-only dump operations. Never open arbitrary shell access.
 - Treat stream actions as source stdout to target stdin. The source side must stay read-only and the target side may mutate only the target.
 - Prefer MySQL single-transaction streaming and PostgreSQL custom-format streaming.

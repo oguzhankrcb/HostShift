@@ -16,7 +16,7 @@ var (
 	safeEnvName       = regexp.MustCompile(`^[A-Z_][A-Z0-9_]*$`)
 	forbiddenOnSource = []string{
 		"sudo", " su ", "doas", "systemctl start", "systemctl stop",
-		"systemctl restart", "systemctl reload", "service ", "kill", "pkill",
+		"systemctl restart", "systemctl reload", " service ", "kill", "pkill",
 		"apt ", "apt-get", "dpkg -i", "snap install", "docker stop",
 		"docker restart", "docker rm", "docker exec", "tee", "touch", "mkdir",
 		"rm ", "mv ", "cp ", "chmod", "chown", "truncate", "sed -i",

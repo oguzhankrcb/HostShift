@@ -70,6 +70,7 @@ var Facts = []FactSpec{
 	{Name: "dockerVersion", Command: []string{"docker", "version", "--format", "{{json .Server.Version}}"}, Optional: true},
 	{Name: "dockerComposeProjects", Command: []string{"docker", "compose", "ls", "--format", "json"}, Optional: true},
 	{Name: "dockerContainers", Command: []string{"docker", "ps", "--format", "{{json .}}"}, Optional: true},
+	{Name: "dockerVolumes", Command: []string{"docker", "volume", "ls", "--format", "{{json .}}"}, Optional: true},
 	{Name: "dockerNetworks", Command: []string{"docker", "network", "ls", "--format", "{{json .}}"}, Optional: true},
 }
 
@@ -158,6 +159,11 @@ type dockerContainerFact struct {
 	Labels string `json:"Labels"`
 }
 
+type dockerVolumeFact struct {
+	Name   string `json:"Name"`
+	Driver string `json:"Driver"`
+}
+
 func workloadsFromFacts(facts map[string]FactResult) []profile.Workload {
 	workloads := []profile.Workload{}
 	seenFileSets := map[string]bool{}
@@ -178,6 +184,16 @@ func workloadsFromFacts(facts map[string]FactResult) []profile.Workload {
 			Name: safeName(container.Names, "container"),
 			Data: map[string]any{
 				"image": container.Image,
+			},
+		})
+	}
+	for _, volume := range dockerVolumesFromFacts(facts) {
+		workloads = append(workloads, profile.Workload{
+			Type: "docker-volume",
+			Name: safeName(volume.Name, "volume"),
+			Data: map[string]any{
+				"volumeName": volume.Name,
+				"driver":     volume.Driver,
 			},
 		})
 	}
@@ -439,6 +455,32 @@ func standaloneContainersFromFacts(facts map[string]FactResult) []dockerContaine
 		}
 		out = append(out, container)
 	}
+	return out
+}
+
+func dockerVolumesFromFacts(facts map[string]FactResult) []dockerVolumeFact {
+	raw := factValue(facts, "dockerVolumes")
+	if raw == "" {
+		return nil
+	}
+	out := []dockerVolumeFact{}
+	seen := map[string]bool{}
+	for _, line := range strings.Split(raw, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		var volume dockerVolumeFact
+		if err := json.Unmarshal([]byte(line), &volume); err != nil {
+			continue
+		}
+		if err := safety.DockerName(volume.Name); err != nil || seen[volume.Name] {
+			continue
+		}
+		seen[volume.Name] = true
+		out = append(out, volume)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	return out
 }
 

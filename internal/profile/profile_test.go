@@ -115,6 +115,10 @@ func TestValidateRejectsUnsafeWorkloadMetadata(t *testing.T) {
 		{Type: "mysql", Name: "app", Data: map[string]any{"sourcePasswordEnv": "bad;env"}},
 		{Type: "docker-compose", Name: "web", Data: map[string]any{"workingDir": "/etc"}},
 		{Type: "docker-standalone", Name: "worker", Data: map[string]any{"image": "bad image"}},
+		{Type: "docker-volume", Name: "uploads", Data: map[string]any{"strategy": "unknown"}},
+		{Type: "docker-volume", Name: "uploads", Data: map[string]any{"volumeName": "bad volume"}},
+		{Type: "docker-volume", Name: "uploads", Data: map[string]any{"strategy": "snapshot", "snapshotPath": "/etc"}},
+		{Type: "docker-volume", Name: "uploads", Data: map[string]any{"strategy": "snapshot", "targetPath": "/var"}},
 		{Type: "file-set", Name: "files", Data: map[string]any{"paths": []any{"/etc"}}},
 		{Type: "apache-vhost", Name: "apache", Data: map[string]any{"sites": []any{"bad site.conf"}}},
 		{Type: "caddy", Name: "caddy", Data: map[string]any{"service": "bad service"}},
@@ -147,7 +151,7 @@ func TestValidateRejectsUnsafeWorkloadMetadata(t *testing.T) {
 	}
 }
 
-func TestValidateAcceptsApacheSystemdAndRedisWorkloads(t *testing.T) {
+func TestValidateAcceptsApacheSystemdRedisAndDockerVolumeWorkloads(t *testing.T) {
 	prof := Profile{
 		SchemaVersion: CurrentSchemaVersion,
 		Name:          "example",
@@ -169,10 +173,14 @@ func TestValidateAcceptsApacheSystemdAndRedisWorkloads(t *testing.T) {
 			{Type: "logrotate", Name: "logrotate", Data: map[string]any{"config": "/etc/logrotate.conf"}},
 			{Type: "redis", Name: "cache-snapshot", Data: map[string]any{"snapshotPath": "/var/lib/redis/dump.rdb", "targetPath": "/var/lib/redis/dump.rdb"}},
 			{Type: "redis", Name: "cache-replica", Data: map[string]any{"replicaHost": "127.0.0.1", "replicaPort": 6380}},
+			{Type: "docker-volume", Name: "uploads", Data: map[string]any{"strategy": "snapshot", "snapshotPath": "/srv/hostshift-snapshots/uploads.tar", "targetPath": "/srv/hostshift/volumes/uploads"}},
+			{Type: "docker-volume", Name: "cache", Data: map[string]any{"strategy": "disposable"}},
+			{Type: "docker-volume", Name: "database", Data: map[string]any{"strategy": "database-backed"}},
+			{Type: "docker-volume", Name: "shared-media", Data: map[string]any{"strategy": "external"}},
 		},
 	}
 	if _, err := Validate(prof); err != nil {
-		t.Fatalf("expected apache, systemd, and redis workloads to validate: %v", err)
+		t.Fatalf("expected apache, systemd, redis, and Docker volume workloads to validate: %v", err)
 	}
 }
 

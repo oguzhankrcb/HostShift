@@ -230,6 +230,55 @@ func workloadReviewFindings(prof profile.Profile) []reviewFinding {
 					SuggestedProfilePatch: suggestedServiceCheckPatch("redis-server"),
 				})
 			}
+		case "docker-volume":
+			strategy := reviewDataString(workload.Data, "strategy", "Strategy")
+			switch strategy {
+			case "snapshot":
+				targetPath := reviewDataString(workload.Data, "targetPath", "TargetPath")
+				if targetPath == "" {
+					targetPath = "/srv/hostshift/volumes/" + workload.Name
+				}
+				findings = append(findings, reviewFinding{
+					Severity:       "info",
+					Category:       "workload-scope",
+					Message:        "Docker named volume uses an existing source-side snapshot tar; HostShift does not create the snapshot.",
+					Evidence:       evidence,
+					Recommendation: "Confirm the snapshot is current enough, was produced outside HostShift, and add a fileContains or application-level check for data under " + targetPath + ".",
+				})
+			case "disposable":
+				findings = append(findings, reviewFinding{
+					Severity:       "warning",
+					Category:       "workload-scope",
+					Message:        "Docker named volume is marked disposable and its data will not be migrated.",
+					Evidence:       evidence,
+					Recommendation: "Confirm this volume only contains cache, temporary, or regenerable data before apply.",
+				})
+			case "database-backed":
+				findings = append(findings, reviewFinding{
+					Severity:       "warning",
+					Category:       "workload-scope",
+					Message:        "Docker named volume is marked database-backed and HostShift will not copy its filesystem contents.",
+					Evidence:       evidence,
+					Recommendation: "Confirm a MySQL, MariaDB, PostgreSQL, Redis, or other reviewed data workload restores the authoritative state before cutover.",
+				})
+			case "external":
+				findings = append(findings, reviewFinding{
+					Severity:       "warning",
+					Category:       "workload-scope",
+					Message:        "Docker named volume is marked external and HostShift will not migrate its data.",
+					Evidence:       evidence,
+					Recommendation: "Confirm another workload or operator procedure restores this data before cutover.",
+				})
+			default:
+				findings = append(findings, reviewFinding{
+					Severity:              "blocker",
+					Category:              "workload-scope",
+					Message:               "Docker named volume has no reviewed migration strategy.",
+					Evidence:              evidence,
+					Recommendation:        "Set strategy to snapshot, disposable, database-backed, or external.",
+					SuggestedProfilePatch: suggestedDockerVolumeStrategyPatch(workload.Name),
+				})
+			}
 		case "systemd-service":
 			service := reviewDataString(workload.Data, "service", "Service")
 			if service == "" {
@@ -545,6 +594,18 @@ func suggestedNginxCheckPatch() string {
 		"checks:",
 		"  - type: nginxConfig",
 		"    name: nginx-config",
+	}, "\n")
+}
+
+func suggestedDockerVolumeStrategyPatch(name string) string {
+	return strings.Join([]string{
+		"workloads:",
+		"  - type: docker-volume",
+		"    name: " + safeSnippetName(name, "volume"),
+		"    data:",
+		"      strategy: snapshot # or disposable/database-backed/external",
+		"      snapshotPath: /srv/hostshift-snapshots/" + safeSnippetName(name, "volume") + ".tar",
+		"      targetPath: /srv/hostshift/volumes/" + safeSnippetName(name, "volume"),
 	}, "\n")
 }
 

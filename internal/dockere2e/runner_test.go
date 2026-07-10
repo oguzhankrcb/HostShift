@@ -85,7 +85,7 @@ func TestBuildMatrixProfileCoversExtendedConfigWorkloads(t *testing.T) {
 			fileSetPaths = data["paths"].([]string)
 		}
 	}
-	for _, expected := range []string{"docker-compose", "docker-standalone", "caddy", "php-fpm", "supervisor", "fail2ban", "memcached", "rabbitmq", "certbot", "logrotate", "mysql", "postgresql", "redis"} {
+	for _, expected := range []string{"docker-compose", "docker-standalone", "docker-volume", "caddy", "php-fpm", "supervisor", "fail2ban", "memcached", "rabbitmq", "certbot", "logrotate", "mysql", "postgresql", "redis"} {
 		if !types[expected] {
 			t.Fatalf("expected matrix profile workload %s in %+v", expected, workloads)
 		}
@@ -119,6 +119,9 @@ func TestBuildApplySmokeProfileTransfersExtendedConfigFiles(t *testing.T) {
 	}
 	if !types["redis"] {
 		t.Fatalf("expected Redis snapshot workload in apply smoke profile: %+v", workloads)
+	}
+	if !types["docker-volume"] {
+		t.Fatalf("expected Docker volume snapshot workload in apply smoke profile: %+v", workloads)
 	}
 }
 

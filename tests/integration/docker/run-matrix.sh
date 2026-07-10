@@ -9,7 +9,15 @@ for bin in "${required[@]}"; do
   fi
 done
 
-if [[ -x "./dist/hostshift" ]] && ./dist/hostshift help | grep -q "docker-e2e"; then
+hostshift_binary_is_current() {
+  [[ -x "./dist/hostshift" ]] || return 1
+  ./dist/hostshift help | grep -q "docker-e2e" || return 1
+  [[ ! go.mod -nt "./dist/hostshift" ]] || return 1
+  [[ ! go.sum -nt "./dist/hostshift" ]] || return 1
+  ! find cmd internal -type f -newer "./dist/hostshift" -print -quit | grep -q .
+}
+
+if hostshift_binary_is_current; then
   exec ./dist/hostshift docker-e2e "$@"
 fi
 

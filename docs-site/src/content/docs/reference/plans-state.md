@@ -68,6 +68,7 @@ Examples:
 - `docker image save` to `docker image load`
 - `mysqldump` to `mysql`
 - `pg_dump` to `pg_restore`
+- existing Docker volume snapshot tar `cat` to target `tar --extract`
 
 The source command is validated by the source command guard. The target command is validated by the target command guard and may be sudo-wrapped only when `HOSTSHIFT_TARGET_SUDO=1`.
 
@@ -81,6 +82,8 @@ Common blockers:
 - target platform is unknown
 - target platform is EOL or unsupported
 - package capability cannot be mapped to a target package
+- a discovered Docker named volume has no reviewed strategy
+- a Docker volume `snapshot` strategy has no existing `snapshotPath`
 
 Apply should not run while blockers are present.
 
@@ -144,4 +147,3 @@ hostshift resume --state-dir .hostshift --run-id sync-001
 ```
 
 In the current milestone, `resume` reports state metadata; it does not automatically continue execution.
-

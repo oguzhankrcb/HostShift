@@ -142,6 +142,7 @@ func TestCapabilitiesReportsAISafeCatalog(t *testing.T) {
 		`"id": "ubuntu"`,
 		`"versionId": "24.04"`,
 		`"type": "docker-compose"`,
+		`"type": "docker-volume"`,
 		`"type": "memcached"`,
 		`"type": "certbot"`,
 		`"type": "serviceActive"`,
@@ -227,6 +228,24 @@ workloads:
       targetPath: /
   - type: cron
     name: cron
+  - type: docker-volume
+    name: uploads
+    data:
+      strategy: snapshot
+      snapshotPath: /srv/hostshift-snapshots/uploads.tar
+      targetPath: /srv/hostshift/volumes/uploads
+  - type: docker-volume
+    name: cache
+    data:
+      strategy: disposable
+  - type: docker-volume
+    name: database
+    data:
+      strategy: database-backed
+  - type: docker-volume
+    name: shared-media
+    data:
+      strategy: external
 checks:
   - type: postgresScalar
     name: analytics-count
@@ -279,6 +298,11 @@ checks:
 		`type: nginxConfig`,
 		`"cron workload has no target serviceActive check."`,
 		`service: cron`,
+		`"Docker named volume uses an existing source-side snapshot tar; HostShift does not create the snapshot."`,
+		`data under /srv/hostshift/volumes/uploads`,
+		`"Docker named volume is marked disposable and its data will not be migrated."`,
+		`"Docker named volume is marked database-backed and HostShift will not copy its filesystem contents."`,
+		`"Docker named volume is marked external and HostShift will not migrate its data."`,
 	} {
 		if !strings.Contains(out, expected) {
 			t.Fatalf("expected review output to contain %q: %s", expected, out)

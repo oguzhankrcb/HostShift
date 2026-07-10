@@ -48,6 +48,7 @@ func buildCapabilitiesReport() capabilitiesReport {
 		WorkloadTypes: []capabilityItem{
 			{Type: "docker-compose", Description: "Validate and cut over Docker Compose projects on the target."},
 			{Type: "docker-standalone", Description: "Stream standalone Docker images from source stdout to target image load."},
+			{Type: "docker-volume", Description: "Handle Docker named volumes with explicit snapshot, disposable, database-backed, or external strategies."},
 			{Type: "file-set", Description: "Stream reviewed file or directory paths with tar into the target."},
 			{Type: "mysql", Description: "Stream MySQL databases with single-transaction mysqldump into target mysql."},
 			{Type: "mariadb", Description: "Stream MariaDB databases with single-transaction dump semantics."},
@@ -89,7 +90,7 @@ func buildCapabilitiesReport() capabilitiesReport {
 		Notes: []string{
 			"Nginx configuration is modeled as file-set workloads plus nginxConfig checks, not as a standalone nginx workload type.",
 			"Unknown platforms and missing package mappings become blockers instead of guessed installs.",
-			"Docker named volumes and Redis without an existing snapshot or read-only replica require explicit operator strategy.",
+			"Docker named volumes require explicit snapshot, disposable, database-backed, or external strategy; HostShift never creates source-side volume snapshots.",
 			"RabbitMQ support preserves configuration only; live queue and message migration requires a reviewed operator strategy.",
 			"Certbot support preserves existing Let's Encrypt files only; DNS, ACME challenge, and renewal behavior require operator review.",
 			"Live filesystem streams are not point-in-time snapshots.",

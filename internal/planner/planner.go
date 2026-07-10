@@ -105,6 +105,10 @@ func requiredCapabilities(prof profile.Profile) []string {
 			set["docker-compose"] = true
 		case "docker-standalone":
 			set["docker-runtime"] = true
+		case "docker-volume":
+			if dockerVolumeStrategy(workload) == "snapshot" {
+				set["tar"] = true
+			}
 		case "file-set":
 			set["tar"] = true
 			for _, item := range dataStringSlice(workload.Data, "paths", "Paths") {
@@ -195,16 +199,32 @@ func requiredCapabilities(prof profile.Profile) []string {
 }
 
 func blockersForWorkload(workload profile.Workload) []string {
-	if workload.Type != "redis" {
+	switch workload.Type {
+	case "redis":
+		hasSnapshot := dataString(workload.Data, "snapshotPath", "SnapshotPath") != ""
+		hasReplica := dataString(workload.Data, "replicaHost", "ReplicaHost") != ""
+		if hasSnapshot && hasReplica {
+			return []string{fmt.Sprintf("Redis workload %s must choose either snapshotPath or replicaHost, not both", workload.Name)}
+		}
+		if !hasSnapshot && !hasReplica {
+			return []string{fmt.Sprintf("Redis workload %s requires snapshotPath or replicaHost for source read-only export", workload.Name)}
+		}
+	case "docker-volume":
+		strategy := dockerVolumeStrategy(workload)
+		switch strategy {
+		case "":
+			return []string{fmt.Sprintf("Docker volume workload %s requires strategy snapshot, disposable, database-backed, or external", workload.Name)}
+		case "snapshot":
+			if dataString(workload.Data, "snapshotPath", "SnapshotPath") == "" {
+				return []string{fmt.Sprintf("Docker volume workload %s with snapshot strategy requires snapshotPath", workload.Name)}
+			}
+		case "disposable", "database-backed", "external":
+			return nil
+		default:
+			return []string{fmt.Sprintf("Docker volume workload %s has unsupported strategy %s", workload.Name, strategy)}
+		}
+	default:
 		return nil
-	}
-	hasSnapshot := dataString(workload.Data, "snapshotPath", "SnapshotPath") != ""
-	hasReplica := dataString(workload.Data, "replicaHost", "ReplicaHost") != ""
-	if hasSnapshot && hasReplica {
-		return []string{fmt.Sprintf("Redis workload %s must choose either snapshotPath or replicaHost, not both", workload.Name)}
-	}
-	if !hasSnapshot && !hasReplica {
-		return []string{fmt.Sprintf("Redis workload %s requires snapshotPath or replicaHost for source read-only export", workload.Name)}
 	}
 	return nil
 }
@@ -646,6 +666,9 @@ func actionsForWorkload(workload profile.Workload) ([]core.Action, core.StreamAc
 	case "redis":
 		actions, stream, ok := redisWorkloadActions(id, workload)
 		return actions, stream, ok
+	case "docker-volume":
+		actions, stream, ok := dockerVolumeWorkloadActions(id, workload)
+		return actions, stream, ok
 	case "apache-vhost":
 		return []core.Action{{
 			ID:            id + ".activate",
@@ -839,6 +862,41 @@ func actionsForWorkload(workload profile.Workload) ([]core.Action, core.StreamAc
 	}
 }
 
+func dockerVolumeWorkloadActions(id string, workload profile.Workload) ([]core.Action, core.StreamAction, bool) {
+	strategy := dockerVolumeStrategy(workload)
+	switch strategy {
+	case "snapshot":
+		snapshotPath := dataString(workload.Data, "snapshotPath", "SnapshotPath")
+		if snapshotPath == "" {
+			return nil, core.StreamAction{}, false
+		}
+		targetPath := dockerVolumeTargetPath(workload)
+		targetScript := "test ! -e " + shellQuote(targetPath) + " && install -d -m 755 " + shellQuote(targetPath) + " && tar --extract --file=- --no-same-owner -C " + shellQuote(targetPath)
+		return nil, core.StreamAction{
+			ID:            id + ".snapshot",
+			Phase:         core.PhaseSync,
+			SourceCommand: []string{"cat", snapshotPath},
+			TargetCommand: []string{"sh", "-lc", targetScript},
+			Preconditions: []string{
+				"Source snapshot tar already exists and was created outside HostShift; source remains read-only",
+				"Target path does not exist; HostShift will not merge into or overwrite an existing target directory",
+			},
+			Rollback: []string{"rm -rf " + shellQuote(targetPath)},
+		}, true
+	case "disposable", "database-backed", "external":
+		return []core.Action{{
+			ID:            id + "." + strategy,
+			Phase:         core.PhasePlan,
+			HostRole:      core.HostRoleLocal,
+			Impact:        core.ImpactReadOnly,
+			Command:       []string{"hostshift", "document-docker-volume-strategy", workload.Name, strategy},
+			Preconditions: []string{"Operator explicitly reviewed Docker named volume strategy " + strategy},
+		}}, core.StreamAction{}, false
+	default:
+		return nil, core.StreamAction{}, false
+	}
+}
+
 func redisWorkloadActions(id string, workload profile.Workload) ([]core.Action, core.StreamAction, bool) {
 	snapshotPath := dataString(workload.Data, "snapshotPath", "SnapshotPath")
 	replicaHost := dataString(workload.Data, "replicaHost", "ReplicaHost")
@@ -875,6 +933,18 @@ func redisWorkloadActions(id string, workload profile.Workload) ([]core.Action, 
 		Preconditions: []string{"Redis RDB file has been streamed to the target path"},
 		Rollback:      []string{"systemctl restart redis-server || systemctl restart redis || true"},
 	}}, stream, true
+}
+
+func dockerVolumeStrategy(workload profile.Workload) string {
+	return dataString(workload.Data, "strategy", "Strategy")
+}
+
+func dockerVolumeTargetPath(workload profile.Workload) string {
+	targetPath := dataString(workload.Data, "targetPath", "TargetPath")
+	if targetPath != "" {
+		return targetPath
+	}
+	return path.Join("/srv/hostshift/volumes", workload.Name)
 }
 
 func apacheActivationScript(workload profile.Workload) string {

@@ -326,6 +326,25 @@ func validateWorkload(workload Workload) error {
 				return fmt.Errorf("docker-standalone workload %s has unsafe image: %w", workload.Name, err)
 			}
 		}
+	case "docker-volume":
+		strategy := dataString(workload.Data, "strategy", "Strategy")
+		switch strategy {
+		case "", "snapshot", "disposable", "database-backed", "external":
+		default:
+			return fmt.Errorf("docker-volume workload %s has unsupported strategy: %s", workload.Name, strategy)
+		}
+		if volumeName := dataString(workload.Data, "volumeName", "VolumeName"); volumeName != "" {
+			if err := safety.DockerName(volumeName); err != nil {
+				return fmt.Errorf("docker-volume workload %s has unsafe volumeName: %w", workload.Name, err)
+			}
+		}
+		for _, key := range []string{"snapshotPath", "targetPath"} {
+			if value := dataString(workload.Data, key); value != "" {
+				if _, err := safety.TransferPath(value); err != nil {
+					return fmt.Errorf("docker-volume workload %s has unsafe %s: %w", workload.Name, key, err)
+				}
+			}
+		}
 	case "file-set":
 		if err := validateFileSetData(workload.Data); err != nil {
 			return fmt.Errorf("file-set workload %s is invalid: %w", workload.Name, err)

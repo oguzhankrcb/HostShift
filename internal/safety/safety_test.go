@@ -6,12 +6,20 @@ func TestSourceCommandRejectsMutations(t *testing.T) {
 	for _, command := range [][]string{
 		{"sudo", "cat", "/etc/passwd"},
 		{"systemctl", "restart", "nginx"},
+		{"service", "nginx", "restart"},
 		{"docker", "exec", "app", "sh"},
 		{"touch", "/tmp/hostshift"},
 	} {
 		if err := SourceCommand(command); err == nil {
 			t.Fatalf("expected %v to be rejected", command)
 		}
+	}
+}
+
+func TestSourceCommandAllowsReadOnlySystemdServiceInventory(t *testing.T) {
+	command := []string{"systemctl", "list-unit-files", "--state=enabled", "--type=service", "--no-pager", "--no-legend"}
+	if err := SourceCommand(command); err != nil {
+		t.Fatalf("expected read-only systemd inventory command to be allowed: %v", err)
 	}
 }
 

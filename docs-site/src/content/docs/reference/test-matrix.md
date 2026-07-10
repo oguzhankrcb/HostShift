@@ -49,6 +49,8 @@ Covered fixture behavior:
 - file-set transfer
 - MySQL restore
 - PostgreSQL restore
+- Redis existing-snapshot restore
+- Docker named-volume existing-snapshot restore and checksum parity
 - HTTP health check
 - Laravel-style database connectivity check
 - source immutability marker checks

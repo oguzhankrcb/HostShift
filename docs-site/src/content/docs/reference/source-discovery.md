@@ -111,6 +111,8 @@ HostShift does not generate `systemd-service` workloads from distribution servic
 
 Redis candidates intentionally do not include a default export strategy. Operators must add either `snapshotPath` for an existing RDB file or `replicaHost` for a read-only replica stream before approval.
 
+Docker named volumes are discovered with the read-only `docker volume ls` command. Each becomes a `docker-volume` workload without a default strategy, so apply remains blocked until the operator selects `snapshot`, `disposable`, `database-backed`, or `external`. HostShift does not inspect or archive volume contents during discovery.
+
 RabbitMQ candidates preserve configuration only. Live queues and messages are not migrated by discovery-generated workloads.
 
 Certbot candidates preserve existing Let's Encrypt files only. DNS routing, ACME challenge behavior, and future renewal behavior must be reviewed separately.
