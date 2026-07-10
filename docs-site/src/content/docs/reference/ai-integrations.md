@@ -30,6 +30,8 @@ The server exposes safe planning tools:
 - `hostshift_sync_dry_run`
 - `hostshift_verify_dry_run`
 - `hostshift_cutover_dry_run`
+- `hostshift_status`
+- `hostshift_resume_dry_run`
 - `hostshift_profile_migrate`
 - `hostshift_policy_source`
 - `hostshift_capabilities`
@@ -47,7 +49,7 @@ The server exposes local MCP resources:
 - `hostshift://migration-workflow`
 - `hostshift://capabilities`
 
-Use `hostshift_explain` when an AI client needs a concise migration brief. Use `hostshift_review` when it needs structured findings, workload-aware recommendations, suggested YAML snippets, an operator checklist, and an AI safety brief. Use `hostshift_capabilities` when it needs the supported platform, workload, check, source fact, and package capability catalog before proposing a migration plan. Use `hostshift_profile_migrate` for local v1-to-v2 profile conversion and `hostshift_policy_source` when the AI client needs the source immutability contract as structured data. These commands run without remote mutation.
+Use `hostshift_explain` when an AI client needs a concise migration brief. Use `hostshift_review` when it needs structured findings, workload-aware recommendations, suggested YAML snippets, an operator checklist, and an AI safety brief. Use `hostshift_capabilities` when it needs the supported platform, workload, check, source fact, and package capability catalog before proposing a migration plan. `hostshift_status` reads saved state, while `hostshift_resume_dry_run` validates the saved plan fingerprint and reports completed, pending, failed, and uncertain steps without changing state. Use `hostshift_profile_migrate` for local v1-to-v2 profile conversion and `hostshift_policy_source` when the AI client needs the source immutability contract as structured data. These commands run without remote mutation.
 
 ## Claude Desktop
 

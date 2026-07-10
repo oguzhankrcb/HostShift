@@ -187,6 +187,16 @@ Redis workloads are blocked unless the profile names an existing RDB snapshot or
 
 Sync plans may include streams such as `tar --create -> tar --extract`, existing Docker volume snapshot tar `cat -> tar --extract`, `docker image save -> docker image load`, `mysqldump -> mysql`, and `pg_dump -> pg_restore`. The source side produces stdout; the target side mutates only the target.
 
+Interrupted apply runs can be inspected and resumed without replaying completed steps:
+
+```bash
+hostshift status --state-dir .hostshift --run-id sync-001 --json
+hostshift resume --profile migration.profile.yaml --state-dir .hostshift --run-id sync-001 --json
+hostshift resume --profile migration.profile.yaml --state-dir .hostshift --run-id sync-001 --apply --json
+```
+
+State is written atomically after every completed action or stream, and a per-run OS lock prevents concurrent apply processes from replaying the same work. Resume refuses to run when the profile, target, blockers, or generated commands no longer match the saved plan fingerprint. If an interrupted command may have partially changed the target, apply remains blocked until the operator explicitly names it with `--retry-failed <action-id>`.
+
 ## Validation
 
 Quick checks:

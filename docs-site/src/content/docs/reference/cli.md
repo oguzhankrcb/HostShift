@@ -268,15 +268,46 @@ State lives at:
 
 If `--state-dir` is omitted, HostShift uses `HOSTSHIFT_STATE_DIR` or the OS user config directory.
 
+Phase commands return the effective `runId`; when `--run-id` is omitted, HostShift generates one before writing state.
+
 ## resume
 
-Loads a run state and reports the phase that can be resumed.
+Loads a run state, rebuilds the phase plan, verifies its fingerprint, and reports completed and pending steps without changing state.
 
 ```bash
-hostshift resume --state-dir .hostshift --run-id sync-001
+hostshift resume \
+  --profile migration.profile.yaml \
+  --state-dir .hostshift \
+  --run-id sync-001 \
+  --json
 ```
 
-In the current milestone, `resume` reports resumability metadata; the execution engine does not automatically continue partial apply work yet.
+Continue only the pending steps:
+
+```bash
+hostshift resume \
+  --profile migration.profile.yaml \
+  --state-dir .hostshift \
+  --run-id sync-001 \
+  --apply \
+  --json
+```
+
+Resume refuses changed profiles, targets, blockers, or generated commands. Completed action and stream IDs are not replayed. State is persisted atomically before and after every remote operation.
+
+When an operation failed or the process stopped while it was running, HostShift treats that action as potentially partial. Preview the run first, inspect the target, then explicitly confirm the exact retry:
+
+```bash
+hostshift resume \
+  --profile migration.profile.yaml \
+  --state-dir .hostshift \
+  --run-id sync-001 \
+  --apply \
+  --retry-failed target.workload.mysql.app.dump \
+  --json
+```
+
+Cutover resume also requires the normal `--confirm <code>` value. Runs created before plan fingerprints were introduced cannot be resumed safely; start a new phase run instead.
 
 ## policy source
 

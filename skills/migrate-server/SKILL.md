@@ -30,9 +30,13 @@ go run ./cmd/hostshift plan --profile example.profile.yaml --target new-server -
 go run ./cmd/hostshift explain --profile example.profile.yaml --target new-server --json
 go run ./cmd/hostshift review --profile example.profile.yaml --target new-server --json
 go run ./cmd/hostshift profile migrate --input old-v1.profile.yaml --output new-v2.profile.json
+go run ./cmd/hostshift status --state-dir .hostshift --run-id sync-001 --json
+go run ./cmd/hostshift resume --profile example.profile.yaml --state-dir .hostshift --run-id sync-001 --json
 ```
 
 Use `--apply` only after displaying the exact target mutations and source read commands to the user. Run application checks before any manual DNS change. Use `verify`, `status`, and audit logs after migration.
+
+For interrupted runs, preview `resume` without `--apply` first. Resume apply must use the same reviewed profile and plan fingerprint. Never retry a failed or uncertain action unless the operator has inspected the target and explicitly supplies the exact `--retry-failed <action-id>` value.
 
 ## Platform Guidance
 

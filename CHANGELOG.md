@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added Docker named-volume discovery and explicit snapshot, disposable, database-backed, and external migration strategies with full Docker matrix checksum coverage.
+- Added executable phase resume with atomic checkpoints, plan fingerprints, completed-step skipping, uncertain-action retry confirmation, per-run locking, and MCP status/resume previews.
+
 ## v0.3.0 - Pending
 
 - Rebuilt HostShift as a Go-first CLI with the Node v0.2 behavior kept as a compatibility reference.

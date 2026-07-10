@@ -40,7 +40,7 @@ func TestMCPListsSafeHostShiftTools(t *testing.T) {
 		tool := raw.(map[string]any)
 		names[tool["name"].(string)] = true
 	}
-	for _, name := range []string{"hostshift_doctor", "hostshift_discover", "hostshift_plan", "hostshift_explain", "hostshift_review", "hostshift_prepare_dry_run", "hostshift_sync_dry_run", "hostshift_verify_dry_run", "hostshift_cutover_dry_run", "hostshift_profile_migrate", "hostshift_policy_source", "hostshift_capabilities", "hostshift_rollback"} {
+	for _, name := range []string{"hostshift_doctor", "hostshift_discover", "hostshift_plan", "hostshift_explain", "hostshift_review", "hostshift_prepare_dry_run", "hostshift_sync_dry_run", "hostshift_verify_dry_run", "hostshift_cutover_dry_run", "hostshift_status", "hostshift_resume_dry_run", "hostshift_profile_migrate", "hostshift_policy_source", "hostshift_capabilities", "hostshift_rollback"} {
 		if !names[name] {
 			t.Fatalf("missing MCP tool %s in %+v", name, names)
 		}
@@ -271,6 +271,86 @@ approved: false
 	content := result["content"].([]any)[0].(map[string]any)["text"].(string)
 	if !strings.Contains(content, `"sourceWillBeModified": false`) {
 		t.Fatalf("expected plan JSON in MCP response: %s", content)
+	}
+}
+
+func TestMCPStatusAndResumeToolsRemainDryRunOnly(t *testing.T) {
+	dir := t.TempDir()
+	profilePath := filepath.Join(dir, "profile.yaml")
+	body := []byte(`schemaVersion: 2
+name: mcp-resume
+source:
+  ssh: old-server
+target:
+  ssh: new-server
+platforms:
+  source: ubuntu:24.04
+  target: ubuntu:24.04
+sourcePolicy: strict-read-only
+approved: true
+workloads:
+  - type: file-set
+    name: app
+    data:
+      paths: [/srv/app]
+      targetPath: /srv
+`)
+	if err := os.WriteFile(profilePath, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := Run(context.Background(), []string{"prepare", "--profile", profilePath, "--state-dir", dir, "--run-id", "mcp-resume"}, &strings.Builder{}, &strings.Builder{}); err != nil {
+		t.Fatal(err)
+	}
+	requests := []map[string]any{
+		{
+			"jsonrpc": "2.0",
+			"id":      1,
+			"method":  "tools/call",
+			"params": map[string]any{
+				"name": "hostshift_status",
+				"arguments": map[string]any{
+					"runId":    "mcp-resume",
+					"stateDir": dir,
+				},
+			},
+		},
+		{
+			"jsonrpc": "2.0",
+			"id":      2,
+			"method":  "tools/call",
+			"params": map[string]any{
+				"name": "hostshift_resume_dry_run",
+				"arguments": map[string]any{
+					"profile":  profilePath,
+					"runId":    "mcp-resume",
+					"stateDir": dir,
+				},
+			},
+		},
+	}
+	var input strings.Builder
+	for _, request := range requests {
+		encoded, err := json.Marshal(request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		input.Write(encoded)
+		input.WriteByte('\n')
+	}
+	var stdout strings.Builder
+	if err := ServeMCP(context.Background(), strings.NewReader(input.String()), &stdout); err != nil {
+		t.Fatal(err)
+	}
+	responses := decodeMCPResponses(t, stdout.String())
+	statusText := responses[0]["result"].(map[string]any)["content"].([]any)[0].(map[string]any)["text"].(string)
+	if !strings.Contains(statusText, `"status": "dry-run"`) || !strings.Contains(statusText, `"planHash"`) {
+		t.Fatalf("expected saved state from status tool: %s", statusText)
+	}
+	resumeText := responses[1]["result"].(map[string]any)["content"].([]any)[0].(map[string]any)["text"].(string)
+	for _, expected := range []string{`"resumed": true`, `"apply": false`, `"sourceWillBeModified": false`} {
+		if !strings.Contains(resumeText, expected) {
+			t.Fatalf("expected resume dry-run output to contain %q: %s", expected, resumeText)
+		}
 	}
 }
 

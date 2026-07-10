@@ -110,11 +110,15 @@ State path:
 <state-dir>/runs/<run-id>/state.json
 ```
 
+A per-run OS file lock prevents two dry-run/apply/resume processes from writing or executing the same run concurrently. `status` and resume preview can still read the atomically replaced state document.
+
 If `--state-dir` is omitted, HostShift uses:
 
 1. `HOSTSHIFT_STATE_DIR`
 2. the OS user config directory under `hostshift`
 3. `.hostshift` as fallback
+
+If `--run-id` is omitted, phase commands generate a collision-resistant ID and return it as `runId` in their output so the saved state can be addressed later.
 
 ## Audit Log
 
@@ -132,6 +136,14 @@ Each event includes:
 - `action`
 - optional `message`
 
+The state document includes:
+
+- `planHash`: SHA-256 fingerprint of the phase profile, hosts, blockers, actions, and streams
+- `status`: `dry-run`, `blocked`, `running`, `failed`, or `completed`
+- `completed`: action and stream IDs durably completed by apply
+- `failedAction` and redacted `lastError` when execution returned an error
+- `uncertainAction` while a remote operation is running or may have partially completed
+
 ## Status And Resume
 
 Use `status` to read state:
@@ -140,10 +152,16 @@ Use `status` to read state:
 hostshift status --state-dir .hostshift --run-id sync-001 --json
 ```
 
-Use `resume` to report the resumable phase:
+Use `resume` without `--apply` to preview completed and pending steps without changing the saved state:
 
 ```bash
-hostshift resume --state-dir .hostshift --run-id sync-001
+hostshift resume --profile migration.profile.yaml --state-dir .hostshift --run-id sync-001 --json
 ```
 
-In the current milestone, `resume` reports state metadata; it does not automatically continue execution.
+Use `--apply` to continue the same phase. HostShift rebuilds the plan and requires the saved fingerprint to match before it skips completed IDs and executes pending IDs.
+
+```bash
+hostshift resume --profile migration.profile.yaml --state-dir .hostshift --run-id sync-001 --apply --json
+```
+
+If `failedAction` or `uncertainAction` is present, inspect the target and pass the exact ID with `--retry-failed`. HostShift never silently retries a potentially partial remote operation.

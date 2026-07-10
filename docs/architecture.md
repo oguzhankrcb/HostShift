@@ -15,7 +15,9 @@ The source host can only run read-only facts and typed read-only exports. Target
 
 ## State
 
-Runs store `state.json` and `audit.jsonl` under the HostShift state directory. The audit log is append-only and redacted before writing.
+Runs store `state.json` and `audit.jsonl` under the HostShift state directory. State writes are atomic and record a phase plan fingerprint, status, completed IDs, and any failed or uncertain action. The audit log is append-only and redacted before writing.
+
+Resume rebuilds the plan from the reviewed profile and refuses execution when the fingerprint differs. Completed IDs are skipped. A failed or interrupted action is treated as potentially partial and requires an exact operator `--retry-failed <action-id>` confirmation before it can run again. A non-blocking OS file lock permits only one state-writing process per run ID.
 
 ## Execution
 

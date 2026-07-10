@@ -35,11 +35,15 @@ hostshift review --profile example.profile.yaml --target new-server --json
 hostshift prepare --profile example.profile.yaml --target new-server --json
 hostshift sync --profile example.profile.yaml --target new-server --json
 hostshift verify --profile example.profile.yaml --target new-server --json
+hostshift status --state-dir .hostshift --run-id sync-001 --json
+hostshift resume --profile example.profile.yaml --state-dir .hostshift --run-id sync-001 --json
 ```
 
 Use `--apply` only after displaying the exact target mutations and source read commands to the user. Run application checks before any manual DNS change. Run drift/status checks after migration when available.
 
 If the `hostshift` binary is missing, stop and install it from the HostShift release archive or build it from source. Do not silently fall back to ad hoc shell commands.
+
+For interrupted runs, preview `resume` without `--apply` first. Resume apply must use the same reviewed profile and plan fingerprint. Never retry a failed or uncertain action unless the operator has inspected the target and explicitly supplies the exact `--retry-failed <action-id>` value.
 
 ## Platform Guidance
 

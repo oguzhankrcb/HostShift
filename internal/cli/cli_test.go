@@ -509,6 +509,276 @@ approved: true
 	}
 }
 
+func TestPhaseDryRunReturnsGeneratedRunID(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "profile.yaml")
+	body := []byte(`schemaVersion: 2
+name: generated-run-id
+source:
+  ssh: old-server
+target:
+  ssh: new-server
+platforms:
+  source: ubuntu:24.04
+  target: ubuntu:24.04
+sourcePolicy: strict-read-only
+approved: true
+`)
+	if err := os.WriteFile(path, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var stdout bytes.Buffer
+	if err := Run(context.Background(), []string{"prepare", "--profile", path, "--json", "--state-dir", dir}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	var result map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	runID, _ := result["runId"].(string)
+	if !strings.HasPrefix(runID, "prepare-") {
+		t.Fatalf("expected generated prepare run id, got %q", runID)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "runs", runID, "state.json")); err != nil {
+		t.Fatalf("generated run id must address saved state: %v", err)
+	}
+}
+
+func TestResumeDryRunReportsPendingActionsWithoutChangingState(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "profile.yaml")
+	body := []byte(`schemaVersion: 2
+name: resume-preview
+source:
+  ssh: old-server
+target:
+  ssh: new-server
+platforms:
+  source: ubuntu:24.04
+  target: ubuntu:24.04
+sourcePolicy: strict-read-only
+approved: true
+workloads:
+  - type: file-set
+    name: app-files
+    data:
+      paths:
+        - /srv/app
+      targetPath: /srv
+`)
+	if err := os.WriteFile(path, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := Run(context.Background(), []string{"prepare", "--profile", path, "--state-dir", dir, "--run-id", "resume-preview"}, &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	statePath := filepath.Join(dir, "runs", "resume-preview", "state.json")
+	before, err := os.ReadFile(statePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stdout bytes.Buffer
+	if err := Run(context.Background(), []string{"resume", "--profile", path, "--state-dir", dir, "--run-id", "resume-preview", "--json"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	out := stdout.String()
+	for _, expected := range []string{
+		`"resumed": true`,
+		`"apply": false`,
+		`"previousStatus": "dry-run"`,
+		`"sourceWillBeModified": false`,
+		`"dryRun": true`,
+		`"skipped": true`,
+	} {
+		if !strings.Contains(out, expected) {
+			t.Fatalf("expected resume preview to contain %q: %s", expected, out)
+		}
+	}
+	after, err := os.ReadFile(statePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Fatalf("resume preview must not mutate existing state\nbefore: %s\nafter: %s", before, after)
+	}
+}
+
+func TestResumeRejectsProfileChangesAfterRunStarted(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "profile.yaml")
+	body := []byte(`schemaVersion: 2
+name: resume-changed
+source:
+  ssh: old-server
+target:
+  ssh: new-server
+platforms:
+  source: ubuntu:24.04
+  target: ubuntu:24.04
+sourcePolicy: strict-read-only
+approved: true
+`)
+	if err := os.WriteFile(path, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := Run(context.Background(), []string{"prepare", "--profile", path, "--state-dir", dir, "--run-id", "resume-changed"}, &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	changed := append(body, []byte("workloads:\n  - type: file-set\n    name: app\n    data:\n      paths: [/srv/app]\n      targetPath: /srv\n")...)
+	if err := os.WriteFile(path, changed, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	err := Run(context.Background(), []string{"resume", "--profile", path, "--state-dir", dir, "--run-id", "resume-changed", "--json"}, &bytes.Buffer{}, &bytes.Buffer{})
+	if err == nil || !strings.Contains(err.Error(), "fingerprint mismatch") {
+		t.Fatalf("expected changed profile to block resume, got %v", err)
+	}
+}
+
+func TestResumeCutoverApplyRequiresConfirmation(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "profile.yaml")
+	body := []byte(`schemaVersion: 2
+name: resume-cutover
+source:
+  ssh: old-server
+target:
+  ssh: new-server
+platforms:
+  source: ubuntu:24.04
+  target: ubuntu:24.04
+sourcePolicy: strict-read-only
+approved: true
+workloads:
+  - type: docker-compose
+    name: web
+    data:
+      workingDir: /srv/web
+      configFile: /srv/web/docker-compose.yml
+`)
+	if err := os.WriteFile(path, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := Run(context.Background(), []string{"cutover", "--profile", path, "--state-dir", dir, "--run-id", "resume-cutover"}, &bytes.Buffer{}, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	err := Run(context.Background(), []string{"resume", "--profile", path, "--state-dir", dir, "--run-id", "resume-cutover", "--apply", "--confirm", "WRONG"}, &bytes.Buffer{}, &bytes.Buffer{})
+	if err == nil || !strings.Contains(err.Error(), "invalid confirmation code") {
+		t.Fatalf("expected resume cutover confirmation failure, got %v", err)
+	}
+}
+
+func TestResumeApplyContinuesPendingTargetActionsThroughSSHRunner(t *testing.T) {
+	dir := t.TempDir()
+	binDir := filepath.Join(dir, "bin")
+	if err := os.MkdirAll(binDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	countPath := filepath.Join(dir, "ssh-count")
+	logPath := filepath.Join(dir, "ssh.log")
+	sshScript := `#!/bin/sh
+set -eu
+count=0
+if [ -f "$HOSTSHIFT_FAKE_SSH_COUNT" ]; then
+  count="$(cat "$HOSTSHIFT_FAKE_SSH_COUNT")"
+fi
+count=$((count + 1))
+printf '%s\n' "$count" > "$HOSTSHIFT_FAKE_SSH_COUNT"
+printf '%s\n' "$*" >> "$HOSTSHIFT_FAKE_SSH_LOG"
+if [ "$count" -eq 2 ]; then
+  echo "intentional target failure" >&2
+  exit 42
+fi
+printf 'ok\n'
+`
+	sshPath := filepath.Join(binDir, "ssh")
+	if err := os.WriteFile(sshPath, []byte(sshScript), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("HOSTSHIFT_FAKE_SSH_COUNT", countPath)
+	t.Setenv("HOSTSHIFT_FAKE_SSH_LOG", logPath)
+	profilePath := filepath.Join(dir, "profile.yaml")
+	body := []byte(`schemaVersion: 2
+name: resume-ssh
+source:
+  ssh: old-server
+target:
+  ssh: new-server
+platforms:
+  source: ubuntu:24.04
+  target: ubuntu:24.04
+sourcePolicy: strict-read-only
+firewall:
+  enabled: true
+  enable: true
+  rules:
+    - from: 10.0.0.0/8
+      port: 443
+      proto: tcp
+approved: true
+`)
+	if err := os.WriteFile(profilePath, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	err := Run(context.Background(), []string{"prepare", "--profile", profilePath, "--state-dir", dir, "--run-id", "resume-ssh", "--apply", "--json"}, &bytes.Buffer{}, &bytes.Buffer{})
+	if err == nil || !strings.Contains(err.Error(), "intentional target failure") {
+		t.Fatalf("expected initial target failure, got %v", err)
+	}
+	statePath := filepath.Join(dir, "runs", "resume-ssh", "state.json")
+	stateBody, err := os.ReadFile(statePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var failedState map[string]any
+	if err := json.Unmarshal(stateBody, &failedState); err != nil {
+		t.Fatal(err)
+	}
+	failedAction, _ := failedState["failedAction"].(string)
+	if failedState["status"] != "failed" || failedAction == "" || failedState["uncertainAction"] != failedAction {
+		t.Fatalf("unexpected failed CLI state: %+v", failedState)
+	}
+	countBefore, err := os.ReadFile(countPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = Run(context.Background(), []string{"resume", "--profile", profilePath, "--state-dir", dir, "--run-id", "resume-ssh", "--apply", "--json"}, &bytes.Buffer{}, &bytes.Buffer{})
+	if err == nil || !strings.Contains(err.Error(), "--retry-failed "+failedAction) {
+		t.Fatalf("expected explicit retry requirement, got %v", err)
+	}
+	countAfter, err := os.ReadFile(countPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(countBefore, countAfter) {
+		t.Fatalf("unconfirmed resume must not invoke SSH: before=%s after=%s", countBefore, countAfter)
+	}
+	var stdout bytes.Buffer
+	if err := Run(context.Background(), []string{"resume", "--profile", profilePath, "--state-dir", dir, "--run-id", "resume-ssh", "--apply", "--retry-failed", failedAction, "--json"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stdout.String(), `"previouslyCompleted": true`) || !strings.Contains(stdout.String(), `"sourceWillBeModified": false`) {
+		t.Fatalf("expected completed action skip and source safety in resume output: %s", stdout.String())
+	}
+	finishedBody, err := os.ReadFile(statePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var finished map[string]any
+	if err := json.Unmarshal(finishedBody, &finished); err != nil {
+		t.Fatal(err)
+	}
+	if finished["status"] != "completed" || finished["failedAction"] != nil || finished["uncertainAction"] != nil {
+		t.Fatalf("unexpected completed CLI resume state: %+v", finished)
+	}
+	logBody, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(logBody), "old-server") {
+		t.Fatalf("prepare/resume must not execute source SSH commands: %s", logBody)
+	}
+}
+
 func TestSyncDryRunReportsStreamActions(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "profile.yaml")

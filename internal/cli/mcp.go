@@ -86,6 +86,31 @@ func hostshiftMCPServer() mcp.Server {
 			phaseTool("hostshift_sync_dry_run", "HostShift Sync Dry Run", "Show source-to-target streams without applying them.", "sync"),
 			phaseTool("hostshift_verify_dry_run", "HostShift Verify Dry Run", "Show target verification checks without applying them.", "verify"),
 			phaseTool("hostshift_cutover_dry_run", "HostShift Cutover Dry Run", "Show target-only cutover actions and confirmation code without applying them.", "cutover"),
+			cliTool("hostshift_status", "HostShift Run Status", "Read local state for a HostShift run without executing remote commands.", objectSchema(map[string]any{
+				"runId":    stringSchema("Run identifier."),
+				"stateDir": stringSchema("Optional HostShift state directory."),
+			}, "runId"), func(args map[string]any) []string {
+				out := []string{"status", "--run-id", requiredString(args, "runId")}
+				if stateDir := optionalString(args, "stateDir"); stateDir != "" {
+					out = append(out, "--state-dir", stateDir)
+				}
+				return out
+			}),
+			cliTool("hostshift_resume_dry_run", "HostShift Resume Dry Run", "Show completed, pending, failed, and uncertain steps for a saved run without applying or retrying them.", objectSchema(map[string]any{
+				"profile":  stringSchema("Profile path used by the saved run."),
+				"runId":    stringSchema("Run identifier."),
+				"stateDir": stringSchema("Optional HostShift state directory."),
+				"target":   stringSchema("Optional target SSH alias override; it must match the saved plan fingerprint."),
+			}, "profile", "runId"), func(args map[string]any) []string {
+				out := []string{"resume", "--profile", requiredString(args, "profile"), "--run-id", requiredString(args, "runId")}
+				if stateDir := optionalString(args, "stateDir"); stateDir != "" {
+					out = append(out, "--state-dir", stateDir)
+				}
+				if target := optionalString(args, "target"); target != "" {
+					out = append(out, "--target", target)
+				}
+				return out
+			}),
 			cliTool("hostshift_profile_migrate", "HostShift Profile Migrate", "Convert a legacy HostShift profile to profile v2 YAML. This is a local file conversion and never mutates a source host.", objectSchema(map[string]any{
 				"input":  stringSchema("Input legacy profile path."),
 				"output": stringSchema("Output v2 profile path."),
@@ -266,7 +291,7 @@ Preferred workflow:
 2. Run hostshift_doctor for connectivity and source safety.
 3. Run hostshift_discover to write a reviewable profile.
 4. Run hostshift_plan, hostshift_explain, and hostshift_review before suggesting any target mutation.
-5. Use prepare/sync/verify/cutover dry-run MCP tools only. A human operator must run CLI --apply after reviewing blockers, actions, streams, and rollback metadata.
+5. Use prepare/sync/verify/cutover dry-run MCP tools only. Use hostshift_status and hostshift_resume_dry_run to inspect interrupted runs. A human operator must run CLI --apply after reviewing blockers, actions, streams, rollback metadata, and any failed-action retry requirement.
 
 When a workload cannot be safely read online, say so explicitly and require an operator strategy instead of silently skipping it.`
 }
@@ -310,6 +335,8 @@ Use this dry-run-first sequence:
 8. hostshift_sync_dry_run
 9. hostshift_verify_dry_run
 10. hostshift_cutover_dry_run
+11. hostshift_status
+12. hostshift_resume_dry_run
 
 MCP does not expose apply tools. Target mutation requires a human-operated CLI command after reviewing blockers, warnings, actions, streams, preconditions, and rollback metadata.
 
@@ -335,6 +362,8 @@ func requiredMCPToolNames() []string {
 		"hostshift_sync_dry_run",
 		"hostshift_verify_dry_run",
 		"hostshift_cutover_dry_run",
+		"hostshift_status",
+		"hostshift_resume_dry_run",
 		"hostshift_profile_migrate",
 		"hostshift_policy_source",
 		"hostshift_capabilities",

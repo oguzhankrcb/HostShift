@@ -42,4 +42,4 @@ Source actions are limited to facts and read-only exports. Target actions may wr
 
 ## State And Audit
 
-Runs write resumable state and JSONL audit events. `status` and `resume` commands are available for interrupted runs.
+Runs atomically write resumable state after every completed action or stream and append JSONL audit events. State includes a phase plan fingerprint and tracks completed, failed, and uncertain IDs. `resume` rebuilds the plan, rejects fingerprint drift, skips completed work, and requires explicit confirmation before retrying a potentially partial operation.

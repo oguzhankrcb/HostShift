@@ -64,7 +64,7 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	case "status":
 		return status(args[1:], stdout)
 	case "resume":
-		return resume(args[1:], stdout)
+		return resume(ctx, args[1:], stdout)
 	case "policy":
 		return policy(args[1:], stdout)
 	case "sbom":
@@ -110,7 +110,18 @@ func cutover(ctx context.Context, args []string, stdout io.Writer) error {
 		return err
 	}
 	code := confirmationCode(prof)
+	actualRunID := *runID
+	if actualRunID == "" {
+		actualRunID = executor.NewRunID(string(core.PhaseCutover))
+	}
 	if !*apply {
+		if _, err := executor.Phase(ctx, prof, plan, core.PhaseCutover, ssh.Runner{}, executor.Options{
+			Apply:    false,
+			StateDir: *stateDir,
+			RunID:    actualRunID,
+		}); err != nil {
+			return err
+		}
 		actions := []core.Action{}
 		for _, action := range plan.Actions {
 			if action.Phase == core.PhaseCutover {
@@ -118,6 +129,7 @@ func cutover(ctx context.Context, args []string, stdout io.Writer) error {
 			}
 		}
 		return write(stdout, map[string]any{
+			"runId":                actualRunID,
 			"dryRun":               true,
 			"confirmationCode":     code,
 			"sourceWillBeModified": false,
@@ -134,12 +146,13 @@ func cutover(ctx context.Context, args []string, stdout io.Writer) error {
 	results, err := executor.Phase(ctx, prof, plan, core.PhaseCutover, ssh.Runner{}, executor.Options{
 		Apply:    true,
 		StateDir: *stateDir,
-		RunID:    *runID,
+		RunID:    actualRunID,
 	})
 	if err != nil {
 		return err
 	}
 	return write(stdout, map[string]any{
+		"runId":                actualRunID,
 		"phase":                core.PhaseCutover,
 		"apply":                true,
 		"sourceWillBeModified": false,
@@ -395,15 +408,20 @@ func runPhase(ctx context.Context, args []string, stdout io.Writer, phase core.P
 	if err != nil {
 		return err
 	}
+	actualRunID := *runID
+	if actualRunID == "" {
+		actualRunID = executor.NewRunID(string(phase))
+	}
 	results, err := executor.Phase(ctx, prof, plan, phase, ssh.Runner{}, executor.Options{
 		Apply:    *apply,
 		StateDir: *stateDir,
-		RunID:    *runID,
+		RunID:    actualRunID,
 	})
 	if err != nil {
 		return err
 	}
 	return write(stdout, map[string]any{
+		"runId":                actualRunID,
 		"phase":                phase,
 		"apply":                *apply,
 		"sourceWillBeModified": false,
@@ -465,22 +483,91 @@ func status(args []string, stdout io.Writer) error {
 	return write(stdout, run, *jsonOutput)
 }
 
-func resume(args []string, stdout io.Writer) error {
+func resume(ctx context.Context, args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("resume", flag.ContinueOnError)
+	profilePath := fs.String("profile", "", "profile path")
+	target := fs.String("target", "", "target ssh alias override")
 	runID := fs.String("run-id", "", "run id")
 	stateDir := fs.String("state-dir", "", "state directory")
+	apply := fs.Bool("apply", false, "execute pending remote actions")
+	confirm := fs.String("confirm", "", "cutover confirmation code")
+	retryFailed := fs.String("retry-failed", "", "explicitly retry one failed or uncertain action id")
+	jsonOutput := fs.Bool("json", false, "json output")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
+	if *profilePath == "" {
+		return fmt.Errorf("--profile is required")
+	}
 	if *runID == "" {
 		return fmt.Errorf("--run-id is required")
+	}
+	if !*apply && *retryFailed != "" {
+		return fmt.Errorf("--retry-failed requires --apply")
 	}
 	run, err := state.Load(*stateDir, *runID)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "Run %s is resumable from phase %s; execution engine is not enabled in this milestone.\n", run.RunID, run.Phase)
-	return nil
+	phase, err := resumablePhase(run.Phase)
+	if err != nil {
+		return err
+	}
+	prof, err := profile.Load(*profilePath)
+	if err != nil {
+		return err
+	}
+	if *target != "" {
+		if err := safety.SSHAlias(*target); err != nil {
+			return err
+		}
+		prof.Target.SSH = *target
+	}
+	plan, err := planner.Build(prof, time.Now().UTC())
+	if err != nil {
+		return err
+	}
+	if *apply && phase == core.PhaseCutover {
+		code := confirmationCode(prof)
+		if *confirm != code {
+			return fmt.Errorf("invalid confirmation code; expected %s", code)
+		}
+	}
+	results, err := executor.Phase(ctx, prof, plan, phase, ssh.Runner{}, executor.Options{
+		Apply:         *apply,
+		StateDir:      *stateDir,
+		RunID:         *runID,
+		Resume:        &run,
+		PreserveState: !*apply,
+		RetryFailed:   *retryFailed,
+	})
+	if err != nil {
+		return err
+	}
+	return write(stdout, map[string]any{
+		"runId":                run.RunID,
+		"phase":                phase,
+		"resumed":              true,
+		"apply":                *apply,
+		"previousStatus":       run.Status,
+		"failedAction":         run.FailedAction,
+		"uncertainAction":      run.UncertainAction,
+		"lastError":            run.LastError,
+		"retryRequired":        run.UncertainAction != "" || run.FailedAction != "",
+		"sourceWillBeModified": false,
+		"blockers":             plan.Blockers,
+		"results":              results,
+	}, *jsonOutput)
+}
+
+func resumablePhase(value string) (core.Phase, error) {
+	phase := core.Phase(value)
+	switch phase {
+	case core.PhasePrepare, core.PhaseSync, core.PhaseVerify, core.PhaseCutover:
+		return phase, nil
+	default:
+		return "", fmt.Errorf("run phase %s is not resumable", value)
+	}
 }
 
 func policy(args []string, stdout io.Writer) error {
@@ -908,7 +995,7 @@ Commands:
   mcp doctor      [--claude-config <file>] [--json]
   profile migrate --input <v1-profile> --output <v2-profile>
   status          --run-id <id> [--state-dir <dir>] [--json]
-  resume          --run-id <id> [--state-dir <dir>]
+  resume          --profile <file> --run-id <id> [--target <ssh>] [--apply --retry-failed <action-id>] [--json]
   policy source
   sbom            [--output <file>] [--json]
   matrix docker   [--list] [--list-images] [--pair <source->target>] [--json]
@@ -920,8 +1007,4 @@ Commands:
 Safety:
   HostShift treats the source as a strictly read-only observation endpoint.
 `, version.Version)
-}
-
-func NewRunID(prefix string) string {
-	return fmt.Sprintf("%s-%d", prefix, time.Now().UTC().Unix())
 }
