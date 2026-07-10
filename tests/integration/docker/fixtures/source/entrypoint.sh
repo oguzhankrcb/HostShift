@@ -67,6 +67,9 @@ fi
 
 /usr/sbin/sshd -D -e &
 SSHD_PID=$!
+POSTGRES_PID="$(head -n 1 "/var/lib/postgresql/${PG_VERSION}/${PG_CLUSTER}/postmaster.pid")"
+mkdir -p /run/hostshift
+printf 'mariadb=%s\npostgres=%s\nsshd=%s\n' "${MYSQL_PID}" "${POSTGRES_PID}" "${SSHD_PID}" > /run/hostshift/source-service-pids
 
 cleanup() {
   pg_ctlcluster --skip-systemctl-redirect "$PG_VERSION" "$PG_CLUSTER" stop >/tmp/hostshift-source-postgres-stop.log 2>&1 || true

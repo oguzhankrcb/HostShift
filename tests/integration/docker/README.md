@@ -28,7 +28,7 @@ Each test asserts:
 - MySQL row counts and checksums match
 - PostgreSQL row counts and checksums match
 - expected config values exist on target
-- source immutability markers are unchanged
+- source immutability markers are unchanged and MariaDB, PostgreSQL, and SSH keep the same PID/start time
 
 Run a safe dry-run:
 
@@ -63,7 +63,7 @@ Real mode currently does the following for each matrix pair:
 - runs a real `hostshift verify --apply` smoke profile for each matrix pair, including HTTP and Laravel-style DB checks
 - verifies copied target fixture artifacts and source-vs-target checksums for selected files
 - verifies target HTTP health response, Laravel-style DB connectivity, MySQL/PostgreSQL row-count/checksum parity, Redis snapshot checksum parity, and Docker volume data checksum parity
-- re-checks source immutability markers after apply
+- re-checks source immutability markers and source service PID/start-time snapshots after apply
 
 Docker Engine or Docker Desktop must be running for real mode. The runner now fails early if the Docker daemon is unavailable or if required base images cannot be pulled through the daemon.
 

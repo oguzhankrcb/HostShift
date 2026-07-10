@@ -326,6 +326,10 @@ func (r runner) runPair(ctx context.Context, pair matrixPair, hostshift hostshif
 	if err := r.verifySSHConnectivity(ctx, sshConfig, commandTimeoutMs); err != nil {
 		return err
 	}
+	serviceSnapshot, err := r.captureSourceServiceSnapshot(ctx, project, env, commandTimeoutMs)
+	if err != nil {
+		return err
+	}
 	r.logStage(pair, "running discover")
 	if err := r.runHostShiftDiscover(ctx, pair, sshConfig, hostshift, commandTimeoutMs); err != nil {
 		return err
@@ -340,6 +344,10 @@ func (r runner) runPair(ctx context.Context, pair matrixPair, hostshift hostshif
 	}
 	r.logStage(pair, "running verify --apply smoke")
 	if err := r.runHostShiftVerifyApplySmoke(ctx, pair, sshConfig, hostshift, commandTimeoutMs); err != nil {
+		return err
+	}
+	r.logStage(pair, "verifying source service immutability")
+	if err := r.verifySourceServiceSnapshot(ctx, project, serviceSnapshot, env, commandTimeoutMs); err != nil {
 		return err
 	}
 	r.logStage(pair, "completed successfully")
@@ -401,6 +409,34 @@ func (r runner) lookupPort(ctx context.Context, project, service string, timeout
 func (r runner) verifySourceFixture(ctx context.Context, project string, env []string, timeoutMs int) error {
 	_, err := r.runCommand(ctx, "docker", []string{"compose", "-p", project, "-f", "compose.yaml", "exec", "-T", "source", "sha256sum", "-c", "/fixture/hostshift/source.sha256"}, runOptions{CWD: r.composeDir, Env: env, TimeoutMs: timeoutMs})
 	return err
+}
+
+const sourceServiceSnapshotScript = `set -eu
+while IFS='=' read -r name pid; do
+  test -n "${name}"
+  test -n "${pid}"
+  test -r "/proc/${pid}/stat"
+  started="$(awk '{print $22}' "/proc/${pid}/stat")"
+  printf '%s=%s:%s\n' "${name}" "${pid}" "${started}"
+done < /run/hostshift/source-service-pids`
+
+func (r runner) captureSourceServiceSnapshot(ctx context.Context, project string, env []string, timeoutMs int) (string, error) {
+	result, err := r.runCommand(ctx, "docker", []string{"compose", "-p", project, "-f", "compose.yaml", "exec", "-T", "source", "sh", "-lc", sourceServiceSnapshotScript}, runOptions{CWD: r.composeDir, Env: env, Capture: true, TimeoutMs: timeoutMs})
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(result.Stdout), nil
+}
+
+func (r runner) verifySourceServiceSnapshot(ctx context.Context, project, expected string, env []string, timeoutMs int) error {
+	actual, err := r.captureSourceServiceSnapshot(ctx, project, env, timeoutMs)
+	if err != nil {
+		return err
+	}
+	if actual != expected {
+		return fmt.Errorf("source service immutability check failed: before %q; after %q", expected, actual)
+	}
+	return nil
 }
 
 func (r runner) verifySSHConnectivity(ctx context.Context, config sshConfig, timeoutMs int) error {

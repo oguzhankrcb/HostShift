@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/oguzhankaracabay/hostshift/internal/safety"
 )
 
 const (
@@ -557,8 +559,12 @@ func (r runner) executePair(ctx context.Context, workspace pairWorkspace) error 
 		return err
 	}
 
-	r.logStep(workspace, "capturing source snapshot before migration")
-	before, err := r.captureSourceSnapshot(ctx, workspace.SourcePlan.SSH.Alias, sshConfigPath)
+	r.logStep(workspace, "capturing source snapshots before migration")
+	beforeFiles, err := r.captureSourceSnapshot(ctx, workspace.SourcePlan.SSH.Alias, sshConfigPath)
+	if err != nil {
+		return err
+	}
+	beforeServices, err := r.captureSourceServiceSnapshot(ctx, workspace.SourcePlan.SSH.Alias, sshConfigPath)
 	if err != nil {
 		return err
 	}
@@ -568,13 +574,20 @@ func (r runner) executePair(ctx context.Context, workspace pairWorkspace) error 
 	if err := r.verifyTargetBootPersistence(ctx, workspace, sshConfigPath, stateDir); err != nil {
 		return err
 	}
-	r.logStep(workspace, "capturing source snapshot after migration")
-	after, err := r.captureSourceSnapshot(ctx, workspace.SourcePlan.SSH.Alias, sshConfigPath)
+	r.logStep(workspace, "capturing source snapshots after migration")
+	afterFiles, err := r.captureSourceSnapshot(ctx, workspace.SourcePlan.SSH.Alias, sshConfigPath)
 	if err != nil {
 		return err
 	}
-	if before != after {
-		return fmt.Errorf("source immutability check failed for %s -> %s", workspace.Pair.Source, workspace.Pair.Target)
+	if beforeFiles != afterFiles {
+		return fmt.Errorf("source file immutability check failed for %s -> %s", workspace.Pair.Source, workspace.Pair.Target)
+	}
+	afterServices, err := r.captureSourceServiceSnapshot(ctx, workspace.SourcePlan.SSH.Alias, sshConfigPath)
+	if err != nil {
+		return err
+	}
+	if beforeServices != afterServices {
+		return fmt.Errorf("source service immutability check failed for %s -> %s: before %q; after %q", workspace.Pair.Source, workspace.Pair.Target, beforeServices, afterServices)
 	}
 	return nil
 }
@@ -920,6 +933,24 @@ func assertPhaseResult(raw, phase string, expectStream bool) error {
 
 func (r runner) captureSourceSnapshot(ctx context.Context, sourceAlias, sshConfigPath string) (string, error) {
 	result, err := r.runCommand(ctx, "ssh", []string{"-F", sshConfigPath, sourceAlias, "sha256sum", "/srv/hostshift-fixture/public/health", "/srv/hostshift-fixture/systemd-marker", "/etc/nginx/sites-available/hostshift-fixture.conf", "/etc/apache2/ports.conf", "/etc/apache2/sites-available/hostshift-fixture.conf", "/etc/systemd/system/hostshift-fixture-app.service"}, runOptions{Capture: true, TimeoutMs: sshTimeoutMs})
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(result.Stdout), nil
+}
+
+func (r runner) captureSourceServiceSnapshot(ctx context.Context, sourceAlias, sshConfigPath string) (string, error) {
+	command := []string{
+		"systemctl", "show", "--no-pager",
+		"--property=Id", "--property=ActiveState", "--property=SubState",
+		"--property=MainPID", "--property=ActiveEnterTimestampMonotonic",
+		"ssh.service", "nginx.service", "apache2.service", "hostshift-fixture-app.service", "mysql.service", "postgresql.service",
+	}
+	if err := safety.SourceCommand(command); err != nil {
+		return "", err
+	}
+	args := append([]string{"-F", sshConfigPath, sourceAlias}, command...)
+	result, err := r.runCommand(ctx, "ssh", args, runOptions{Capture: true, TimeoutMs: sshTimeoutMs})
 	if err != nil {
 		return "", err
 	}

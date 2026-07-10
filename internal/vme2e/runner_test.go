@@ -250,6 +250,15 @@ if [[ "${1:-}" == "sha256sum" ]]; then
   echo "pqr678  /etc/systemd/system/hostshift-fixture-app.service"
   exit 0
 fi
+if [[ "${1:-}" == "systemctl" && "${2:-}" == "show" ]]; then
+  printf 'Id=ssh.service\nActiveState=active\nSubState=running\nMainPID=101\nActiveEnterTimestampMonotonic=1001\n'
+  printf 'Id=nginx.service\nActiveState=active\nSubState=running\nMainPID=102\nActiveEnterTimestampMonotonic=1002\n'
+  printf 'Id=apache2.service\nActiveState=active\nSubState=running\nMainPID=103\nActiveEnterTimestampMonotonic=1003\n'
+  printf 'Id=hostshift-fixture-app.service\nActiveState=active\nSubState=running\nMainPID=104\nActiveEnterTimestampMonotonic=1004\n'
+  printf 'Id=mysql.service\nActiveState=active\nSubState=running\nMainPID=105\nActiveEnterTimestampMonotonic=1005\n'
+  printf 'Id=postgresql.service\nActiveState=active\nSubState=running\nMainPID=106\nActiveEnterTimestampMonotonic=1006\n'
+  exit 0
+fi
 echo "unexpected ssh invocation: $*" >&2
 exit 1
 `)

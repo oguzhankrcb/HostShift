@@ -73,6 +73,14 @@ exit 1
 	}
 }
 
+func TestSourceServiceSnapshotTracksPIDAndStartTime(t *testing.T) {
+	for _, expected := range []string{"/run/hostshift/source-service-pids", "/proc/${pid}/stat", "print $22"} {
+		if !strings.Contains(sourceServiceSnapshotScript, expected) {
+			t.Fatalf("source service snapshot script must contain %q:\n%s", expected, sourceServiceSnapshotScript)
+		}
+	}
+}
+
 func TestBuildMatrixProfileCoversExtendedConfigWorkloads(t *testing.T) {
 	profile := buildMatrixProfile(matrixPair{Source: "ubuntu22", Target: "debian12"}, map[string]string{"source": "source", "target": "target"})
 	workloads := profile["workloads"].([]map[string]any)

@@ -45,12 +45,12 @@ Default mode is dry-run only. It renders artifacts such as:
 - boots source and target instances
 - queries connection data with `limactl show-ssh --format=options`
 - writes a temporary combined `ssh_config`
-- captures a source-side checksum snapshot for fixture files
+- captures source-side checksum and systemd service PID/start-time snapshots
 - runs live HostShift `discover`, `plan`, `prepare`, `sync`, `cutover`, and `verify` against the booted aliases
 - previews and confirms target-only cutover actions before starting migrated services
 - verifies copied files, Nginx and Apache config reload plus HTTP health, MySQL row/checksum parity, PostgreSQL row/checksum parity, custom systemd application state, and planned UFW/nftables rule state
 - restarts the target VM and runs HostShift `verify` again to catch boot-persistence regressions
-- checks that the source checksum snapshot did not change
+- checks that source file checksums and service runtime snapshots did not change
 - stops and deletes the instances unless `HOSTSHIFT_VM_KEEP_INSTANCES=1`
 
 Generated Lima templates intentionally ignore automatic guest port forwarding except for Lima-managed SSH. HostShift verifies HTTP and database behavior through SSH-targeted checks, so exposing guest port 80, 3306, 5432, or 5355 to the host only creates noisy and environment-dependent port conflicts.
