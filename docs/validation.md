@@ -52,8 +52,9 @@ The current Docker and VM matrices cover:
 Docker is the fast workload loop, but it cannot prove all platform behavior. Before a release, the VM apply gate must verify:
 
 - package installation on fresh provider-like images
-- systemd unit state
-- Nginx config validation and HTTP health
+- standalone systemd application activation and reboot persistence
+- Nginx and Apache config validation and HTTP health
+- reviewed target-only cutover confirmation
 - MySQL/MariaDB row and checksum parity
 - PostgreSQL row and checksum parity
 - UFW and nftables rule state

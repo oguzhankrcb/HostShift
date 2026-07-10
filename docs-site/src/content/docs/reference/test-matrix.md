@@ -106,7 +106,7 @@ hostshift matrix vm --list
 hostshift matrix vm --pair 'ubuntu22->debian12' --json
 ```
 
-The VM runner uses Lima. It validates package installation, systemd service state, firewall state, boot persistence, HTTP health, MySQL parity, PostgreSQL parity, and source snapshot immutability against booted VMs.
+The VM runner uses Lima. It validates package installation, Nginx and Apache activation, a standalone systemd application, reviewed target-only cutover, firewall state, boot persistence, HTTP health, MySQL parity, PostgreSQL parity, and source snapshot immutability against booted VMs.
 
 ## Current VM Matrix
 

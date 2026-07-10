@@ -4,6 +4,8 @@
 
 - Added Docker named-volume discovery and explicit snapshot, disposable, database-backed, and external migration strategies with full Docker matrix checksum coverage.
 - Added executable phase resume with atomic checkpoints, plan fingerprints, completed-step skipping, uncertain-action retry confirmation, per-run locking, and MCP status/resume previews.
+- Expanded real VM migration coverage with Apache vhosts, a standalone systemd application, confirmed target-only cutover, reboot persistence, and broader source checksums.
+- Added typed validation for read-only source tar streams so safe filenames such as `/etc/logrotate.d/apt` do not trigger package-manager false positives while option injection and traversal remain blocked.
 
 ## v0.3.0 - Pending
 

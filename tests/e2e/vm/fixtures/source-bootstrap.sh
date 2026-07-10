@@ -17,17 +17,50 @@ if [ "${HOSTSHIFT_OS_ID}" = "debian" ]; then
   MYSQL_SERVER_PACKAGE="default-mysql-server"
 fi
 
+HOSTSHIFT_CREATED_POLICY_RC_D=0
+if [ ! -e /usr/sbin/policy-rc.d ]; then
+  printf '#!/bin/sh\nexit 101\n' >/usr/sbin/policy-rc.d
+  chmod 755 /usr/sbin/policy-rc.d
+  HOSTSHIFT_CREATED_POLICY_RC_D=1
+fi
+cleanup_policy_rc_d() {
+  if [ "${HOSTSHIFT_CREATED_POLICY_RC_D}" = "1" ]; then
+    rm -f /usr/sbin/policy-rc.d
+  fi
+}
+trap cleanup_policy_rc_d EXIT
+
 apt-get install -y \
+  apache2 \
   nginx \
   "${MYSQL_SERVER_PACKAGE}" \
   postgresql \
   ufw \
   nftables
 
+cleanup_policy_rc_d
+trap - EXIT
+
 mkdir -p /srv/hostshift-fixture/public /srv/hostshift-fixture/config /srv/hostshift-fixture/fixtures/mysql /srv/hostshift-fixture/fixtures/postgresql
 printf 'ok\n' > /srv/hostshift-fixture/public/health
 printf '{"mode":"vm-fixture"}\n' > /srv/hostshift-fixture/config/standalone.json
 printf 'APP_ENV=production\nDB_CONNECTION=mysql\n' > /srv/hostshift-fixture/.env
+printf 'systemd-fixture-v1\n' > /srv/hostshift-fixture/systemd-marker
+
+cat >/etc/systemd/system/hostshift-fixture-app.service <<'EOF'
+[Unit]
+Description=HostShift VM fixture application
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/bin/sleep infinity
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
 
 cat >/etc/nginx/sites-available/hostshift-fixture.conf <<'EOF'
 server {
@@ -42,10 +75,30 @@ server {
 EOF
 
 ln -sf /etc/nginx/sites-available/hostshift-fixture.conf /etc/nginx/sites-enabled/hostshift-fixture.conf
-systemctl enable ssh nginx
+
+cat >/etc/apache2/ports.conf <<'EOF'
+Listen 8080
+EOF
+
+cat >/etc/apache2/sites-available/hostshift-fixture.conf <<'EOF'
+<VirtualHost *:8080>
+    ServerName localhost
+    DocumentRoot /srv/hostshift-fixture/public
+
+    <Directory /srv/hostshift-fixture/public>
+        Require all granted
+    </Directory>
+</VirtualHost>
+EOF
+
+a2dissite 000-default.conf || true
+a2ensite hostshift-fixture.conf
+apache2ctl configtest
+
+systemctl enable ssh nginx apache2 hostshift-fixture-app.service
 systemctl enable mysql || systemctl enable mariadb
 systemctl enable postgresql || true
-systemctl restart ssh nginx postgresql || true
+systemctl restart ssh nginx apache2 hostshift-fixture-app.service postgresql || true
 systemctl restart mysql || systemctl restart mariadb || true
 
 mysql <<'SQL'

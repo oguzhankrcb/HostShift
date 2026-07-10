@@ -1,6 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+export DEBIAN_FRONTEND=noninteractive
+
+apt-get install -y apache2
+
+cat >/etc/apache2/ports.conf <<'EOF'
+Listen 8080
+EOF
+
+a2dissite 000-default.conf || true
+systemctl enable apache2
+systemctl restart apache2
+
 mkdir -p /srv/hostshift-target
 systemctl enable ssh
 systemctl enable postgresql || true

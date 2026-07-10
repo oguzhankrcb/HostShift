@@ -491,6 +491,8 @@ func (r runner) buildCommandPlan(workspaceDir string, sourcePlan, targetPlan ins
 			hostshiftCommand("plan", "--profile", fixtureProfile, "--target", targetPlan.SSH.Alias, "--json"),
 			hostshiftCommand("prepare", "--profile", fixtureProfile, "--target", targetPlan.SSH.Alias, "--apply", "--json", "--state-dir", stateDir, "--run-id", "vm-prepare"),
 			hostshiftCommand("sync", "--profile", fixtureProfile, "--target", targetPlan.SSH.Alias, "--apply", "--json", "--state-dir", stateDir, "--run-id", "vm-sync"),
+			hostshiftCommand("cutover", "--profile", fixtureProfile, "--target", targetPlan.SSH.Alias, "--json", "--state-dir", stateDir, "--run-id", "vm-cutover-preview"),
+			hostshiftCommand("cutover", "--profile", fixtureProfile, "--target", targetPlan.SSH.Alias, "--apply", "--confirm", "<confirmationCode>", "--json", "--state-dir", stateDir, "--run-id", "vm-cutover"),
 			hostshiftCommand("verify", "--profile", fixtureProfile, "--target", targetPlan.SSH.Alias, "--apply", "--json", "--state-dir", stateDir, "--run-id", "vm-verify"),
 			{"limactl", "stop", targetPlan.InstanceName},
 			{"limactl", "start", targetPlan.InstanceName},
@@ -672,7 +674,7 @@ func (r runner) runHostShiftWorkflow(ctx context.Context, workspace pairWorkspac
 	if err != nil {
 		return err
 	}
-	if err := assertPlanKeepsSourceImmutable(discoveredPlan.Stdout, "plan"); err != nil {
+	if err := assertDiscoveryPlanReviewGate(discoveredPlan.Stdout); err != nil {
 		return err
 	}
 
@@ -697,7 +699,6 @@ func (r runner) runHostShiftWorkflow(ctx context.Context, workspace pairWorkspac
 	}{
 		{"prepare", runPrefix + "-prepare", false},
 		{"sync", runPrefix + "-sync", true},
-		{"verify", runPrefix + "-verify", false},
 	}
 	for _, phase := range phases {
 		r.logStep(workspace, "running hostshift "+phase.name+" --apply")
@@ -709,7 +710,50 @@ func (r runner) runHostShiftWorkflow(ctx context.Context, workspace pairWorkspac
 			return err
 		}
 	}
+
+	r.logStep(workspace, "previewing hostshift cutover")
+	cutoverPreview, err := r.runHostShift(ctx, []string{"cutover", "--profile", fixtureProfile, "--target", workspace.TargetPlan.SSH.Alias, "--json", "--state-dir", stateDir, "--run-id", runPrefix + "-cutover-preview"}, env)
+	if err != nil {
+		return err
+	}
+	if err := assertPlanKeepsSourceImmutable(cutoverPreview.Stdout, "cutover preview"); err != nil {
+		return err
+	}
+	confirmationCode, err := cutoverConfirmationCode(cutoverPreview.Stdout)
+	if err != nil {
+		return err
+	}
+	r.logStep(workspace, "running hostshift cutover --apply")
+	cutover, err := r.runHostShift(ctx, []string{"cutover", "--profile", fixtureProfile, "--target", workspace.TargetPlan.SSH.Alias, "--apply", "--confirm", confirmationCode, "--json", "--state-dir", stateDir, "--run-id", runPrefix + "-cutover"}, env)
+	if err != nil {
+		return err
+	}
+	if err := assertPhaseResult(cutover.Stdout, "cutover", false); err != nil {
+		return err
+	}
+
+	r.logStep(workspace, "running hostshift verify --apply")
+	verify, err := r.runHostShift(ctx, []string{"verify", "--profile", fixtureProfile, "--target", workspace.TargetPlan.SSH.Alias, "--apply", "--json", "--state-dir", stateDir, "--run-id", runPrefix + "-verify"}, env)
+	if err != nil {
+		return err
+	}
+	if err := assertPhaseResult(verify.Stdout, "verify", false); err != nil {
+		return err
+	}
 	return nil
+}
+
+func cutoverConfirmationCode(raw string) (string, error) {
+	var body struct {
+		ConfirmationCode string `json:"confirmationCode"`
+	}
+	if err := json.Unmarshal([]byte(raw), &body); err != nil {
+		return "", err
+	}
+	if body.ConfirmationCode == "" {
+		return "", fmt.Errorf("cutover preview returned no confirmation code")
+	}
+	return body.ConfirmationCode, nil
 }
 
 func (r runner) verifyTargetBootPersistence(ctx context.Context, workspace pairWorkspace, sshConfigPath, stateDir string) error {
@@ -757,24 +801,31 @@ func buildFixtureProfile(workspace pairWorkspace) map[string]any {
 		"sshd":  map[string]any{"settings": map[string]any{"ClientAliveInterval": 120, "ClientAliveCountMax": 720}},
 		"mysql": map[string]any{"settings": map[string]any{"bindAddress": "0.0.0.0", "mysqlxBindAddress": "127.0.0.1"}},
 		"workloads": []map[string]any{
-			{"type": "file-set", "name": "vm-fixture-files", "data": map[string]any{"paths": []string{"/srv/hostshift-fixture", "/etc/nginx/sites-available/hostshift-fixture.conf", "/etc/nginx/sites-enabled/hostshift-fixture.conf"}, "targetPath": "/"}},
+			{"type": "file-set", "name": "vm-fixture-files", "data": map[string]any{"paths": []string{"/srv/hostshift-fixture", "/etc/nginx/sites-available/hostshift-fixture.conf", "/etc/nginx/sites-enabled/hostshift-fixture.conf", "/etc/apache2/ports.conf", "/etc/apache2/sites-available/hostshift-fixture.conf", "/etc/systemd/system/hostshift-fixture-app.service"}, "targetPath": "/"}},
 			{"type": "mysql", "name": "hostshiftvm"},
 			{"type": "postgresql", "name": "hostshiftpg"},
+			{"type": "apache-vhost", "name": "hostshift-fixture", "data": map[string]any{"sites": []string{"hostshift-fixture.conf"}}},
+			{"type": "systemd-service", "name": "hostshift-fixture-app", "data": map[string]any{"service": "hostshift-fixture-app.service", "unitPath": "/etc/systemd/system/hostshift-fixture-app.service"}},
 		},
 		"checks": []map[string]any{
 			{"type": "nginxConfig", "name": "reload-nginx"},
 			{"type": "serviceActive", "name": "ssh-service", "data": map[string]any{"service": "ssh"}},
 			{"type": "serviceActive", "name": "nginx-service", "data": map[string]any{"service": "nginx"}},
+			{"type": "serviceActive", "name": "apache-service", "data": map[string]any{"service": "apache2"}},
+			{"type": "serviceActive", "name": "fixture-app-service", "data": map[string]any{"service": "hostshift-fixture-app.service"}},
 			{"type": "serviceActive", "name": "mysql-service", "data": map[string]any{"service": "mysql"}},
 			{"type": "serviceActive", "name": "postgres-service", "data": map[string]any{"service": "postgresql"}},
 			{"type": "ufwRule", "name": "mysql-firewall-rule", "data": map[string]any{"from": "172.17.0.0/16", "port": 3306, "proto": "tcp"}},
 			{"type": "nftRule", "name": "mysql-nft-rule", "data": map[string]any{"family": "inet", "table": "hostshift", "chain": "input", "contains": "tcp dport 3306 accept"}},
 			{"type": "fileExists", "name": "health-file", "data": map[string]any{"path": "/srv/hostshift-fixture/public/health"}},
 			{"type": "fileExists", "name": "nginx-site", "data": map[string]any{"path": "/etc/nginx/sites-available/hostshift-fixture.conf"}},
+			{"type": "fileExists", "name": "apache-site", "data": map[string]any{"path": "/etc/apache2/sites-available/hostshift-fixture.conf"}},
+			{"type": "fileExists", "name": "fixture-app-unit", "data": map[string]any{"path": "/etc/systemd/system/hostshift-fixture-app.service"}},
 			{"type": "fileContains", "name": "health-content", "data": map[string]any{"path": "/srv/hostshift-fixture/public/health", "contains": "ok"}},
 			{"type": "fileContains", "name": "sshd-keepalive", "data": map[string]any{"path": "/etc/ssh/sshd_config.d/99-hostshift.conf", "contains": "ClientAliveInterval 120"}},
 			{"type": "fileContains", "name": "mysql-bind", "data": map[string]any{"path": "/etc/mysql/mysql.conf.d/99-hostshift-bind.cnf", "contains": "bind-address = 0.0.0.0"}},
 			{"type": "http", "name": "health-http", "data": map[string]any{"url": "http://127.0.0.1/health", "timeoutSeconds": 10}},
+			{"type": "http", "name": "apache-health-http", "data": map[string]any{"url": "http://127.0.0.1:8080/health", "timeoutSeconds": 10}},
 			{"type": "mysqlScalar", "name": "mysql-row-count", "data": map[string]any{"database": "hostshiftvm", "query": "SELECT COUNT(*) FROM pages", "expected": "2"}},
 			{"type": "mysqlScalar", "name": "mysql-checksum", "data": map[string]any{"database": "hostshiftvm", "query": "SELECT MD5(GROUP_CONCAT(CONCAT(id, ':', slug, ':', body) ORDER BY id SEPARATOR ',')) FROM pages", "expected": "b56d589972734ead12a0069c3ebb4178"}},
 			{"type": "postgresScalar", "name": "postgres-row-count", "data": map[string]any{"database": "hostshiftpg", "query": "SELECT COUNT(*) FROM metrics", "expected": "2"}},
@@ -797,6 +848,30 @@ func assertPlanKeepsSourceImmutable(raw, phase string) error {
 	}
 	if len(body.Blockers) > 0 {
 		return fmt.Errorf("%s reported blockers: %v", phase, body.Blockers)
+	}
+	return nil
+}
+
+func assertDiscoveryPlanReviewGate(raw string) error {
+	var body struct {
+		SourceWillBeModified bool     `json:"sourceWillBeModified"`
+		Blockers             []string `json:"blockers"`
+	}
+	if err := json.Unmarshal([]byte(raw), &body); err != nil {
+		return err
+	}
+	if body.SourceWillBeModified {
+		return fmt.Errorf("discovered plan must keep source immutable")
+	}
+	wanted := map[string]bool{
+		"Profile is not approved": true,
+		"Target platform is unknown; package capabilities could not be mapped to distribution packages": true,
+	}
+	for _, blocker := range body.Blockers {
+		delete(wanted, blocker)
+	}
+	if len(wanted) != 0 {
+		return fmt.Errorf("discovered plan did not preserve review gates: missing %v; blockers %v", wanted, body.Blockers)
 	}
 	return nil
 }
@@ -844,7 +919,7 @@ func assertPhaseResult(raw, phase string, expectStream bool) error {
 }
 
 func (r runner) captureSourceSnapshot(ctx context.Context, sourceAlias, sshConfigPath string) (string, error) {
-	result, err := r.runCommand(ctx, "ssh", []string{"-F", sshConfigPath, sourceAlias, "sha256sum", "/srv/hostshift-fixture/public/health", "/etc/nginx/sites-available/hostshift-fixture.conf"}, runOptions{Capture: true, TimeoutMs: sshTimeoutMs})
+	result, err := r.runCommand(ctx, "ssh", []string{"-F", sshConfigPath, sourceAlias, "sha256sum", "/srv/hostshift-fixture/public/health", "/srv/hostshift-fixture/systemd-marker", "/etc/nginx/sites-available/hostshift-fixture.conf", "/etc/apache2/ports.conf", "/etc/apache2/sites-available/hostshift-fixture.conf", "/etc/systemd/system/hostshift-fixture-app.service"}, runOptions{Capture: true, TimeoutMs: sshTimeoutMs})
 	if err != nil {
 		return "", err
 	}

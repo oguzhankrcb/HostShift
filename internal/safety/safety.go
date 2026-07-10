@@ -113,10 +113,32 @@ func SourceCommand(command []string) error {
 			return fmt.Errorf("source command contains unsafe argument")
 		}
 	}
+	if command[0] == "tar" {
+		return sourceTarCreateCommand(command)
+	}
 	joined := " " + strings.ToLower(strings.Join(command, " ")) + " "
 	for _, token := range forbiddenOnSource {
 		if strings.Contains(joined, strings.ToLower(token)) {
 			return fmt.Errorf("source command contains forbidden token: %s", strings.TrimSpace(token))
+		}
+	}
+	return nil
+}
+
+func sourceTarCreateCommand(command []string) error {
+	prefix := []string{"tar", "--create", "--file=-", "--one-file-system", "--warning=no-file-changed", "-C", "/"}
+	if len(command) < len(prefix) {
+		return fmt.Errorf("source tar command is incomplete")
+	}
+	for index, expected := range prefix {
+		if command[index] != expected {
+			return fmt.Errorf("source tar command has unexpected argument: %s", command[index])
+		}
+	}
+	for _, operand := range command[len(prefix):] {
+		cleaned := path.Clean(operand)
+		if strings.HasPrefix(operand, "-") || strings.HasPrefix(operand, "/") || cleaned == "." || cleaned == ".." || strings.HasPrefix(cleaned, "../") {
+			return fmt.Errorf("source tar command has unsafe transfer path: %s", operand)
 		}
 	}
 	return nil

@@ -23,6 +23,22 @@ func TestSourceCommandAllowsReadOnlySystemdServiceInventory(t *testing.T) {
 	}
 }
 
+func TestSourceCommandAllowsTypedTarPathsThatMatchForbiddenCommandNames(t *testing.T) {
+	command := []string{"tar", "--create", "--file=-", "--one-file-system", "--warning=no-file-changed", "-C", "/", "etc/logrotate.d/apt", "srv/app"}
+	if err := SourceCommand(command); err != nil {
+		t.Fatalf("expected typed read-only tar command to be allowed: %v", err)
+	}
+}
+
+func TestSourceCommandRejectsTarOptionInjectionAndTraversal(t *testing.T) {
+	for _, operand := range []string{"--checkpoint-action=exec=touch /tmp/changed", "../etc/shadow", "/etc/passwd"} {
+		command := []string{"tar", "--create", "--file=-", "--one-file-system", "--warning=no-file-changed", "-C", "/", operand}
+		if err := SourceCommand(command); err == nil {
+			t.Fatalf("expected unsafe tar operand %q to be rejected", operand)
+		}
+	}
+}
+
 func TestTargetCommandAllowsTargetMutationsButRejectsControlChars(t *testing.T) {
 	if err := TargetCommand([]string{"apt-get", "install", "-y", "rsync"}); err != nil {
 		t.Fatalf("expected target package install command to be allowed: %v", err)
