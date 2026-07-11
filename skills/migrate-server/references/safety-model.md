@@ -7,6 +7,7 @@ The source server is an immutable observation endpoint. A successful migration m
 ## Enforcement
 
 - Source access is modeled as fact names and typed read-only exports, not arbitrary commands.
+- Source command validation is default-deny: unknown executables, alternate subcommands, shell snippets, and extra arguments are rejected before SSH execution.
 - Source commands never include `sudo`.
 - Source checks may inspect OS release, packages, firewall, sshd, database config, Docker metadata, and web server metadata.
 - Source container access is allowed only through typed read-only export operations such as streaming a database dump to stdout.

@@ -32,8 +32,8 @@ func TestStreamActionRequiresBothSides(t *testing.T) {
 	stream := StreamAction{
 		ID:            "stream.mysql",
 		Phase:         PhaseSync,
-		SourceCommand: []string{"mysqldump", "--single-transaction", "app"},
-		TargetCommand: []string{"mysql"},
+		SourceCommand: []string{"pg_dump", "--format=custom", "--dbname", "app"},
+		TargetCommand: []string{"pg_restore", "--dbname", "app"},
 	}
 	if err := stream.Validate(); err != nil {
 		t.Fatalf("expected stream action to be valid: %v", err)
