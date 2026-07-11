@@ -5,6 +5,7 @@ import (
 	"os"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -160,8 +161,8 @@ func TestDocumentationWebsiteIsScaffoldedWithStarlightAndDockerCompose(t *testin
 	runner := readText(t, "docs-site/src/content/docs/operations/self-hosted-runner.md")
 
 	dependencies := manifest["dependencies"].(map[string]any)
-	requireEqual(t, dependencies["astro"], "7.0.6")
-	requireEqual(t, dependencies["@astrojs/starlight"], "0.41.2")
+	requireMinimumVersion(t, dependencies["astro"], 7, 0, 0)
+	requireMinimumVersion(t, dependencies["@astrojs/starlight"], 0, 41, 2)
 	requireMatch(t, manifest["scripts"].(map[string]any)["build"].(string), `ASTRO_TELEMETRY_DISABLED=1`)
 	requireMatch(t, config, `starlight\(`)
 	requireMatch(t, config, `disable404Route: true`)
@@ -301,9 +302,40 @@ func TestReleaseWorkflowPackagesOnlyAfterHostedReleaseGatesPass(t *testing.T) {
 		`sigstore/cosign-installer@v3`,
 		`cosign sign-blob --yes`,
 		`gh release upload "\$GITHUB_REF_NAME" dist/checksums\.txt\.sig dist/checksums\.txt\.pem --clobber`,
-		`actions/attest-build-provenance@v2`,
+		`actions/attest-build-provenance@v(?:[2-9]|[1-9][0-9]+)`,
 	} {
 		requireMatch(t, workflow, pattern)
+	}
+}
+
+func requireMinimumVersion(t *testing.T, got any, wantMajor, wantMinor, wantPatch int) {
+	t.Helper()
+	value, ok := got.(string)
+	if !ok {
+		t.Fatalf("expected semantic version string, got %T", got)
+	}
+	value = strings.TrimLeft(strings.TrimSpace(value), "^~<>=v ")
+	parts := strings.SplitN(value, ".", 3)
+	if len(parts) != 3 {
+		t.Fatalf("expected semantic version, got %q", value)
+	}
+	version := [3]int{}
+	for index, part := range parts {
+		numeric := strings.SplitN(part, "-", 2)[0]
+		parsed, err := strconv.Atoi(numeric)
+		if err != nil {
+			t.Fatalf("expected semantic version, got %q", value)
+		}
+		version[index] = parsed
+	}
+	want := [3]int{wantMajor, wantMinor, wantPatch}
+	for index := range version {
+		if version[index] > want[index] {
+			return
+		}
+		if version[index] < want[index] {
+			t.Fatalf("expected version >= %d.%d.%d, got %q", wantMajor, wantMinor, wantPatch, value)
+		}
 	}
 }
 

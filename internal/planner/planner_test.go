@@ -1,13 +1,109 @@
 package planner
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/oguzhankaracabay/hostshift/internal/core"
 	"github.com/oguzhankaracabay/hostshift/internal/profile"
+	workloadadapter "github.com/oguzhankaracabay/hostshift/internal/workload"
 )
+
+type customPlanningAdapter struct{}
+
+func (customPlanningAdapter) Type() string { return "custom" }
+
+func (customPlanningAdapter) Discover(context.Context, workloadadapter.Context) ([]profile.Workload, error) {
+	return nil, nil
+}
+
+func (customPlanningAdapter) Plan(context.Context, workloadadapter.Context, profile.Workload) (workloadadapter.PlanResult, error) {
+	return workloadadapter.PlanResult{
+		Actions: []core.Action{{
+			ID:       "target.workload.custom.verify",
+			Phase:    core.PhaseVerify,
+			HostRole: core.HostRoleTarget,
+			Impact:   core.ImpactReadOnly,
+			Command:  []string{"true"},
+		}},
+		Streams: []core.StreamAction{{
+			ID:            "target.workload.custom.stream",
+			Phase:         core.PhaseSync,
+			SourceCommand: []string{"cat", "/srv/custom/export.tar"},
+			TargetCommand: []string{"cat"},
+		}},
+		Blockers:     []string{"custom review required"},
+		Capabilities: []string{"curl"},
+	}, nil
+}
+
+func (customPlanningAdapter) Verify(context.Context, workloadadapter.Context, profile.Workload) ([]core.Action, error) {
+	return nil, nil
+}
+
+func TestBuildWithRegistryUsesAdapterPlanResult(t *testing.T) {
+	prof := profile.Profile{
+		SchemaVersion: profile.CurrentSchemaVersion,
+		Name:          "example",
+		Source:        profile.Host{SSH: "old"},
+		Target:        profile.Host{SSH: "new"},
+		SourcePolicy:  "strict-read-only",
+		Platforms:     profile.Platforms{Source: "ubuntu:24.04", Target: "debian:12"},
+		Approved:      true,
+		Workloads:     []profile.Workload{{Type: "custom", Name: "fixture"}},
+	}
+	registry := workloadadapter.NewRegistry(customPlanningAdapter{})
+	plan, err := BuildWithRegistry(prof, time.Date(2026, 6, 11, 0, 0, 0, 0, time.UTC), registry)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plan.Streams) != 1 || plan.Streams[0].ID != "target.workload.custom.stream" {
+		t.Fatalf("expected custom adapter stream, got %+v", plan.Streams)
+	}
+	foundAction := false
+	for _, action := range plan.Actions {
+		if action.ID == "target.workload.custom.verify" {
+			foundAction = true
+		}
+	}
+	if !foundAction {
+		t.Fatalf("expected custom adapter action, got %+v", plan.Actions)
+	}
+	if !strings.Contains(strings.Join(plan.Blockers, "\n"), "custom review required") {
+		t.Fatalf("expected custom adapter blocker, got %+v", plan.Blockers)
+	}
+	packageCommand := ""
+	for _, action := range plan.Actions {
+		if action.ID == "target.prepare.packages" {
+			packageCommand = strings.Join(action.Command, " ")
+		}
+	}
+	if !strings.Contains(packageCommand, "curl") {
+		t.Fatalf("expected custom adapter capability in target package preparation, got %q", packageCommand)
+	}
+}
+
+func TestBuildBlocksWorkloadWithoutRegisteredAdapter(t *testing.T) {
+	prof := profile.Profile{
+		SchemaVersion: profile.CurrentSchemaVersion,
+		Name:          "example",
+		Source:        profile.Host{SSH: "old"},
+		Target:        profile.Host{SSH: "new"},
+		SourcePolicy:  "strict-read-only",
+		Platforms:     profile.Platforms{Source: "ubuntu:24.04", Target: "debian:12"},
+		Approved:      true,
+		Workloads:     []profile.Workload{{Type: "unknown", Name: "fixture"}},
+	}
+	plan, err := Build(prof, time.Date(2026, 6, 11, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(strings.Join(plan.Blockers, "\n"), "has no registered adapter") {
+		t.Fatalf("expected missing adapter blocker, got %+v", plan.Blockers)
+	}
+}
 
 func TestBuildAllowsDebian12LTSTargets(t *testing.T) {
 	prof := profile.Profile{
