@@ -78,7 +78,7 @@ jobs:
       - run: HOSTSHIFT_RUN_VM_E2E=1 bash tests/e2e/vm/run-vm-e2e.sh --apply
       - name: Upload Lima logs on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: lima-vm-e2e-logs
           path: |
