@@ -7,11 +7,63 @@ func TestSourceCommandRejectsMutations(t *testing.T) {
 		{"sudo", "cat", "/etc/passwd"},
 		{"systemctl", "restart", "nginx"},
 		{"service", "nginx", "restart"},
+		{"dd", "if=/dev/zero", "of=/tmp/hostshift"},
+		{"reboot"},
+		{"shutdown", "-h", "now"},
+		{"useradd", "hostshift"},
+		{"mount", "/dev/sdb1", "/mnt"},
+		{"iptables", "-F"},
+		{"nft", "add", "table", "inet", "hostshift"},
+		{"ufw", "enable"},
+		{"docker", "run", "alpine"},
 		{"docker", "exec", "app", "sh"},
+		{"mysql", "--execute=DROP DATABASE app"},
+		{"psql", "--command=DELETE FROM users"},
+		{"find", "/srv", "-delete", "-print"},
+		{"find", "/srv", "-exec", "rm", "{}", ";", "-print"},
+		{"sh", "-lc", "touch /tmp/hostshift"},
+		{"python3", "-c", "open('/tmp/hostshift', 'w').close()"},
+		{"redis-cli", "-h", "127.0.0.1", "-p", "6379", "SET", "key", "value"},
 		{"touch", "/tmp/hostshift"},
+		{"unknown-read-tool", "--version"},
 	} {
 		if err := SourceCommand(command); err == nil {
 			t.Fatalf("expected %v to be rejected", command)
+		}
+	}
+}
+
+func TestSourceCommandAllowsTypedReadOnlyExports(t *testing.T) {
+	mysqlWithoutPassword := "if mysqldump --help | grep -q -- '--no-tablespaces'; then exec mysqldump --single-transaction --quick --skip-lock-tables --no-tablespaces --databases 'app'; else exec mysqldump --single-transaction --quick --skip-lock-tables --databases 'app'; fi"
+	mysqlWithPassword := "if mysqldump --help | grep -q -- '--no-tablespaces'; then exec mysqldump --single-transaction --quick --skip-lock-tables --no-tablespaces --password=${MYSQL_PASSWORD} --databases 'app'; else exec mysqldump --single-transaction --quick --skip-lock-tables --password=${MYSQL_PASSWORD} --databases 'app'; fi"
+	commands := [][]string{
+		{"sh", "-lc", mysqlWithoutPassword},
+		{"sh", "-lc", mysqlWithPassword},
+		{"pg_dump", "--format=custom", "--dbname", "app"},
+		{"env", "PGPASSWORD=${POSTGRES_PASSWORD}", "pg_dump", "--format=custom", "--dbname", "app"},
+		{"redis-cli", "-h", "127.0.0.1", "-p", "6380", "--rdb", "-"},
+		{"docker", "image", "save", "registry.example.com/team/app:1.2.3"},
+		{"systemctl", "show", "--property=Id", "--property=ActiveState", "--property=SubState", "--property=MainPID", "--property=ActiveEnterTimestampMonotonic", "--no-pager", "nginx.service"},
+	}
+	for _, command := range commands {
+		if err := SourceCommand(command); err != nil {
+			t.Fatalf("expected typed read-only command %v to be allowed: %v", command, err)
+		}
+	}
+}
+
+func TestSourceCommandRejectsMalformedTypedExports(t *testing.T) {
+	commands := [][]string{
+		{"sh", "-lc", "mysqldump --databases app"},
+		{"pg_dump", "--format=plain", "--dbname", "app"},
+		{"env", "PGPASSWORD=literal-secret", "pg_dump", "--format=custom", "--dbname", "app"},
+		{"redis-cli", "-h", "127.0.0.1", "-p", "0", "--rdb", "-"},
+		{"docker", "image", "save", "app;touch"},
+		{"systemctl", "show", "--property=Environment", "nginx.service"},
+	}
+	for _, command := range commands {
+		if err := SourceCommand(command); err == nil {
+			t.Fatalf("expected malformed typed command %v to be rejected", command)
 		}
 	}
 }
