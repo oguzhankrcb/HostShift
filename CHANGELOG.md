@@ -8,6 +8,7 @@
 - Added typed validation for read-only source tar streams so safe filenames such as `/etc/logrotate.d/apt` do not trigger package-manager false positives while option injection and traversal remain blocked.
 - Replaced source command mutation heuristics with a default-deny allowlist for exact facts and typed filesystem, Docker, MySQL/MariaDB, PostgreSQL, and Redis exports.
 - Connected the workload adapter registry to production planning so adapters provide blockers, target capabilities, actions, streams, verification phases, and rollback metadata; unregistered workload types now block planning.
+- Replaced exact dependency patch assertions with minimum compatibility checks so Dependabot updates can pass CI without weakening repository structure or secret-scan validation.
 - Added direct source service PID/start-time immutability comparisons to Docker and VM migration gates.
 - Enforced a successful self-hosted real VM apply run for the exact commit before the Release workflow can publish artifacts.
 - Replaced the abbreviated license notice with the complete canonical Apache License 2.0 text for public distribution.
