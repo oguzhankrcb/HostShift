@@ -1,0 +1,34 @@
+name: Feature request
+description: Propose a migration capability or safety improvement.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe the migration problem and affected workloads or platforms.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Explain discovery, planning, target apply, verification, and rollback expectations.
+    validations:
+      required: true
+  - type: textarea
+    id: source-safety
+    attributes:
+      label: Source safety
+      description: Explain how the source remains strictly read-only and how tests can prove it.
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation strategy
+      description: Identify unit, Docker matrix, or real VM coverage needed.
+    validations:
+      required: true

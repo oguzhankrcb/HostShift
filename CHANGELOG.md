@@ -10,6 +10,7 @@
 - Enforced a successful self-hosted real VM apply run for the exact commit before the Release workflow can publish artifacts.
 - Replaced the abbreviated license notice with the complete canonical Apache License 2.0 text for public distribution.
 - Added full-history Gitleaks checks to CI and release gates before making the repository public.
+- Added Dependabot coverage and safety-focused issue, feature, and pull-request templates for public maintenance.
 
 ## v0.3.0 - Pending
 

@@ -1,0 +1,67 @@
+name: Bug report
+description: Report reproducible HostShift behavior that is incorrect or unsafe.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: Do not include credentials, private keys, database dumps, or unredacted environment files.
+  - type: input
+    id: version
+    attributes:
+      label: HostShift version
+      placeholder: v0.3.0 or commit SHA
+    validations:
+      required: true
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Phase
+      options:
+        - doctor
+        - discover
+        - plan/review
+        - prepare
+        - sync
+        - cutover
+        - verify
+        - resume
+        - Docker matrix
+        - VM E2E
+        - Codex plugin or MCP
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Include redacted output and the expected behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Use fixture aliases and sanitized profile data only.
+    validations:
+      required: true
+  - type: input
+    id: source-platform
+    attributes:
+      label: Source platform
+      placeholder: ubuntu:22.04
+  - type: input
+    id: target-platform
+    attributes:
+      label: Target platform
+      placeholder: debian:12
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety confirmation
+      options:
+        - label: I removed secrets and customer-identifying data from this report.
+          required: true
+        - label: I did not work around HostShift by running mutating commands on the source.
+          required: true

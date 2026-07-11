@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 func TestPluginManifestHasRequiredLocalPluginFields(t *testing.T) {
@@ -194,6 +196,35 @@ func TestCIAndReleaseScanFullGitHistoryForSecrets(t *testing.T) {
 		requireMatch(t, workflow, `fetch-depth: 0`)
 		requireMatch(t, workflow, `gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7`)
 		requireMatch(t, workflow, `GITHUB_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}`)
+	}
+}
+
+func TestPublicRepositoryMaintenanceFilesPreserveSafetyReview(t *testing.T) {
+	dependabot := readText(t, ".github/dependabot.yml")
+	for _, ecosystem := range []string{"gomod", "npm", "github-actions"} {
+		requireMatch(t, dependabot, `package-ecosystem: `+ecosystem)
+	}
+	requireMatch(t, readText(t, ".github/CODEOWNERS"), `@oguzhankrcb`)
+	bug := readText(t, ".github/ISSUE_TEMPLATE/bug_report.yml")
+	requireMatch(t, bug, `removed secrets and customer-identifying data`)
+	feature := readText(t, ".github/ISSUE_TEMPLATE/feature_request.yml")
+	requireMatch(t, feature, `source remains strictly read-only`)
+	pullRequest := readText(t, ".github/pull_request_template.md")
+	requireMatch(t, pullRequest, `No source-side write`)
+	requireMatch(t, pullRequest, `negative safety tests`)
+}
+
+func TestPublicRepositoryYAMLFilesParse(t *testing.T) {
+	for _, path := range []string{
+		".github/dependabot.yml",
+		".github/ISSUE_TEMPLATE/config.yml",
+		".github/ISSUE_TEMPLATE/bug_report.yml",
+		".github/ISSUE_TEMPLATE/feature_request.yml",
+	} {
+		var document any
+		if err := yaml.Unmarshal([]byte(readText(t, path)), &document); err != nil {
+			t.Fatalf("failed to parse %s: %v", path, err)
+		}
 	}
 }
 
