@@ -19,6 +19,22 @@ func TestPluginManifestHasRequiredLocalPluginFields(t *testing.T) {
 	}
 }
 
+func TestRepositoryContainsCompleteApacheLicenseTwoText(t *testing.T) {
+	license := readText(t, "LICENSE")
+	if len(license) < 10000 {
+		t.Fatalf("Apache-2.0 license text is incomplete: %d bytes", len(license))
+	}
+	for _, pattern := range []string{
+		`Apache License\n\s+Version 2\.0, January 2004`,
+		`1\. Definitions\.`,
+		`3\. Grant of Patent License\.`,
+		`8\. Limitation of Liability\.`,
+		`END OF TERMS AND CONDITIONS`,
+	} {
+		requireMatch(t, license, pattern)
+	}
+}
+
 func TestRepoMarketplaceExposesPackagedHostShiftPlugin(t *testing.T) {
 	marketplace := readJSON(t, ".agents/plugins/marketplace.json")
 	requireEqual(t, marketplace["name"], "hostshift")
@@ -166,6 +182,18 @@ func TestRootPackageAndWorkflowsValidateDocumentationWebsite(t *testing.T) {
 		requireMatch(t, body, `npm --prefix docs-site ci`)
 		requireMatch(t, body, `npm run docs:build`)
 		requireMatch(t, body, `npm run docs:compose:config`)
+	}
+}
+
+func TestCIAndReleaseScanFullGitHistoryForSecrets(t *testing.T) {
+	config := readText(t, ".gitleaks.toml")
+	requireMatch(t, config, `useDefault = true`)
+	requireMatch(t, config, `\^\\\.cache/`)
+	for _, path := range []string{".github/workflows/ci.yml", ".github/workflows/release.yml"} {
+		workflow := readText(t, path)
+		requireMatch(t, workflow, `fetch-depth: 0`)
+		requireMatch(t, workflow, `gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7`)
+		requireMatch(t, workflow, `GITHUB_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}`)
 	}
 }
 

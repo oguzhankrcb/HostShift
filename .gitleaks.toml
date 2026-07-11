@@ -1,0 +1,11 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Ignored generated dependency and build output"
+paths = [
+  '''^\.cache/''',
+  '''^docs-site/node_modules/''',
+  '''^docs-site/dist/''',
+  '''^dist/''',
+]
