@@ -6,8 +6,10 @@ HostShift is built around typed plans.
 
 - `PlatformAdapter` detects the OS, support status, package manager, firewall backends, and service manager.
 - Package installation is capability based, for example `docker-runtime` or `postgresql-client`, then mapped by the platform adapter.
-- `WorkloadAdapter` owns discovery, planning, sync, target preparation, verification, and target rollback for one workload type.
+- `WorkloadAdapter` is resolved through the production registry for every workload type. Its plan result owns blockers, required target capabilities, actions, typed source-to-target streams, verification phases, and target rollback metadata.
 - `Action` is the executable unit. Every action declares phase, host role, impact, command, preconditions, and rollback metadata.
+
+Source discovery first normalizes allowlisted host facts into profile workloads. The planner then requires every discovered or user-reviewed workload type to have a registered adapter; an unregistered type is a blocker and cannot be silently skipped. `BuildWithRegistry` provides the internal extension boundary used to test and add adapters without changing planner dispatch.
 
 ## Execution Boundary
 
