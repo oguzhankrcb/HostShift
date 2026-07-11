@@ -1,6 +1,7 @@
 package planner
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"reflect"
@@ -12,6 +13,7 @@ import (
 	"github.com/oguzhankaracabay/hostshift/internal/core"
 	"github.com/oguzhankaracabay/hostshift/internal/platform"
 	"github.com/oguzhankaracabay/hostshift/internal/profile"
+	workloadadapter "github.com/oguzhankaracabay/hostshift/internal/workload"
 )
 
 type Plan struct {
@@ -25,6 +27,10 @@ type Plan struct {
 }
 
 func Build(prof profile.Profile, now time.Time) (Plan, error) {
+	return BuildWithRegistry(prof, now, BuiltinWorkloadRegistry())
+}
+
+func BuildWithRegistry(prof profile.Profile, now time.Time, registry workloadadapter.Registry) (Plan, error) {
 	actions := []core.Action{
 		{ID: "source.inventory", Phase: core.PhaseDiscover, HostRole: core.HostRoleSource, Impact: core.ImpactReadOnly, Command: []string{"cat", "/etc/os-release"}},
 		{ID: "target.verify.ssh", Phase: core.PhaseVerify, HostRole: core.HostRoleTarget, Impact: core.ImpactReadOnly, Command: []string{"true"}},
@@ -53,20 +59,34 @@ func Build(prof profile.Profile, now time.Time) (Plan, error) {
 		warnings = append(warnings, fmt.Sprintf("Cross-distribution migration %s -> %s requires workload compatibility checks", prof.Platforms.Source, prof.Platforms.Target))
 	}
 	capabilities := requiredCapabilities(prof)
+	workloadActions := []core.Action{}
+	workloadStreams := []core.StreamAction{}
+	workloadBlockers := []string{}
+	adapterContext := workloadadapter.Context{Profile: prof}
+	for _, item := range prof.Workloads {
+		adapter, ok := registry.Get(item.Type)
+		if !ok {
+			workloadBlockers = append(workloadBlockers, fmt.Sprintf("Workload type %s has no registered adapter", item.Type))
+			continue
+		}
+		result, err := adapter.Plan(context.Background(), adapterContext, item)
+		if err != nil {
+			return Plan{}, fmt.Errorf("plan workload %s:%s: %w", item.Type, item.Name, err)
+		}
+		workloadBlockers = append(workloadBlockers, result.Blockers...)
+		workloadActions = append(workloadActions, result.Actions...)
+		workloadStreams = append(workloadStreams, result.Streams...)
+		capabilities = append(capabilities, result.Capabilities...)
+	}
 	packageAction, packageBlockers := preparePackagesAction(prof.Platforms.Target, capabilities)
 	blockers = append(blockers, packageBlockers...)
 	if packageAction.ID != "" {
 		actions = append(actions, packageAction)
 	}
 	actions = append(actions, targetConfigurationActions(prof)...)
-	for _, workload := range prof.Workloads {
-		blockers = append(blockers, blockersForWorkload(workload)...)
-		workloadActions, stream, hasStream := actionsForWorkload(workload)
-		actions = append(actions, workloadActions...)
-		if hasStream {
-			streams = append(streams, stream)
-		}
-	}
+	blockers = append(blockers, workloadBlockers...)
+	actions = append(actions, workloadActions...)
+	streams = append(streams, workloadStreams...)
 	for _, check := range prof.Checks {
 		actions = append(actions, actionForCheck(check))
 	}
@@ -87,6 +107,67 @@ func Build(prof profile.Profile, now time.Time) (Plan, error) {
 	}, nil
 }
 
+type builtinWorkloadAdapter struct {
+	kind string
+}
+
+func (a builtinWorkloadAdapter) Type() string {
+	return a.kind
+}
+
+func (a builtinWorkloadAdapter) Discover(context.Context, workloadadapter.Context) ([]profile.Workload, error) {
+	return nil, nil
+}
+
+func (a builtinWorkloadAdapter) Plan(_ context.Context, _ workloadadapter.Context, item profile.Workload) (workloadadapter.PlanResult, error) {
+	if item.Type != a.kind {
+		return workloadadapter.PlanResult{}, fmt.Errorf("adapter %s cannot plan workload type %s", a.kind, item.Type)
+	}
+	actions, stream, hasStream := actionsForWorkload(item)
+	result := workloadadapter.PlanResult{
+		Actions:      actions,
+		Blockers:     blockersForWorkload(item),
+		Capabilities: capabilitiesForWorkload(item),
+	}
+	if hasStream {
+		result.Streams = []core.StreamAction{stream}
+	}
+	return result, nil
+}
+
+func (a builtinWorkloadAdapter) Verify(context.Context, workloadadapter.Context, profile.Workload) ([]core.Action, error) {
+	return nil, nil
+}
+
+func BuiltinWorkloadRegistry() workloadadapter.Registry {
+	types := []string{
+		"docker-compose",
+		"docker-standalone",
+		"docker-volume",
+		"file-set",
+		"apache-vhost",
+		"caddy",
+		"systemd-service",
+		"cron",
+		"php-fpm",
+		"supervisor",
+		"fail2ban",
+		"memcached",
+		"rabbitmq",
+		"certbot",
+		"logrotate",
+		"mysql",
+		"mariadb",
+		"postgresql",
+		"redis",
+	}
+	adapters := make([]workloadadapter.Adapter, 0, len(types))
+	for _, kind := range types {
+		adapters = append(adapters, builtinWorkloadAdapter{kind: kind})
+	}
+	return workloadadapter.NewRegistry(adapters...)
+}
+
 func requiredCapabilities(prof profile.Profile) []string {
 	set := map[string]bool{"rsync": true}
 	if firewallUsesUFW(prof.Firewall) {
@@ -97,84 +178,6 @@ func requiredCapabilities(prof profile.Profile) []string {
 	}
 	if prof.MySQL.Settings.BindAddress != "" || prof.MySQL.Settings.MySQLXBindAddress != "" {
 		set["mysql-server"] = true
-	}
-	for _, workload := range prof.Workloads {
-		switch workload.Type {
-		case "docker-compose":
-			set["docker-runtime"] = true
-			set["docker-compose"] = true
-		case "docker-standalone":
-			set["docker-runtime"] = true
-		case "docker-volume":
-			if dockerVolumeStrategy(workload) == "snapshot" {
-				set["tar"] = true
-			}
-		case "file-set":
-			set["tar"] = true
-			for _, item := range dataStringSlice(workload.Data, "paths", "Paths") {
-				if item == "/etc/nginx" || strings.HasPrefix(item, "/etc/nginx/") {
-					set["nginx"] = true
-				}
-				if item == "/etc/apache2" || strings.HasPrefix(item, "/etc/apache2/") {
-					set["apache"] = true
-				}
-				if item == "/etc/caddy" || strings.HasPrefix(item, "/etc/caddy/") {
-					set["caddy"] = true
-				}
-				if item == "/etc/cron.d" || strings.HasPrefix(item, "/etc/cron.d/") ||
-					item == "/etc/cron.daily" || strings.HasPrefix(item, "/etc/cron.daily/") ||
-					item == "/etc/cron.hourly" || strings.HasPrefix(item, "/etc/cron.hourly/") ||
-					item == "/etc/cron.monthly" || strings.HasPrefix(item, "/etc/cron.monthly/") ||
-					item == "/etc/cron.weekly" || strings.HasPrefix(item, "/etc/cron.weekly/") {
-					set["cron"] = true
-				}
-				if item == "/etc/fail2ban" || strings.HasPrefix(item, "/etc/fail2ban/") {
-					set["fail2ban"] = true
-				}
-				if item == "/etc/memcached.conf" || item == "/etc/memcached" || strings.HasPrefix(item, "/etc/memcached/") {
-					set["memcached"] = true
-				}
-				if item == "/etc/rabbitmq" || strings.HasPrefix(item, "/etc/rabbitmq/") {
-					set["rabbitmq-server"] = true
-				}
-				if item == "/etc/letsencrypt" || strings.HasPrefix(item, "/etc/letsencrypt/") {
-					set["certbot"] = true
-				}
-				if item == "/etc/logrotate.conf" || item == "/etc/logrotate.d" || strings.HasPrefix(item, "/etc/logrotate.d/") {
-					set["logrotate"] = true
-				}
-			}
-		case "apache-vhost":
-			set["apache"] = true
-		case "caddy":
-			set["caddy"] = true
-		case "cron":
-			set["cron"] = true
-		case "php-fpm":
-			set["php-fpm"] = true
-		case "supervisor":
-			set["supervisor"] = true
-		case "fail2ban":
-			set["fail2ban"] = true
-		case "memcached":
-			set["memcached"] = true
-		case "rabbitmq":
-			set["rabbitmq-server"] = true
-		case "certbot":
-			set["certbot"] = true
-		case "logrotate":
-			set["logrotate"] = true
-		case "mysql":
-			set["mysql-client"] = true
-		case "mariadb":
-			set["mariadb-client"] = true
-		case "postgresql":
-			set["postgresql-server"] = true
-			set["postgresql-client"] = true
-		case "redis":
-			set["redis-server"] = true
-			set["redis-tools"] = true
-		}
 	}
 	for _, check := range prof.Checks {
 		switch check.Type {
@@ -189,6 +192,91 @@ func requiredCapabilities(prof profile.Profile) []string {
 			set["postgresql-client"] = true
 		}
 	}
+	return orderedCapabilities(set)
+}
+
+func capabilitiesForWorkload(workload profile.Workload) []string {
+	set := map[string]bool{}
+	switch workload.Type {
+	case "docker-compose":
+		set["docker-runtime"] = true
+		set["docker-compose"] = true
+	case "docker-standalone":
+		set["docker-runtime"] = true
+	case "docker-volume":
+		if dockerVolumeStrategy(workload) == "snapshot" {
+			set["tar"] = true
+		}
+	case "file-set":
+		set["tar"] = true
+		for _, item := range dataStringSlice(workload.Data, "paths", "Paths") {
+			if item == "/etc/nginx" || strings.HasPrefix(item, "/etc/nginx/") {
+				set["nginx"] = true
+			}
+			if item == "/etc/apache2" || strings.HasPrefix(item, "/etc/apache2/") {
+				set["apache"] = true
+			}
+			if item == "/etc/caddy" || strings.HasPrefix(item, "/etc/caddy/") {
+				set["caddy"] = true
+			}
+			if item == "/etc/cron.d" || strings.HasPrefix(item, "/etc/cron.d/") ||
+				item == "/etc/cron.daily" || strings.HasPrefix(item, "/etc/cron.daily/") ||
+				item == "/etc/cron.hourly" || strings.HasPrefix(item, "/etc/cron.hourly/") ||
+				item == "/etc/cron.monthly" || strings.HasPrefix(item, "/etc/cron.monthly/") ||
+				item == "/etc/cron.weekly" || strings.HasPrefix(item, "/etc/cron.weekly/") {
+				set["cron"] = true
+			}
+			if item == "/etc/fail2ban" || strings.HasPrefix(item, "/etc/fail2ban/") {
+				set["fail2ban"] = true
+			}
+			if item == "/etc/memcached.conf" || item == "/etc/memcached" || strings.HasPrefix(item, "/etc/memcached/") {
+				set["memcached"] = true
+			}
+			if item == "/etc/rabbitmq" || strings.HasPrefix(item, "/etc/rabbitmq/") {
+				set["rabbitmq-server"] = true
+			}
+			if item == "/etc/letsencrypt" || strings.HasPrefix(item, "/etc/letsencrypt/") {
+				set["certbot"] = true
+			}
+			if item == "/etc/logrotate.conf" || item == "/etc/logrotate.d" || strings.HasPrefix(item, "/etc/logrotate.d/") {
+				set["logrotate"] = true
+			}
+		}
+	case "apache-vhost":
+		set["apache"] = true
+	case "caddy":
+		set["caddy"] = true
+	case "cron":
+		set["cron"] = true
+	case "php-fpm":
+		set["php-fpm"] = true
+	case "supervisor":
+		set["supervisor"] = true
+	case "fail2ban":
+		set["fail2ban"] = true
+	case "memcached":
+		set["memcached"] = true
+	case "rabbitmq":
+		set["rabbitmq-server"] = true
+	case "certbot":
+		set["certbot"] = true
+	case "logrotate":
+		set["logrotate"] = true
+	case "mysql":
+		set["mysql-client"] = true
+	case "mariadb":
+		set["mariadb-client"] = true
+	case "postgresql":
+		set["postgresql-server"] = true
+		set["postgresql-client"] = true
+	case "redis":
+		set["redis-server"] = true
+		set["redis-tools"] = true
+	}
+	return orderedCapabilities(set)
+}
+
+func orderedCapabilities(set map[string]bool) []string {
 	out := []string{}
 	for _, capability := range []string{"rsync", "tar", "curl", "ufw", "openssh-server", "nginx", "apache", "caddy", "cron", "php-fpm", "supervisor", "fail2ban", "memcached", "rabbitmq-server", "certbot", "logrotate", "docker-runtime", "docker-compose", "mysql-server", "mysql-client", "mariadb-client", "postgresql-server", "postgresql-client", "redis-server", "redis-tools"} {
 		if set[capability] {
@@ -394,9 +482,13 @@ func preparePackagesAction(targetPlatform string, capabilities []string) (core.A
 	if !ok {
 		return core.Action{}, []string{"Target platform is unknown; package capabilities could not be mapped to distribution packages"}
 	}
+	capabilitySet := map[string]bool{}
+	for _, capability := range capabilities {
+		capabilitySet[capability] = true
+	}
 	packages := []string{}
 	blockers := []string{}
-	for _, capability := range capabilities {
+	for _, capability := range orderedCapabilities(capabilitySet) {
 		pkg, ok := adapter.PackageFor(capability)
 		if !ok {
 			blockers = append(blockers, fmt.Sprintf("Target platform %s has no package mapping for capability %s", targetPlatform, capability))

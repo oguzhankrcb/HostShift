@@ -2,6 +2,7 @@ package workload
 
 import (
 	"context"
+	"sort"
 
 	"github.com/oguzhankaracabay/hostshift/internal/core"
 	"github.com/oguzhankaracabay/hostshift/internal/profile"
@@ -11,10 +12,17 @@ type Context struct {
 	Profile profile.Profile
 }
 
+type PlanResult struct {
+	Actions      []core.Action
+	Streams      []core.StreamAction
+	Blockers     []string
+	Capabilities []string
+}
+
 type Adapter interface {
 	Type() string
 	Discover(context.Context, Context) ([]profile.Workload, error)
-	Plan(context.Context, Context, profile.Workload) ([]core.Action, []string, error)
+	Plan(context.Context, Context, profile.Workload) (PlanResult, error)
 	Verify(context.Context, Context, profile.Workload) ([]core.Action, error)
 }
 
@@ -40,5 +48,6 @@ func (r Registry) Types() []string {
 	for kind := range r.adapters {
 		types = append(types, kind)
 	}
+	sort.Strings(types)
 	return types
 }

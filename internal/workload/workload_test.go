@@ -2,6 +2,7 @@ package workload
 
 import (
 	"context"
+	"reflect"
 	"testing"
 
 	"github.com/oguzhankaracabay/hostshift/internal/core"
@@ -16,8 +17,8 @@ func (f fakeAdapter) Discover(context.Context, Context) ([]profile.Workload, err
 	return nil, nil
 }
 
-func (f fakeAdapter) Plan(context.Context, Context, profile.Workload) ([]core.Action, []string, error) {
-	return nil, nil, nil
+func (f fakeAdapter) Plan(context.Context, Context, profile.Workload) (PlanResult, error) {
+	return PlanResult{}, nil
 }
 
 func (f fakeAdapter) Verify(context.Context, Context, profile.Workload) ([]core.Action, error) {
@@ -25,11 +26,14 @@ func (f fakeAdapter) Verify(context.Context, Context, profile.Workload) ([]core.
 }
 
 func TestRegistryFindsAdapters(t *testing.T) {
-	registry := NewRegistry(fakeAdapter{kind: "docker-compose"})
+	registry := NewRegistry(fakeAdapter{kind: "mysql"}, fakeAdapter{kind: "docker-compose"})
 	if _, ok := registry.Get("docker-compose"); !ok {
 		t.Fatal("expected adapter to be registered")
 	}
 	if _, ok := registry.Get("unknown"); ok {
 		t.Fatal("unexpected unknown adapter")
+	}
+	if got, want := registry.Types(), []string{"docker-compose", "mysql"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("expected sorted adapter types %v, got %v", want, got)
 	}
 }
