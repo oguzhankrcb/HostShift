@@ -1,0 +1,8 @@
+services:
+  docs:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4321:4321"

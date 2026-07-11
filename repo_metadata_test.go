@@ -173,6 +173,21 @@ func TestDocumentationWebsiteIsScaffoldedWithStarlightAndDockerCompose(t *testin
 	requireMatch(t, runner, `hostshift-vm`)
 }
 
+func TestDocumentationWebsiteHasProductionDeploymentBoundary(t *testing.T) {
+	compose := readText(t, "docs-site/compose.production.yml")
+	dockerfile := readText(t, "docs-site/Dockerfile.production")
+	containerNginx := readText(t, "docs-site/deploy/container.nginx.conf")
+	hostNginx := readText(t, "docs-site/deploy/hostshift.karacabay.com.nginx.conf")
+
+	requireMatch(t, compose, `127\.0\.0\.1:4321:4321`)
+	requireMatch(t, compose, `restart: unless-stopped`)
+	requireMatch(t, dockerfile, `RUN npm run build`)
+	requireMatch(t, dockerfile, `COPY --from=build /app/dist /usr/share/nginx/html`)
+	requireMatch(t, containerNginx, `listen 4321`)
+	requireMatch(t, hostNginx, `server_name hostshift\.karacabay\.com`)
+	requireMatch(t, hostNginx, `proxy_pass http://127\.0\.0\.1:4321`)
+}
+
 func TestRootPackageAndWorkflowsValidateDocumentationWebsite(t *testing.T) {
 	manifest := readJSON(t, "package.json")
 	ci := readText(t, ".github/workflows/ci.yml")
