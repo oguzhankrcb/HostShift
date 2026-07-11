@@ -8,6 +8,8 @@ The primary protected asset is the live source server.
 
 HostShift must not require source-side writes, package installs, service changes, firewall changes, key changes, snapshots, or application maintenance mode.
 
+Source execution is default-deny. Only exact fact commands and typed read-only export shapes are accepted; unknown executables, alternate subcommands, shell snippets, and additional arguments are rejected before SSH execution.
+
 ## Known Limits
 
 - Reading large data can consume CPU, disk I/O, and network.
