@@ -20,15 +20,17 @@ Unknown targets block apply instead of guessing.
 
 ## WorkloadAdapter
 
-The workload adapter describes:
+Every workload type must resolve through the production workload registry. An adapter plan result owns:
 
-- discovery
-- planning
-- target preparation
-- read-only source export
-- target import
-- verification
-- target rollback metadata
+- blockers
+- required target capabilities and package preparation
+- target actions across prepare, verify, and cutover phases
+- typed read-only source-to-target streams
+- target rollback metadata attached to actions and streams
+
+Source discovery first normalizes allowlisted host facts into profile workloads. The planner then requires every discovered or manually reviewed workload type to have a registered adapter. An unregistered type creates a blocker instead of being silently skipped.
+
+`BuildWithRegistry` is the internal extension boundary used to test and add workload adapters without adding another planner dispatch path.
 
 ## Action Model
 

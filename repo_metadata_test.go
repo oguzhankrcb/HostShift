@@ -248,7 +248,9 @@ func TestDocumentationWebsiteCoversProjectSurfaceArea(t *testing.T) {
 	config := readText(t, "docs-site/astro.config.mjs")
 	install := readText(t, "docs-site/src/content/docs/getting-started/install.md")
 	ai := readText(t, "docs-site/src/content/docs/reference/ai-integrations.md")
+	architecture := readText(t, "docs-site/src/content/docs/reference/architecture.md")
 	cli := readText(t, "docs-site/src/content/docs/reference/cli.md")
+	sourceSafety := readText(t, "docs-site/src/content/docs/concepts/source-safety.md")
 	profile := readText(t, "docs-site/src/content/docs/reference/profile-v2.md")
 	discovery := readText(t, "docs-site/src/content/docs/reference/source-discovery.md")
 	workloads := readText(t, "docs-site/src/content/docs/reference/workloads.md")
@@ -256,6 +258,7 @@ func TestDocumentationWebsiteCoversProjectSurfaceArea(t *testing.T) {
 	platforms := readText(t, "docs-site/src/content/docs/reference/platforms.md")
 	state := readText(t, "docs-site/src/content/docs/reference/plans-state.md")
 	matrix := readText(t, "docs-site/src/content/docs/reference/test-matrix.md")
+	docsDeployment := readText(t, "docs-site/src/content/docs/operations/docker-compose.md")
 
 	for _, slug := range []string{"reference/cli", "reference/ai-integrations", "reference/profile-v2", "reference/source-discovery", "reference/workloads", "reference/checks", "reference/platforms", "reference/plans-state", "reference/test-matrix"} {
 		requireMatch(t, config, regexp.QuoteMeta(slug))
@@ -268,6 +271,10 @@ func TestDocumentationWebsiteCoversProjectSurfaceArea(t *testing.T) {
 	requireMatch(t, ai, `hostshift_migration_operator`)
 	requireMatch(t, ai, `hostshift://source-safety`)
 	requireMatch(t, ai, "No MCP tool exposes `--apply`")
+	requireMatch(t, architecture, `production workload registry`)
+	requireMatch(t, architecture, `unregistered type creates a blocker`)
+	requireMatch(t, sourceSafety, `Source command validation is default-deny`)
+	requireMatch(t, sourceSafety, `unknown executables, alternate subcommands, arbitrary shell snippets`)
 	for _, command := range []string{"doctor", "discover", "plan", "explain", "review", "prepare", "sync", "verify", "cutover", "rollback", "capabilities", "mcp stdio", "mcp doctor", "profile migrate", "status", "resume", "policy source", "sbom", "matrix docker", "docker-e2e", "matrix vm", "vm-e2e"} {
 		requireMatch(t, cli, strings.ReplaceAll(regexp.QuoteMeta(command), " ", `\s+`))
 	}
@@ -300,6 +307,9 @@ func TestDocumentationWebsiteCoversProjectSurfaceArea(t *testing.T) {
 	requireMatch(t, matrix, `HOSTSHIFT_RUN_DOCKER_MATRIX=1 make test-integration-docker`)
 	requireMatch(t, matrix, `HOSTSHIFT_RUN_VM_E2E=1 bash tests/e2e/vm/run-vm-e2e\.sh --apply`)
 	requireMatch(t, matrix, `self-hosted, macOS, hostshift-vm`)
+	requireMatch(t, docsDeployment, `docs-site/compose\.production\.yml`)
+	requireMatch(t, docsDeployment, `127\.0\.0\.1:4321`)
+	requireMatch(t, docsDeployment, `TLS for .* is terminated by Cloudflare`)
 }
 
 func TestReleaseWorkflowPackagesOnlyAfterHostedReleaseGatesPass(t *testing.T) {

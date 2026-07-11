@@ -28,6 +28,8 @@ HostShift treats the source host as read-only infrastructure. This is not a conv
 
 ## How Violations Are Caught
 
-The safety layer rejects mutation-like source commands. The integration and VM matrices also capture source snapshots and verify that the source fixture state does not change after migration.
+Source command validation is default-deny. HostShift accepts only exact fact commands and typed read-only export shapes; unknown executables, alternate subcommands, arbitrary shell snippets, and additional arguments are rejected before SSH execution. This is stricter than searching commands for mutation-like words.
+
+The Docker integration and real VM matrices also capture source file checksums and service identities before and after migration. They fail when a source fixture file changes or a protected source service restarts.
 
 When HostShift cannot safely read a workload online, it must produce a blocker instead of pretending the workload was migrated.
