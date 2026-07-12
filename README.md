@@ -1,8 +1,8 @@
-<img alt="gemini-svg" src="https://github.com/user-attachments/assets/f4c9fe9a-619b-4345-b861-1633a76d840e" />
+![HostShift banner](docs/assets/hostshift-preview.png)
 
 # HostShift
 
-Move Ubuntu and Debian web servers without touching the source.
+Deterministic Ubuntu and Debian server migrations with auditable planning and verification.
 
 HostShift discovers a live server over SSH, builds a reviewable migration profile, prepares a clean target, streams data across, and verifies the result. It enforces a strictly read-only source policy: no source-side writes, no `sudo`, no service restarts, no package installs, no firewall changes, no keys added, no snapshots, no maintenance mode.
 
