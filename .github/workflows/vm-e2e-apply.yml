@@ -7,6 +7,10 @@ jobs:
   vm-e2e-apply:
     runs-on: [self-hosted, macOS, hostshift-vm]
     timeout-minutes: 240
+    env:
+      GO_CACHE: ${{ runner.temp }}/hostshift-go-build
+      GO_MOD_CACHE: ${{ runner.temp }}/hostshift-go-mod
+      GOFLAGS: -modcacherw
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v6
