@@ -1,3 +1,5 @@
+<img alt="gemini-svg" src="https://github.com/user-attachments/assets/f4c9fe9a-619b-4345-b861-1633a76d840e" />
+
 # HostShift
 
 Move Ubuntu and Debian web servers without touching the source.
