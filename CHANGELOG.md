@@ -2,8 +2,10 @@
 
 ## Unreleased
 
-## v0.3.0 - 2026-07-13
+## v0.3.0 - 2026-07-22
 
+- Isolated self-hosted runner Go caches from checkout state and disabled setup-go cache restoration to keep exact-commit VM release gates reproducible.
+- Updated the documentation toolchain to patched Astro and SVGO releases before public distribution.
 - Added Docker named-volume discovery and explicit snapshot, disposable, database-backed, and external migration strategies with full Docker matrix checksum coverage.
 - Added executable phase resume with atomic checkpoints, plan fingerprints, completed-step skipping, uncertain-action retry confirmation, per-run locking, and MCP status/resume previews.
 - Expanded real VM migration coverage with Apache vhosts, a standalone systemd application, confirmed target-only cutover, reboot persistence, and broader source checksums.
