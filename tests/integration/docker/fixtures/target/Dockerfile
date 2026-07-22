@@ -1,8 +1,10 @@
 ARG BASE_IMAGE=ubuntu:24.04
 FROM ${BASE_IMAGE}
 
-RUN apt-get update \
-  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+RUN find /etc/apt -type f \( -name '*.list' -o -name '*.sources' \) \
+    -exec sed -i 's|http://archive.ubuntu.com/ubuntu|mirror://mirrors.ubuntu.com/mirrors.txt|g' {} + \
+  && apt-get -o Acquire::Retries=5 update \
+  && DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=5 install -y --no-install-recommends \
     openssh-server \
     ca-certificates \
     curl \

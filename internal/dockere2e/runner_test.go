@@ -81,6 +81,9 @@ func TestDockerMatrixBuildsReusePackageLayers(t *testing.T) {
 	if strings.Contains(args, "--no-cache") {
 		t.Fatalf("matrix builds must reuse package layers: %s", args)
 	}
+	if env := strings.Join(dockerComposeBuildEnv(nil), " "); !strings.Contains(env, "COMPOSE_PARALLEL_LIMIT=1") {
+		t.Fatalf("matrix builds must serialize package downloads: %s", env)
+	}
 
 	repoRoot, err := findRepoRoot()
 	if err != nil {
@@ -91,9 +94,10 @@ func TestDockerMatrixBuildsReusePackageLayers(t *testing.T) {
 		"tests/integration/docker/fixtures/target/Dockerfile",
 	} {
 		body := readText(t, filepath.Join(repoRoot, relativePath))
-		install := strings.Index(body, "apt-get install")
+		mirror := strings.Index(body, "mirror://mirrors.ubuntu.com/mirrors.txt")
+		install := strings.Index(body, " install -y --no-install-recommends")
 		sshKey := strings.Index(body, "ARG SSH_PUBLIC_KEY")
-		if install < 0 || sshKey < 0 || install > sshKey {
+		if mirror < 0 || install < 0 || sshKey < 0 || mirror > install || install > sshKey {
 			t.Fatalf("%s must install packages before the per-pair SSH key layer", relativePath)
 		}
 	}

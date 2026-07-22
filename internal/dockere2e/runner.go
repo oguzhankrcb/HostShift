@@ -288,13 +288,14 @@ func (r runner) runPair(ctx context.Context, pair matrixPair, hostshift hostshif
 		return err
 	}
 	env := append(os.Environ(), "SOURCE_IMAGE="+pair.SourceImage, "TARGET_IMAGE="+pair.TargetImage, "SSH_PUBLIC_KEY="+strings.TrimSpace(string(publicKey)))
+	buildEnv := dockerComposeBuildEnv(env)
 
 	r.logStage(pair, "rendering compose config")
 	if _, err := r.runCommand(ctx, "docker", []string{"compose", "-p", project, "-f", "compose.yaml", "config"}, runOptions{CWD: r.composeDir, Env: env, TimeoutMs: commandTimeoutMs}); err != nil {
 		return err
 	}
 	r.logStage(pair, "building fixture images")
-	if _, err := r.runCommand(ctx, "docker", dockerComposeBuildArgs(project), runOptions{CWD: r.composeDir, Env: env, TimeoutMs: buildTimeoutMs}); err != nil {
+	if _, err := r.runCommand(ctx, "docker", dockerComposeBuildArgs(project), runOptions{CWD: r.composeDir, Env: buildEnv, TimeoutMs: buildTimeoutMs}); err != nil {
 		return err
 	}
 	defer func() {
@@ -356,6 +357,10 @@ func (r runner) runPair(ctx context.Context, pair matrixPair, hostshift hostshif
 
 func dockerComposeBuildArgs(project string) []string {
 	return []string{"compose", "-p", project, "-f", "compose.yaml", "build"}
+}
+
+func dockerComposeBuildEnv(env []string) []string {
+	return append(env, "COMPOSE_PARALLEL_LIMIT=1")
 }
 
 func (r runner) generateKeypair(ctx context.Context, keyPath string, timeoutMs int) error {
