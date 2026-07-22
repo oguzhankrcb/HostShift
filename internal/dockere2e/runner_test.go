@@ -73,6 +73,32 @@ exit 1
 	}
 }
 
+func TestDockerMatrixBuildsReusePackageLayers(t *testing.T) {
+	if defaultBuildTimeoutMs < 45*60*1000 {
+		t.Fatalf("expected slow-mirror build tolerance, got %dms", defaultBuildTimeoutMs)
+	}
+	args := strings.Join(dockerComposeBuildArgs("hostshift-test"), " ")
+	if strings.Contains(args, "--no-cache") {
+		t.Fatalf("matrix builds must reuse package layers: %s", args)
+	}
+
+	repoRoot, err := findRepoRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, relativePath := range []string{
+		"tests/integration/docker/fixtures/source/Dockerfile",
+		"tests/integration/docker/fixtures/target/Dockerfile",
+	} {
+		body := readText(t, filepath.Join(repoRoot, relativePath))
+		install := strings.Index(body, "apt-get install")
+		sshKey := strings.Index(body, "ARG SSH_PUBLIC_KEY")
+		if install < 0 || sshKey < 0 || install > sshKey {
+			t.Fatalf("%s must install packages before the per-pair SSH key layer", relativePath)
+		}
+	}
+}
+
 func TestSourceServiceSnapshotTracksPIDAndStartTime(t *testing.T) {
 	for _, expected := range []string{"/run/hostshift/source-service-pids", "/proc/${pid}/stat", "print $22"} {
 		if !strings.Contains(sourceServiceSnapshotScript, expected) {

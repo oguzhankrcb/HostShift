@@ -4,6 +4,7 @@
 
 ## v0.3.0 - 2026-07-22
 
+- Made the hosted Docker release matrix reuse package layers across pairs and tolerate slow distribution mirrors without weakening per-pair migration checks.
 - Made Lima VM release gates recover from interrupted runs by removing only deterministic HostShift test instances before boot and using an independent cleanup context after cancellation.
 - Isolated self-hosted runner Go caches from checkout state and disabled setup-go cache restoration to keep exact-commit VM release gates reproducible.
 - Updated the documentation toolchain to patched Astro and SVGO releases before public distribution.

@@ -19,7 +19,7 @@ import (
 
 const (
 	defaultCommandTimeoutMs = 10 * 60 * 1000
-	defaultBuildTimeoutMs   = 20 * 60 * 1000
+	defaultBuildTimeoutMs   = 45 * 60 * 1000
 )
 
 type runner struct {
@@ -294,7 +294,7 @@ func (r runner) runPair(ctx context.Context, pair matrixPair, hostshift hostshif
 		return err
 	}
 	r.logStage(pair, "building fixture images")
-	if _, err := r.runCommand(ctx, "docker", []string{"compose", "-p", project, "-f", "compose.yaml", "build", "--no-cache"}, runOptions{CWD: r.composeDir, Env: env, TimeoutMs: buildTimeoutMs}); err != nil {
+	if _, err := r.runCommand(ctx, "docker", dockerComposeBuildArgs(project), runOptions{CWD: r.composeDir, Env: env, TimeoutMs: buildTimeoutMs}); err != nil {
 		return err
 	}
 	defer func() {
@@ -352,6 +352,10 @@ func (r runner) runPair(ctx context.Context, pair matrixPair, hostshift hostshif
 	}
 	r.logStage(pair, "completed successfully")
 	return nil
+}
+
+func dockerComposeBuildArgs(project string) []string {
+	return []string{"compose", "-p", project, "-f", "compose.yaml", "build"}
 }
 
 func (r runner) generateKeypair(ctx context.Context, keyPath string, timeoutMs int) error {

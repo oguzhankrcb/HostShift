@@ -1,8 +1,5 @@
 ARG BASE_IMAGE=ubuntu:24.04
 FROM ${BASE_IMAGE}
-ARG SSH_PUBLIC_KEY
-
-COPY artisan /tmp/hostshift-artisan
 
 RUN apt-get update \
   && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -20,8 +17,12 @@ RUN apt-get update \
     rsync \
     tar \
     util-linux \
-  && rm -rf /var/lib/apt/lists/* \
-  && mkdir -p /run/sshd /root/.ssh \
+  && rm -rf /var/lib/apt/lists/*
+
+ARG SSH_PUBLIC_KEY
+COPY artisan /tmp/hostshift-artisan
+
+RUN mkdir -p /run/sshd /root/.ssh \
   && chmod 700 /root/.ssh \
   && printf '%s\n' "$SSH_PUBLIC_KEY" > /root/.ssh/authorized_keys \
   && chmod 600 /root/.ssh/authorized_keys \
