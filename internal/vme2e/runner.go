@@ -20,6 +20,7 @@ import (
 const (
 	defaultCommandTimeoutMs = 15 * 60 * 1000
 	limactlTimeoutMs        = 20 * 60 * 1000
+	limactlCleanupTimeout   = 2 * time.Minute
 	hostshiftTimeoutMs      = 10 * 60 * 1000
 	sshTimeoutMs            = 2 * 60 * 1000
 )
@@ -482,6 +483,10 @@ func (r runner) buildCommandPlan(workspaceDir string, sourcePlan, targetPlan ins
 	return commandPlan{
 		SourcePolicy: "strict-read-only",
 		Commands: [][]string{
+			{"limactl", "stop", targetPlan.InstanceName},
+			{"limactl", "delete", "--force", targetPlan.InstanceName},
+			{"limactl", "stop", sourcePlan.InstanceName},
+			{"limactl", "delete", "--force", sourcePlan.InstanceName},
 			{"limactl", "validate", template("source.lima.yaml")},
 			{"limactl", "validate", template("target.lima.yaml")},
 			{"limactl", "start", "--tty=false", "--name", sourcePlan.InstanceName, template("source.lima.yaml")},
@@ -527,12 +532,17 @@ func (r runner) executePair(ctx context.Context, workspace pairWorkspace) error 
 		if keepInstances {
 			return
 		}
-		for index := len(instances) - 1; index >= 0; index-- {
-			instance := instances[index]
-			_, _ = r.runCommand(ctx, "limactl", []string{"stop", instance.plan.InstanceName}, runOptions{CWD: workspace.Workspace, Capture: true, TimeoutMs: limactlTimeoutMs})
-			_, _ = r.runCommand(ctx, "limactl", []string{"delete", "--force", instance.plan.InstanceName}, runOptions{CWD: workspace.Workspace, Capture: true, TimeoutMs: limactlTimeoutMs})
-		}
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), limactlCleanupTimeout)
+		defer cancel()
+		r.cleanupInstances(cleanupCtx, workspace, instances)
 	}()
+
+	if !keepInstances {
+		r.logStep(workspace, "removing stale HostShift VM instances")
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), limactlCleanupTimeout)
+		r.cleanupInstances(cleanupCtx, workspace, instances)
+		cancel()
+	}
 
 	for _, instance := range instances {
 		templatePath := filepath.Join(workspace.Workspace, instance.filename)
@@ -590,6 +600,20 @@ func (r runner) executePair(ctx context.Context, workspace pairWorkspace) error 
 		return fmt.Errorf("source service immutability check failed for %s -> %s: before %q; after %q", workspace.Pair.Source, workspace.Pair.Target, beforeServices, afterServices)
 	}
 	return nil
+}
+
+func (r runner) cleanupInstances(ctx context.Context, workspace pairWorkspace, instances []struct {
+	filename string
+	plan     instancePlan
+}) {
+	for index := len(instances) - 1; index >= 0; index-- {
+		name := instances[index].plan.InstanceName
+		if !strings.HasPrefix(name, "hostshift-") {
+			continue
+		}
+		_, _ = r.runCommand(ctx, "limactl", []string{"stop", name}, runOptions{CWD: workspace.Workspace, Capture: true, TimeoutMs: limactlTimeoutMs})
+		_, _ = r.runCommand(ctx, "limactl", []string{"delete", "--force", name}, runOptions{CWD: workspace.Workspace, Capture: true, TimeoutMs: limactlTimeoutMs})
+	}
 }
 
 func (r runner) buildApplySSHConfig(ctx context.Context, workspace pairWorkspace) (string, error) {

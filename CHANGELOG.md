@@ -4,6 +4,7 @@
 
 ## v0.3.0 - 2026-07-22
 
+- Made Lima VM release gates recover from interrupted runs by removing only deterministic HostShift test instances before boot and using an independent cleanup context after cancellation.
 - Isolated self-hosted runner Go caches from checkout state and disabled setup-go cache restoration to keep exact-commit VM release gates reproducible.
 - Updated the documentation toolchain to patched Astro and SVGO releases before public distribution.
 - Added Docker named-volume discovery and explicit snapshot, disposable, database-backed, and external migration strategies with full Docker matrix checksum coverage.

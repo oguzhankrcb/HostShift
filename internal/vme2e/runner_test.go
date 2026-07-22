@@ -90,23 +90,26 @@ func TestRunnerRendersLimaTemplatesAndSourceSafeManifests(t *testing.T) {
 	}
 	commandList := commands["commands"].([]any)
 	firstCommand := stringSlice(commandList[0])
-	if len(firstCommand) < 2 || firstCommand[0] != "limactl" || firstCommand[1] != "validate" {
+	if got := strings.Join(firstCommand, " "); got != "limactl stop hostshift-ubuntu22-to-debian12-target" {
 		t.Fatalf("unexpected first command: %#v", firstCommand)
 	}
-	if !containsString(stringSlice(commandList[8]), "plan") || !containsString(stringSlice(commandList[11]), "cutover") || !containsString(stringSlice(commandList[13]), "verify") {
+	if got := strings.Join(stringSlice(commandList[3]), " "); got != "limactl delete --force hostshift-ubuntu22-to-debian12-source" {
+		t.Fatalf("unexpected stale instance cleanup command: %s", got)
+	}
+	if !containsString(stringSlice(commandList[12]), "plan") || !containsString(stringSlice(commandList[15]), "cutover") || !containsString(stringSlice(commandList[17]), "verify") {
 		t.Fatalf("expected hostshift plan/cutover/verify commands: %#v", commandList)
 	}
-	if !containsString(stringSlice(commandList[12]), "--apply") || !containsString(stringSlice(commandList[12]), "<confirmationCode>") {
-		t.Fatalf("expected confirmed cutover apply command: %#v", commandList[12])
+	if !containsString(stringSlice(commandList[16]), "--apply") || !containsString(stringSlice(commandList[16]), "<confirmationCode>") {
+		t.Fatalf("expected confirmed cutover apply command: %#v", commandList[16])
 	}
-	if got := strings.Join(stringSlice(commandList[14]), " "); got != "limactl stop hostshift-ubuntu22-to-debian12-target" {
+	if got := strings.Join(stringSlice(commandList[18]), " "); got != "limactl stop hostshift-ubuntu22-to-debian12-target" {
 		t.Fatalf("unexpected target stop command: %s", got)
 	}
-	if got := strings.Join(stringSlice(commandList[15]), " "); got != "limactl start hostshift-ubuntu22-to-debian12-target" {
+	if got := strings.Join(stringSlice(commandList[19]), " "); got != "limactl start hostshift-ubuntu22-to-debian12-target" {
 		t.Fatalf("unexpected target start command: %s", got)
 	}
-	if !containsString(stringSlice(commandList[18]), "verify") {
-		t.Fatalf("expected post-reboot verify command: %#v", commandList[18])
+	if !containsString(stringSlice(commandList[22]), "verify") {
+		t.Fatalf("expected post-reboot verify command: %#v", commandList[22])
 	}
 }
 
@@ -328,6 +331,9 @@ esac
 	}
 
 	log := readText(t, logPath)
+	if cleanup := strings.Index(log, "limactl delete --force hostshift-ubuntu22-to-debian12-source"); cleanup < 0 || cleanup > strings.Index(log, "limactl start --tty=false --name hostshift-ubuntu22-to-debian12-source") {
+		t.Fatalf("expected stale source cleanup before VM start:\n%s", log)
+	}
 	for _, expected := range []string{
 		"limactl --version",
 		"limactl validate",
