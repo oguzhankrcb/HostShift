@@ -77,12 +77,11 @@ func TestDockerMatrixBuildsReusePackageLayers(t *testing.T) {
 	if defaultBuildTimeoutMs < 45*60*1000 {
 		t.Fatalf("expected slow-mirror build tolerance, got %dms", defaultBuildTimeoutMs)
 	}
-	args := strings.Join(dockerComposeBuildArgs("hostshift-test"), " ")
-	if strings.Contains(args, "--no-cache") {
-		t.Fatalf("matrix builds must reuse package layers: %s", args)
-	}
-	if env := strings.Join(dockerComposeBuildEnv(nil), " "); !strings.Contains(env, "COMPOSE_PARALLEL_LIMIT=1") {
-		t.Fatalf("matrix builds must serialize package downloads: %s", env)
+	for _, service := range []string{"source", "target"} {
+		args := strings.Join(dockerComposeBuildArgs("hostshift-test", service), " ")
+		if strings.Contains(args, "--no-cache") || !strings.HasSuffix(args, "build "+service) {
+			t.Fatalf("matrix builds must reuse package layers and build services serially: %s", args)
+		}
 	}
 
 	repoRoot, err := findRepoRoot()
@@ -94,7 +93,7 @@ func TestDockerMatrixBuildsReusePackageLayers(t *testing.T) {
 		"tests/integration/docker/fixtures/target/Dockerfile",
 	} {
 		body := readText(t, filepath.Join(repoRoot, relativePath))
-		mirror := strings.Index(body, "mirror://mirrors.ubuntu.com/mirrors.txt")
+		mirror := strings.Index(body, "https://us.archive.ubuntu.com/ubuntu")
 		install := strings.Index(body, " install -y --no-install-recommends")
 		sshKey := strings.Index(body, "ARG SSH_PUBLIC_KEY")
 		if mirror < 0 || install < 0 || sshKey < 0 || mirror > install || install > sshKey {

@@ -49,7 +49,7 @@ bash tests/integration/docker/run-matrix.sh --list-images
 make docker-pull-fixtures
 ```
 
-Real mode pre-pulls the selected fixture base images before building source/target containers unless `HOSTSHIFT_DOCKER_SKIP_PREPULL=1` is set. Package installation layers use Ubuntu's official location-aware mirror index, build serially to avoid mirror contention, and are reused across matrix pairs while each pair still receives fresh containers and SSH credentials. `HOSTSHIFT_DOCKER_PULL_TIMEOUT_MS`, `HOSTSHIFT_DOCKER_BUILD_TIMEOUT_MS`, and `HOSTSHIFT_DOCKER_COMMAND_TIMEOUT_MS` can be used to shorten or lengthen diagnostics in local and CI environments.
+Real mode pre-pulls the selected fixture base images before building source/target containers unless `HOSTSHIFT_DOCKER_SKIP_PREPULL=1` is set. Package installation layers use the official US Ubuntu archive mirror, source and target images build serially to avoid mirror contention, and layers are reused across matrix pairs while each pair still receives fresh containers and SSH credentials. `HOSTSHIFT_DOCKER_PULL_TIMEOUT_MS`, `HOSTSHIFT_DOCKER_BUILD_TIMEOUT_MS`, and `HOSTSHIFT_DOCKER_COMMAND_TIMEOUT_MS` can be used to shorten or lengthen diagnostics in local and CI environments.
 
 Real mode currently does the following for each matrix pair:
 

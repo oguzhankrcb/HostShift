@@ -2,7 +2,9 @@ ARG BASE_IMAGE=ubuntu:24.04
 FROM ${BASE_IMAGE}
 
 RUN find /etc/apt -type f \( -name '*.list' -o -name '*.sources' \) \
-    -exec sed -i 's|http://archive.ubuntu.com/ubuntu|mirror://mirrors.ubuntu.com/mirrors.txt|g' {} + \
+    -exec sed -i \
+      -e 's|http://archive.ubuntu.com/ubuntu|https://us.archive.ubuntu.com/ubuntu|g' \
+      -e 's|http://security.ubuntu.com/ubuntu|https://us.archive.ubuntu.com/ubuntu|g' {} + \
   && apt-get -o Acquire::Retries=5 update \
   && DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=5 install -y --no-install-recommends \
     openssh-server \
