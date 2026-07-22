@@ -314,6 +314,7 @@ func TestDocumentationWebsiteCoversProjectSurfaceArea(t *testing.T) {
 
 func TestReleaseWorkflowPackagesOnlyAfterHostedReleaseGatesPass(t *testing.T) {
 	workflow := readText(t, ".github/workflows/release.yml")
+	goreleaser := readText(t, ".goreleaser.yaml")
 	for _, pattern := range []string{
 		`docker-matrix:`,
 		`HOSTSHIFT_RUN_DOCKER_MATRIX=1 make test-integration-docker`,
@@ -325,11 +326,16 @@ func TestReleaseWorkflowPackagesOnlyAfterHostedReleaseGatesPass(t *testing.T) {
 		`--status success`,
 		`needs:\n\s+- quick-gates\n\s+- docker-matrix\n\s+- vm-e2e-preflight\n\s+- vm-e2e-apply-gate`,
 		`sigstore/cosign-installer@v3`,
+		`version: v2\.17\.0`,
+		`name: Generate SPDX SBOM\n\s+run: go run ./cmd/hostshift sbom --output dist/hostshift\.sbom\.spdx\.json`,
 		`cosign sign-blob --yes`,
-		`gh release upload "\$GITHUB_REF_NAME" dist/checksums\.txt\.sig dist/checksums\.txt\.pem --clobber`,
+		`gh release upload "\$GITHUB_REF_NAME"[\s\S]*dist/checksums\.txt\.sig[\s\S]*dist/checksums\.txt\.pem[\s\S]*dist/hostshift\.sbom\.spdx\.json[\s\S]*--clobber`,
 		`actions/attest-build-provenance@v(?:[2-9]|[1-9][0-9]+)`,
 	} {
 		requireMatch(t, workflow, pattern)
+	}
+	if strings.Contains(goreleaser, "--output dist/") {
+		t.Fatal("GoReleaser before hooks must not populate dist before artifact generation")
 	}
 }
 

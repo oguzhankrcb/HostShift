@@ -5,7 +5,6 @@ project_name: hostshift
 before:
   hooks:
     - go mod tidy
-    - go run ./cmd/hostshift sbom --output dist/hostshift.sbom.spdx.json
 
 builds:
   - id: hostshift
