@@ -93,7 +93,7 @@ func TestDockerMatrixBuildsReusePackageLayers(t *testing.T) {
 		"tests/integration/docker/fixtures/target/Dockerfile",
 	} {
 		body := readText(t, filepath.Join(repoRoot, relativePath))
-		mirror := strings.Index(body, "http://us.archive.ubuntu.com/ubuntu")
+		mirror := strings.Index(body, "http://mirrors.edge.kernel.org/ubuntu")
 		install := strings.Index(body, " install -y --no-install-recommends")
 		sshKey := strings.Index(body, "ARG SSH_PUBLIC_KEY")
 		if mirror < 0 || install < 0 || sshKey < 0 || mirror > install || install > sshKey {
