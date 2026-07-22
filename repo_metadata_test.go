@@ -374,6 +374,10 @@ func TestCIWorkflowUsesHostedVMPreflightAndSelfHostedApplyGate(t *testing.T) {
 		`HOSTSHIFT_RUN_VM_E2E=1 bash tests/e2e/vm/run-vm-e2e\.sh --apply`,
 		`Upload Lima logs on failure`,
 		`~/\.lima/\*\*/ha\.stderr\.log`,
+		`cache: false`,
+		`GOCACHE: \$\{\{ runner\.temp \}\}/hostshift-go-build`,
+		`GOMODCACHE: \$\{\{ runner\.temp \}\}/hostshift-go-mod`,
+		`GOFLAGS: -modcacherw`,
 	} {
 		requireMatch(t, workflow, pattern)
 	}
@@ -381,8 +385,19 @@ func TestCIWorkflowUsesHostedVMPreflightAndSelfHostedApplyGate(t *testing.T) {
 
 func TestSelfHostedVMApplyWorkflowPreservesRealVMReleaseGate(t *testing.T) {
 	workflow := readText(t, ".github/workflows/vm-e2e-apply.yml")
-	requireMatch(t, workflow, `runs-on: \[self-hosted, macOS, hostshift-vm\]`)
-	requireMatch(t, workflow, `HOSTSHIFT_RUN_VM_E2E=1 bash tests/e2e/vm/run-vm-e2e\.sh --apply`)
+	for _, pattern := range []string{
+		`runs-on: \[self-hosted, macOS, hostshift-vm\]`,
+		`HOSTSHIFT_RUN_VM_E2E=1 bash tests/e2e/vm/run-vm-e2e\.sh --apply`,
+		`cache: false`,
+		`GOCACHE: \$\{\{ runner\.temp \}\}/hostshift-go-build`,
+		`GOMODCACHE: \$\{\{ runner\.temp \}\}/hostshift-go-mod`,
+		`GOFLAGS: -modcacherw`,
+	} {
+		requireMatch(t, workflow, pattern)
+	}
+	if strings.Contains(workflow, "GO_CACHE:") || strings.Contains(workflow, "GO_MOD_CACHE:") {
+		t.Fatal("self-hosted VM workflow must use Go's GOCACHE and GOMODCACHE environment variables")
+	}
 }
 
 func TestGitignoreExcludesProductionSecretsAndGeneratedArtifacts(t *testing.T) {
