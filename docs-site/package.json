@@ -9,7 +9,7 @@
     "preview": "ASTRO_TELEMETRY_DISABLED=1 astro preview --host 0.0.0.0"
   },
   "dependencies": {
-    "@astrojs/starlight": "0.41.3",
+    "@astrojs/starlight": "0.41.5",
     "astro": "7.1.3"
   },
   "devDependencies": {
